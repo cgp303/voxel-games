@@ -38,6 +38,7 @@ let frameCount = 0;
 
 renderer.renderer.setAnimationLoop(() => {
   frameCount++;
+
   const now = performance.now();
   if (now >= lastTime + 1000) {
     fpsDisplay.textContent = `FPS: ${frameCount}`;
@@ -53,7 +54,6 @@ async function initializeTerrain() {
     // Generate terrain from preset config
     const generator = new TerrainGenerator(DEFAULT_TERRAIN_CONFIG);
     const terrain = generator.generate();
-    console.log('Generated terrain:', terrain.size);
 
     // Create voxel world and populate with terrain data
     const world = new VoxelWorld();
@@ -73,7 +73,7 @@ async function initializeTerrain() {
     scene.createLights();
 
     // ===== CAMERA =====
-    const angleDeg = 45;
+    const angleDeg = 33;
     const angleRad = angleDeg * Math.PI / 180;
     const distance = Math.max(terrainWidth, terrainDepth) * 0.65;
     const cameraY = terrainHeight * 0.5 + (distance * 1.25) * Math.sin(angleRad);
@@ -119,7 +119,6 @@ async function initializeTerrain() {
         const x = startX + (col - (cols - 1) / 2) * spacing;
         const z = startZ + (row - (rows - 1) / 2) * spacing;
 
-        console.log(x + " : " + z);
         const y = terrainHeight + 8; // Place on top of terrain
 
         instance.position.set(x, y, z);

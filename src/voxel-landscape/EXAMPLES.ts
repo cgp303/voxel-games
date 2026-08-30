@@ -88,7 +88,7 @@ export function example3_CustomTerrain(scene: THREE.Scene) {
             { height: 0.50, color: { r: 120, g: 160, b: 200 } },  // Mid blue
             { height: 0.75, color: { r: 100, g: 130, b: 160 } },  // Slate grey-blue
             { height: 1.00, color: { r: 240, g: 240, b: 255 } },  // Bright white peak
-        ]
+        ],
 
 
         seed: 99999,

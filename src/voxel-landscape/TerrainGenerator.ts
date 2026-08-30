@@ -20,32 +20,51 @@ export class TerrainGenerator {
     }
 
     /**
-     * Generate the heightmap using fractal brownian motion
+     * Generate a tileable heightmap using torus-mapped 4D simplex noise
      */
     private generateHeightmap(): void {
         this.heightmap = [];
 
-        for (let z = 0; z < this.config.depth; z++) {
-            const row: number[] = [];
-            for (let x = 0; x < this.config.width; x++) {
-                // Scale coordinates by noiseScale
-                const nx = (x / this.config.noiseScale) * 0.5;
-                const ny = (z / this.config.noiseScale) * 0.5;
+        const width = this.config.width;
+        const depth = this.config.depth;
+        const tileSize = this.config.tileSize; // <-- add this to your config
+        const scale = this.config.noiseScale;
 
-                // Get fractal noise value (0-1)
-                let height = this.noiseGenerator.getPerlinNoise(
-                    nx,
-                    ny,
+        for (let z = 0; z < depth; z++) {
+            const row: number[] = [];
+
+            for (let x = 0; x < width; x++) {
+
+                // Convert (x,z) into normalized tile coordinates
+                const u = x / tileSize;
+                const v = z / tileSize;
+
+                // Map onto a 4D torus
+                const nx = Math.cos(2 * Math.PI * u);
+                const ny = Math.sin(2 * Math.PI * u);
+                const nz = Math.cos(2 * Math.PI * v);
+                const nw = Math.sin(2 * Math.PI * v);
+
+                // Sample 4D simplex noise (tileable)
+                let height = this.noiseGenerator.getPerlinNoise4D(
+                    nx * scale,
+                    ny * scale,
+                    nz * scale,
+                    nw * scale,
                     this.config.noiseOctaves,
                     this.config.noisePersistence,
-                    this.config.noiseLacunarity,
+                    this.config.noiseLacunarity
                 );
 
-                // Apply height curve exponent for more control over terrain shape
+                // Normalize noise4D output (-1..1) → (0..1)
+                height = (height + 1) * 0.5;
+
+                // Apply height curve exponent
                 height = Math.pow(height, 1 / this.config.noiseExponent);
 
                 row.push(height);
             }
+
             this.heightmap.push(row);
         }
     }

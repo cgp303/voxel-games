@@ -12,6 +12,7 @@ export interface TerrainConfig {
     width: number; // X dimension (columns)
     depth: number; // Z dimension (rows)
     maxHeight: number; // Y dimension (max voxel height, e.g., 32)
+    tileSize: number; // Size of each terrain tile (for tiling noise)
 
     // Noise parameters
     noiseScale: number; // Frequency/zoom of noise (lower = more zoomed in, more variation)
@@ -35,12 +36,13 @@ export interface TerrainConfig {
  * Default terrain configuration - balanced for a retro voxel landscape
  */
 export const DEFAULT_TERRAIN_CONFIG: TerrainConfig = {
-    width: 512,
-    depth: 512,
-    maxHeight: 6,
+    width: 256,
+    depth: 256,
+    maxHeight: 16,
+    tileSize: 256, // same as the direction you want terrain to scroll in. here 'depth'.
 
-    noiseScale: 25, // ~50 unit wavelength terrain features
-    noiseOctaves: 4,
+    noiseScale: 1, // ~50 unit wavelength terrain features
+    noiseOctaves: 3,
     noisePersistence: 0.5,
     noiseLacunarity: 1.5,
     noiseExponent: 1.2, // Slightly peaked for more variation at mid-heights
@@ -77,21 +79,21 @@ export const DEFAULT_TERRAIN_CONFIG: TerrainConfig = {
     //     { height: 1.00, color: { r: 200, g: 210, b: 220 } },   // Dimmed pale crest (not pure white)
     // ],
 
-    // colorBands: [
-    //     { height: 0.00, color: { r: 2, g: 2, b: 4 } },       // Absolute void black-blue
-    //     { height: 0.25, color: { r: 8, g: 10, b: 14 } },      // Subsurface black-grey
-    //     { height: 0.60, color: { r: 20, g: 24, b: 24 } },      // Crushed midnight slate
-    //     { height: 0.85, color: { r: 50, g: 55, b: 60 } },      // Faint abyssal steel-blue
-    //     { height: 1.00, color: { r: 160, g: 170, b: 180 } },   // Dim ghost-grey crest
-    // ],
-
     colorBands: [
-        { height: 0.00, color: { r: 3, g: 0, b: 0 } },     // Absolute void‑black with a blood tint
-        { height: 0.25, color: { r: 12, g: 2, b: 2 } },     // Subsurface black‑crimson
-        { height: 0.60, color: { r: 28, g: 6, b: 6 } },     // Crushed dark‑red slate
-        { height: 0.85, color: { r: 70, g: 20, b: 20 } },    // Faint abyssal red‑steel
-        { height: 1.00, color: { r: 160, g: 40, b: 40 } },    // Ghost‑red crest (dim, not bright)
+        { height: 0.00, color: { r: 2, g: 2, b: 4 } },       // Absolute void black-blue
+        { height: 0.25, color: { r: 8, g: 10, b: 14 } },      // Subsurface black-grey
+        { height: 0.60, color: { r: 20, g: 24, b: 24 } },      // Crushed midnight slate
+        { height: 0.85, color: { r: 50, g: 55, b: 60 } },      // Faint abyssal steel-blue
+        { height: 1.00, color: { r: 160, g: 170, b: 180 } },   // Dim ghost-grey crest
     ],
+
+    // colorBands: [
+    //     { height: 0.00, color: { r: 3, g: 0, b: 0 } },     // Absolute void‑black with a blood tint
+    //     { height: 0.25, color: { r: 12, g: 2, b: 2 } },     // Subsurface black‑crimson
+    //     { height: 0.60, color: { r: 28, g: 6, b: 6 } },     // Crushed dark‑red slate
+    //     { height: 0.85, color: { r: 70, g: 20, b: 20 } },    // Faint abyssal red‑steel
+    //     { height: 1.00, color: { r: 160, g: 40, b: 40 } },    // Ghost‑red crest (dim, not bright)
+    // ],
 
 
     // colorBands: [
@@ -110,10 +112,28 @@ export const DEFAULT_TERRAIN_CONFIG: TerrainConfig = {
     //     { height: 1.00, color: { r: 240, g: 240, b: 240 } },   // White peak
     // ],
 
-    seed: 12345,
+    seed: 11911,
     enableSlopeVariation: true,
     slopeColorShift: 0.1,
 };
+
+export const CRYSTAL_TERRAIN_CONFIG: TerrainConfig = {
+    ...DEFAULT_TERRAIN_CONFIG,
+    noiseScale: 0.65,
+    noiseOctaves: 3,
+    noiseExponent: 0.55,
+    noisePersistence: 0.45,
+    noiseLacunarity: 0.55,
+    colorBands: [
+        { height: 0.00, color: { r: 10, g: 10, b: 20 } },   // Deep crystal base
+        { height: 0.25, color: { r: 30, g: 30, b: 60 } },   // Subsurface crystal
+        { height: 0.60, color: { r: 60, g: 60, b: 120 } },  // Mid crystal
+        { height: 0.85, color: { r: 120, g: 120, b: 200 } }, // Light crystal
+        { height: 1.00, color: { r: 200, g: 200, b: 255 } }, // Crystal peak
+    ],
+    seed: 98765,
+};
+
 
 /**
  * Flatten terrain config - minimal height variation for testing
