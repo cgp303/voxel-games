@@ -66,6 +66,7 @@ export function example3_CustomTerrain(scene: THREE.Scene) {
         width: 64,
         depth: 64,
         maxHeight: 24,
+        tileSize: 64,
 
         noiseScale: 30,
         noiseOctaves: 5,
