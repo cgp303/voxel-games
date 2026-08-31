@@ -1,6 +1,7 @@
-﻿import type { GameContext } from '../app/GameContext';
+import type { GameContext } from '../app/GameContext';
 import type { Screen } from './Screen';
 import type { DemoScreen } from './DemoScreen';
+import type { GameOverScreen } from './GameOverScreen';
 
 /**
  * Gameplay mode over the shared PlayField.
@@ -11,10 +12,12 @@ export class PlayScreen implements Screen {
 
   private ctx: GameContext | null = null;
   private demoScreen: DemoScreen | null = null;
+  private gameOverScreen: GameOverScreen | null = null;
   private hud: HTMLDivElement | null = null;
 
-  public setTransitions(demo: DemoScreen): void {
+  public setTransitions(demo: DemoScreen, gameOver: GameOverScreen): void {
     this.demoScreen = demo;
+    this.gameOverScreen = gameOver;
   }
 
   public enter(ctx: GameContext): void {
@@ -28,7 +31,7 @@ export class PlayScreen implements Screen {
 
     this.ensureHud();
     this.refreshHud();
-    console.log('[PlayScreen] enter — Esc returns to Demo');
+    console.log('[PlayScreen] enter - Esc returns to Demo, G triggers Game Over');
   }
 
   public exit(): void {
@@ -42,20 +45,19 @@ export class PlayScreen implements Screen {
 
   public update(_dt: number): void {
     const ctx = this.ctx;
-    if (!ctx || !this.demoScreen) return;
+    if (!ctx || !this.demoScreen || !this.gameOverScreen) return;
 
     this.refreshHud();
 
+    // Quit play: skip game-over card
     if (ctx.input.wasPressed('Escape')) {
       void ctx.screens.set(this.demoScreen);
       return;
     }
 
-    // Placeholder game-over: return to demo on high-score attract panel
+    // Placeholder real game-over path
     if (ctx.input.wasPressed('g') || ctx.input.wasPressed('G')) {
-      void ctx.screens.set(this.demoScreen).then(() => {
-        this.demoScreen?.showHighScores();
-      });
+      void ctx.screens.set(this.gameOverScreen);
     }
   }
 
@@ -63,19 +65,19 @@ export class PlayScreen implements Screen {
     if (this.hud) return;
     const el = document.createElement('div');
     el.id = 'play-hud';
-    el.style.cssText = `
-      position: fixed;
-      top: 20px;
-      left: 20px;
-      background: rgba(0, 0, 0, 0.7);
-      color: #7CFF7C;
-      padding: 10px 14px;
-      font-family: "Courier New", monospace;
-      font-size: 14px;
-      z-index: 90;
-      border: 1px solid #00ff66;
-      pointer-events: none;
-    `;
+    el.style.cssText = [
+      'position: fixed',
+      'top: 20px',
+      'left: 20px',
+      'background: rgba(0, 0, 0, 0.7)',
+      'color: #7CFF7C',
+      'padding: 10px 14px',
+      'font-family: Courier New, monospace',
+      'font-size: 14px',
+      'z-index: 90',
+      'border: 1px solid #00ff66',
+      'pointer-events: none',
+    ].join(';');
     document.body.appendChild(el);
     this.hud = el;
   }
@@ -88,6 +90,6 @@ export class PlayScreen implements Screen {
   private refreshHud(): void {
     if (!this.hud || !this.ctx) return;
     const g = this.ctx.game;
-    this.hud.textContent = `SCORE ${g.score}   LIVES ${g.lives}   ESC=Demo  G=GameOver`;
+    this.hud.textContent = 'SCORE ' + g.score + '   LIVES ' + g.lives + '   ESC=Demo  G=GameOver';
   }
 }

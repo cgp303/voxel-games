@@ -9,6 +9,7 @@ import { AssetManager } from '../assets/AssetManager';
 import { ScreenManager } from '../screens/ScreenManager';
 import { DemoScreen } from '../screens/DemoScreen';
 import { PlayScreen } from '../screens/PlayScreen';
+import { GameOverScreen } from '../screens/GameOverScreen';
 import { Game } from './Game';
 import type { GameContext } from './GameContext';
 import { loadHighScores } from '../data/highscores';
@@ -16,9 +17,10 @@ import { TerrainService } from '../world/TerrainService';
 import { PlayField } from '../world/PlayField';
 import { CRYSTAL_TERRAIN_CONFIG, DEFAULT_TERRAIN_CONFIG } from '../voxel-landscape/TerrainConfig';
 
+
 /**
  * Application root: builds shared core + world, wires Engine loop, starts Demo.
- * Top-level screens: Demo (attract + high scores) and Play only.
+ * Top-level screens: Demo (attract + high scores), Play, and Game Over.
  */
 export class App {
     private readonly scene: GameScene;
@@ -35,6 +37,7 @@ export class App {
 
     private readonly demoScreen = new DemoScreen();
     private readonly playScreen = new PlayScreen();
+    private readonly gameOverScreen = new GameOverScreen();
 
     private fpsDisplay: HTMLDivElement | null = null;
     private frameCount = 0;
@@ -48,7 +51,8 @@ export class App {
         this.renderer.setCamera(this.camera);
 
         this.demoScreen.setTransitions(this.playScreen);
-        this.playScreen.setTransitions(this.demoScreen);
+        this.playScreen.setTransitions(this.demoScreen, this.gameOverScreen);
+        this.gameOverScreen.setTransitions(this.demoScreen);
 
         const ctx: GameContext = {
             scene: this.scene,

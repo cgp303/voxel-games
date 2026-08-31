@@ -15,3 +15,7 @@ export const DEMO = {
     /** Seconds each attract panel stays visible before swapping */
     attractPanelSeconds: 6,
 } as const;
+
+export const GAME_OVER = {
+    displaySeconds: 3,
+} as const;

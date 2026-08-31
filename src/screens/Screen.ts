@@ -1,7 +1,7 @@
 import type { GameContext } from '../app/GameContext';
 
 /**
- * One active top-level mode (Demo or Play).
+ * One active top-level mode (Demo or Play or Game Over).
  * High scores are an attract panel on Demo, not a separate screen.
  * Screens own mode-specific objects; shared core lives on GameContext.
  */
