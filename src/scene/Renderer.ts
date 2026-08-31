@@ -75,6 +75,10 @@ export class GameRenderer {
         }
     }
 
+    /**
+     * @deprecated Prefer core/Engine for the game loop (Phase 0+).
+     * Kept for legacy/debug; App must not call this alongside Engine.
+     */
     public startAnimation() {
         const animate = () => {
             this.animationId = requestAnimationFrame(animate);

@@ -36,12 +36,12 @@ export interface TerrainConfig {
  * Default terrain configuration - balanced for a retro voxel landscape
  */
 export const DEFAULT_TERRAIN_CONFIG: TerrainConfig = {
-    width: 256,
-    depth: 256,
+    width: 384,
+    depth: 512,
     maxHeight: 16,
-    tileSize: 256, // same as the direction you want terrain to scroll in. here 'depth'.
+    tileSize: 512, // same as the direction you want terrain to scroll in. here 'depth'.
 
-    noiseScale: 1, // ~50 unit wavelength terrain features
+    noiseScale: 4, // ~50 unit wavelength terrain features
     noiseOctaves: 3,
     noisePersistence: 0.5,
     noiseLacunarity: 1.5,
@@ -119,17 +119,17 @@ export const DEFAULT_TERRAIN_CONFIG: TerrainConfig = {
 
 export const CRYSTAL_TERRAIN_CONFIG: TerrainConfig = {
     ...DEFAULT_TERRAIN_CONFIG,
-    noiseScale: 0.65,
-    noiseOctaves: 3,
-    noiseExponent: 0.55,
-    noisePersistence: 0.45,
-    noiseLacunarity: 0.55,
+    noiseScale: 3,
+    noiseOctaves: 6,
+    noiseExponent: 0.3,
+    noisePersistence: 0.25,
+    noiseLacunarity: 0.15,
     colorBands: [
-        { height: 0.00, color: { r: 10, g: 10, b: 20 } },   // Deep crystal base
-        { height: 0.25, color: { r: 30, g: 30, b: 60 } },   // Subsurface crystal
-        { height: 0.60, color: { r: 60, g: 60, b: 120 } },  // Mid crystal
-        { height: 0.85, color: { r: 120, g: 120, b: 200 } }, // Light crystal
-        { height: 1.00, color: { r: 200, g: 200, b: 255 } }, // Crystal peak
+        { height: 0.00, color: { r: 20, g: 25, b: 35 } },    // Abyssal blue-black
+        { height: 0.25, color: { r: 40, g: 45, b: 55 } },    // Charcoal navy
+        { height: 0.40, color: { r: 35, g: 35, b: 40 } },    // Iron grey
+        { height: 0.65, color: { r: 150, g: 80, b: 40 } },    // Ember orange-brown
+        { height: 0.70, color: { r: 200, g: 40, b: 10 } },    // Brooding volcanic red
     ],
     seed: 98765,
 };
