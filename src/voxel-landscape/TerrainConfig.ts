@@ -36,12 +36,12 @@ export interface TerrainConfig {
  * Default terrain configuration - balanced for a retro voxel landscape
  */
 export const DEFAULT_TERRAIN_CONFIG: TerrainConfig = {
-    width: 256,
-    depth: 256,
+    width: 384,
+    depth: 512,
     maxHeight: 16,
-    tileSize: 256, // same as the direction you want terrain to scroll in. here 'depth'.
+    tileSize: 512, // same as the direction you want terrain to scroll in. here 'depth'.
 
-    noiseScale: 1, // ~50 unit wavelength terrain features
+    noiseScale: 4, // ~50 unit wavelength terrain features
     noiseOctaves: 3,
     noisePersistence: 0.5,
     noiseLacunarity: 1.5,
@@ -119,10 +119,10 @@ export const DEFAULT_TERRAIN_CONFIG: TerrainConfig = {
 
 export const CRYSTAL_TERRAIN_CONFIG: TerrainConfig = {
     ...DEFAULT_TERRAIN_CONFIG,
-    noiseScale: 1.5,
-    noiseOctaves: 3,
+    noiseScale: 3,
+    noiseOctaves: 6,
     noiseExponent: 0.3,
-    noisePersistence: 0.45,
+    noisePersistence: 0.25,
     noiseLacunarity: 0.15,
     colorBands: [
         { height: 0.00, color: { r: 20, g: 25, b: 35 } },    // Abyssal blue-black

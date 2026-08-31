@@ -78,6 +78,7 @@ export class App {
 
         // Engine owns the only animation loop (do not call renderer.startAnimation)
         this.engine.setTick((time) => {
+            this.playField.updateScroll(time.delta);
             this.screens.update(time.delta);
             this.renderer.render();
             this.input.endFrame();
@@ -92,7 +93,7 @@ export class App {
         }
 
         await this.screens.set(this.demoScreen);
-        console.log('[App] started — Demo with static terrain + invaders');
+        console.log('[App] started — Demo with scrolling terrain + invaders');
     }
 
     public stop(): void {
@@ -105,14 +106,14 @@ export class App {
     private async bootstrapWorld(): Promise<void> {
         if (this.worldReady) return;
 
-        console.log('[App] generating terrain…');
-        const terrain = this.terrainService.buildStatic(CRYSTAL_TERRAIN_CONFIG);
-        this.playField.setTerrain(terrain);
+        console.log('[App] generating scrolling terrain…');
+        const terrain = this.terrainService.buildScrollingPair(CRYSTAL_TERRAIN_CONFIG);
+        this.playField.setScrollingTerrain(terrain);
 
         this.scene.setTerrainDimensions({
             w: terrain.width,
             h: terrain.height,
-            d: terrain.depth,
+            d: terrain.tileDepth,
         });
         this.scene.createLights();
 
@@ -129,7 +130,7 @@ export class App {
 
         this.worldReady = true;
         console.log(
-            `[App] world ready — terrain ${terrain.width}x${terrain.depth}, invaders ${this.playField.invaderCount}`,
+            `[App] world ready — terrain ${terrain.width}x${terrain.tileDepth} (x2 scroll), invaders ${this.playField.invaderCount}`,
         );
     }
 

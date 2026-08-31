@@ -1,7 +1,10 @@
 ﻿import * as THREE from 'three';
 import type { GameCamera } from '../scene/Camera';
-import { CAMERA, GAME } from '../data/constants';
-import type { TerrainBuildResult } from './TerrainService';
+import { CAMERA, GAME, TERRAIN } from '../data/constants';
+import type {
+    ScrollingTerrainBuildResult,
+    TerrainBuildResult,
+} from './TerrainService';
 
 export interface InvaderGridOptions {
     cols?: number;
@@ -15,43 +18,135 @@ export interface InvaderGridOptions {
 
 /**
  * Play area: terrain + formation under one root group.
- * Built once by App and shared across Demo/Play.
+ * Built once by App and shared across Demo/Play/GameOver.
+ *
+ * Terrain lives under terrainRoot (may scroll).
+ * Invaders live under invaderRoot (do NOT parent under terrain).
  */
 export class PlayField {
     public readonly root: THREE.Group;
     public bounds = { width: 0, height: 0, depth: 0 };
 
+    private readonly terrainRoot: THREE.Group;
+    private readonly invaderRoot: THREE.Group;
+
+    /** Legacy single-tile path */
     private terrainMesh: THREE.Mesh | null = null;
-    private invaderRoot: THREE.Group;
+
+    /** Scrolling pair */
+    private terrainMeshA: THREE.Mesh | null = null;
+    private terrainMeshB: THREE.Mesh | null = null;
+    private tileDepth = 0;
+    private scrollSpeedZ: number = TERRAIN.scrollSpeedZ;
+    private scrollEnabled: boolean = TERRAIN.scrollEnabledDefault;
 
     constructor() {
         this.root = new THREE.Group();
         this.root.name = 'PlayField';
+
+        this.terrainRoot = new THREE.Group();
+        this.terrainRoot.name = 'TerrainRoot';
+        this.root.add(this.terrainRoot);
+
         this.invaderRoot = new THREE.Group();
         this.invaderRoot.name = 'Invaders';
         this.root.add(this.invaderRoot);
     }
 
+    /**
+     * Legacy: one static terrain mesh (no scroll pair).
+     * Still supported so Step 2 can land before App wiring.
+     */
     public setTerrain(result: TerrainBuildResult): void {
-        if (this.terrainMesh) {
-            this.root.remove(this.terrainMesh);
-            disposeObject3D(this.terrainMesh);
-            this.terrainMesh = null;
-        }
+        this.clearTerrainOnly();
 
         this.terrainMesh = result.mesh;
-        this.root.add(result.mesh);
+        this.terrainRoot.add(result.mesh);
+        this.tileDepth = result.depth;
         this.setBounds(result.width, result.height, result.depth);
+    }
+
+    /**
+     * Two Z-abutted tiles. Call updateScroll(dt) each frame to animate.
+     * terrainRoot is shifted so the pair is centered on Z around 0 at start.
+     */
+    public setScrollingTerrain(result: ScrollingTerrainBuildResult): void {
+        this.clearTerrainOnly();
+
+        this.terrainMeshA = result.meshA;
+        this.terrainMeshB = result.meshB;
+        this.tileDepth = result.tileDepth;
+
+        this.terrainRoot.add(result.meshA);
+        this.terrainRoot.add(result.meshB);
+
+        // Pair spans [0, 2*tileDepth] in local mesh space; center that belt on z=0
+        this.terrainRoot.position.set(0, 0, -result.tileDepth);
+
+        this.setBounds(result.width, result.height, result.tileDepth);
     }
 
     public setBounds(width: number, height: number, depth: number): void {
         this.bounds = { width, height, depth };
     }
 
+    public setScrollSpeed(speedZ: number): void {
+        this.scrollSpeedZ = speedZ;
+    }
+
+    public setScrollEnabled(enabled: boolean): void {
+        this.scrollEnabled = enabled;
+    }
+
+    public getScrollEnabled(): boolean {
+        return this.scrollEnabled;
+    }
+
+    /**
+     * Slide both tiles on Z and wrap when one fully leaves the belt.
+     * Safe no-op if scrolling pair is not set or scroll is disabled.
+     */
+    public updateScroll(dt: number): void {
+        if (!this.scrollEnabled || !this.terrainMeshA || !this.terrainMeshB) {
+            return;
+        }
+        if (this.tileDepth <= 0 || dt === 0) return;
+
+        const dz = this.scrollSpeedZ * dt;
+        this.terrainMeshA.position.z += dz;
+        this.terrainMeshB.position.z += dz;
+
+        // Meshes start at z=0 and z=tileDepth (local). After centering via terrainRoot,
+        // wrap when a tile has scrolled one full tile length out of the 2-tile window.
+        this.wrapTile(this.terrainMeshA);
+        this.wrapTile(this.terrainMeshB);
+    }
+
+    private wrapTile(mesh: THREE.Mesh): void {
+        const depth = this.tileDepth;
+        const quarterDepth = depth / 1.8;
+        // Positive scroll (+Z): when tile goes past the far end of the 2-tile span,
+        // jump it back by 2*depth so it leads again.
+        // Negative scroll (−Z): mirror.
+        if (this.scrollSpeedZ >= 0) {
+            // Local positions drift upward; keep each tile inside ~[0, 2*depth)
+            if (mesh.position.z >= depth * 2) {
+                mesh.position.z -= depth * 2;
+            }
+        } else {
+            if (mesh.position.z < -quarterDepth) {
+                mesh.position.z += depth * 2;
+            }
+        }
+    }
+
     /**
      * Clone invader template into a classic Galaga-style grid above the terrain.
      */
-    public spawnInvaderGrid(template: THREE.Object3D, options: InvaderGridOptions = {}): void {
+    public spawnInvaderGrid(
+        template: THREE.Object3D,
+        options: InvaderGridOptions = {},
+    ): void {
         this.clearInvaders();
 
         const cols = options.cols ?? GAME.invaderCols;
@@ -91,11 +186,20 @@ export class PlayField {
 
     public clear(): void {
         this.clearInvaders();
-        if (this.terrainMesh) {
-            this.root.remove(this.terrainMesh);
-            disposeObject3D(this.terrainMesh);
-            this.terrainMesh = null;
+        this.clearTerrainOnly();
+    }
+
+    private clearTerrainOnly(): void {
+        while (this.terrainRoot.children.length > 0) {
+            const child = this.terrainRoot.children[0];
+            this.terrainRoot.remove(child);
+            disposeObject3D(child);
         }
+        this.terrainMesh = null;
+        this.terrainMeshA = null;
+        this.terrainMeshB = null;
+        this.tileDepth = 0;
+        this.terrainRoot.position.set(0, 0, 0);
     }
 
     public attachTo(scene: THREE.Scene): void {

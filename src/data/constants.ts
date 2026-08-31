@@ -19,3 +19,11 @@ export const DEMO = {
 export const GAME_OVER = {
     displaySeconds: 3,
 } as const;
+
+/** Infinite-looking ground: two meshes loop on Z */
+export const TERRAIN = {
+    /** World units per second along Z (positive = +Z) */
+    scrollSpeedZ: -12,
+    /** When false, PlayField.updateScroll is a no-op */
+    scrollEnabledDefault: true,
+} as const;
