@@ -61,12 +61,12 @@ export class GameOverScreen implements Screen {
     const el = document.createElement('div');
     el.id = 'game-over-overlay';
     el.style.cssText = `
-      position: fixed;
+      position: absolute;
       left: 50%;
       top: 42%;
       transform: translate(-50%, -50%);
       min-width: 280px;
-      max-width: min(420px, 90vw);
+      max-width: 90%;
       padding: 24px 28px;
       background: rgba(0, 0, 0, 0.82);
       color: #7CFF7C;
@@ -80,7 +80,7 @@ export class GameOverScreen implements Screen {
       pointer-events: none;
       white-space: pre-line;
     `;
-    document.body.appendChild(el);
+    document.getElementById('ui-root')?.appendChild(el);
     this.overlay = el;
   }
 

@@ -15,7 +15,9 @@ import type { GameContext } from './GameContext';
 import { loadHighScores } from '../data/highscores';
 import { TerrainService } from '../world/TerrainService';
 import { PlayField } from '../world/PlayField';
-import { CRYSTAL_TERRAIN_CONFIG, DEFAULT_TERRAIN_CONFIG } from '../voxel-landscape/TerrainConfig';
+import { CRYSTAL_TERRAIN_CONFIG } from '../voxel-landscape/TerrainConfig';
+import { VIEW } from '../data/constants';
+import { getUiRoot } from '../core/viewport';
 
 
 /**
@@ -70,6 +72,8 @@ export class App {
         this.game.highScores = loadHighScores();
         this.createFpsDisplay();
 
+        // Initial frame fit (Renderer also fits in ctor; re-assert after FPS mount)
+        this.onResize();
         window.addEventListener('resize', () => this.onResize());
     }
 
@@ -93,7 +97,7 @@ export class App {
         }
 
         await this.screens.set(this.demoScreen);
-        console.log('[App] started — Demo with scrolling terrain + invaders');
+        console.log('[App] started — Demo attract + invader entry intro');
     }
 
     public stop(): void {
@@ -118,9 +122,10 @@ export class App {
         this.scene.createLights();
 
         console.log('[App] loading invader asset…');
-        await this.assets.loadManifestAsset('invader');
-        const invaderTemplate = this.assets.getOrCreateMeshTemplate('invader');
-        this.playField.spawnInvaderGrid(invaderTemplate);
+        await this.assets.loadManifestAsset('invader1');
+        // Cache mesh template for EntryDirector / PlaySession (Phase 5+).
+        // Combat invaders are not pre-placed; Demo/Play intro spawns them off-stage.
+        this.assets.getOrCreateMeshTemplate('invader1');
 
         this.playField.attachTo(this.scene.scene);
         this.playField.frameCamera(this.camera);
@@ -130,20 +135,21 @@ export class App {
 
         this.worldReady = true;
         console.log(
-            `[App] world ready — terrain ${terrain.width}x${terrain.tileDepth} (x2 scroll), invaders ${this.playField.invaderCount}`,
+            `[App] world ready — terrain ${terrain.width}x${terrain.tileDepth} (x2 scroll), invader template cached (no static grid)`,
         );
     }
 
     private onResize(): void {
+        this.renderer.applyFrameToWindow();
         this.camera.onWindowResize();
-        this.renderer.onWindowResize();
-        this.screens.resize(window.innerWidth, window.innerHeight);
+        this.screens.resize(VIEW.internalWidth, VIEW.internalHeight);
     }
 
     private createFpsDisplay(): void {
         const el = document.createElement('div');
+        el.id = 'fps-display';
         el.style.cssText = `
-      position: fixed;
+      position: absolute;
       top: 20px;
       right: 20px;
       background: rgba(0, 0, 0, 0.7);
@@ -153,9 +159,10 @@ export class App {
       font-size: 12px;
       z-index: 100;
       border: 1px solid #00ff00;
+      pointer-events: none;
     `;
         el.textContent = 'FPS: —';
-        document.body.appendChild(el);
+        getUiRoot().appendChild(el);
         this.fpsDisplay = el;
     }
 

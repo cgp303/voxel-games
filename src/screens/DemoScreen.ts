@@ -1,6 +1,7 @@
 ﻿import type { GameContext } from '../app/GameContext';
 import type { ScoreEntry } from '../app/types';
 import { DEMO } from '../data/constants';
+import { PlaySession } from '../systems/PlaySession';
 import type { Screen } from './Screen';
 import type { PlayScreen } from './PlayScreen';
 
@@ -10,12 +11,14 @@ export type DemoAttractPanel = 'info' | 'highscores';
 /**
  * Attract / title mode over the shared PlayField.
  * Alternates info (controls + invader values) and high scores every few seconds.
+ * Runs the same off-stage → formation invader intro as Play.
  */
 export class DemoScreen implements Screen {
   public readonly id = 'demo';
 
   private ctx: GameContext | null = null;
   private playScreen: PlayScreen | null = null;
+  private session: PlaySession | null = null;
 
   private panel: DemoAttractPanel = 'info';
   private panelElapsed = 0;
@@ -28,6 +31,7 @@ export class DemoScreen implements Screen {
   public enter(ctx: GameContext): void {
     this.ctx = ctx;
     ctx.game.mode = 'demo';
+    // Default info; GameOver may call showHighScores() right after set()
     this.panel = 'info';
     this.panelElapsed = 0;
 
@@ -35,12 +39,18 @@ export class DemoScreen implements Screen {
     ctx.playField.attachTo(ctx.scene.scene);
     ctx.camera.controls.enabled = true;
 
+    this.session?.dispose();
+    this.session = new PlaySession();
+    this.session.start(ctx);
+
     this.ensureOverlay();
     this.renderPanel();
-    console.log('[DemoScreen] enter — attract over terrain; Enter starts Play');
+    console.log('[DemoScreen] enter — attract intro + terrain; Enter starts Play');
   }
 
   public exit(): void {
+    this.session?.dispose();
+    this.session = null;
     this.destroyOverlay();
     this.ctx = null;
     console.log('[DemoScreen] exit');
@@ -49,6 +59,8 @@ export class DemoScreen implements Screen {
   public update(dt: number): void {
     const ctx = this.ctx;
     if (!ctx) return;
+
+    this.session?.update(dt);
 
     if (ctx.input.wasPressed('Enter') && this.playScreen) {
       void ctx.screens.set(this.playScreen);
@@ -67,7 +79,10 @@ export class DemoScreen implements Screen {
   public showHighScores(): void {
     this.panel = 'highscores';
     this.panelElapsed = 0;
-    this.renderPanel();
+    // enter() may have already rendered info; refresh if overlay exists
+    if (this.overlay) {
+      this.renderPanel();
+    }
   }
 
   private ensureOverlay(): void {
@@ -76,12 +91,12 @@ export class DemoScreen implements Screen {
     const el = document.createElement('div');
     el.id = 'demo-attract-overlay';
     el.style.cssText = `
-      position: fixed;
+      position: absolute;
       left: 50%;
       top: 42%;
       transform: translate(-50%, -50%);
       min-width: 280px;
-      max-width: min(420px, 90vw);
+      max-width: 90%;
       padding: 24px 28px;
       background: rgba(0, 0, 0, 0.82);
       color: #7CFF7C;
@@ -95,7 +110,7 @@ export class DemoScreen implements Screen {
       pointer-events: none;
       white-space: pre-line;
     `;
-    document.body.appendChild(el);
+    document.getElementById('ui-root')?.appendChild(el);
     this.overlay = el;
   }
 

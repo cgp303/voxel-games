@@ -39,6 +39,7 @@ export class PlayField {
     private tileDepth = 0;
     private scrollSpeedZ: number = TERRAIN.scrollSpeedZ;
     private scrollEnabled: boolean = TERRAIN.scrollEnabledDefault;
+    private gameCamera: GameCamera | null = null;
 
     constructor() {
         this.root = new THREE.Group();
@@ -51,6 +52,19 @@ export class PlayField {
         this.invaderRoot = new THREE.Group();
         this.invaderRoot.name = 'Invaders';
         this.root.add(this.invaderRoot);
+    }
+
+    /**
+     * Scene parent for invader meshes (static group — do not parent under a moving
+     * formation transform; write world positions from entities instead).
+     */
+    public getInvaderRoot(): THREE.Group {
+        return this.invaderRoot;
+    }
+
+    /** Parent an invader (or other combat mesh) under the shared invader root. */
+    public attachInvader(object: THREE.Object3D): void {
+        this.invaderRoot.add(object);
     }
 
     /**
@@ -82,7 +96,6 @@ export class PlayField {
 
         // Pair spans [0, 2*tileDepth] in local mesh space; center that belt on z=0
         this.terrainRoot.position.set(0, 0, -result.tileDepth);
-
         this.setBounds(result.width, result.height, result.tileDepth);
     }
 
@@ -125,6 +138,7 @@ export class PlayField {
     private wrapTile(mesh: THREE.Mesh): void {
         const depth = this.tileDepth;
         const quarterDepth = depth / 1.8;
+        const wrapPoint = -257.19 / 1.9;
         // Positive scroll (+Z): when tile goes past the far end of the 2-tile span,
         // jump it back by 2*depth so it leads again.
         // Negative scroll (−Z): mirror.
@@ -134,7 +148,7 @@ export class PlayField {
                 mesh.position.z -= depth * 2;
             }
         } else {
-            if (mesh.position.z < -quarterDepth) {
+            if (mesh.position.z < wrapPoint) {
                 mesh.position.z += depth * 2;
             }
         }
@@ -151,9 +165,10 @@ export class PlayField {
 
         const cols = options.cols ?? GAME.invaderCols;
         const rows = options.rows ?? GAME.invaderRows;
-        const originX = options.originX ?? 50;
-        const originZ = options.originZ ?? 50;
-        const hoverY = options.hoverY ?? this.bounds.height + 8;
+        const originX = options.originX ?? GAME.invaderOriginX;
+        const originZ = options.originZ ?? GAME.invaderOriginZ;
+        const hoverY =
+            options.hoverY ?? GAME.invaderHoverY ?? this.bounds.height + GAME.invaderHoverPadding;
 
         const box = new THREE.Box3().setFromObject(template);
         const size = new THREE.Vector3();
@@ -217,12 +232,14 @@ export class PlayField {
         const { width, height, depth } = this.bounds;
         const angleRad = (CAMERA.isoAngleDeg * Math.PI) / 180;
         const distance = Math.max(width, depth) * CAMERA.distanceFactor;
-        const cameraY = height * 0.5 + distance * 1.25 * Math.sin(angleRad);
+        const cameraY = height * 0.5 + distance * 1.5 * Math.sin(angleRad);
         const cameraZ = -distance * Math.cos(angleRad);
 
         camera.camera.position.set(0, cameraY, cameraZ);
         camera.controls.target.set(0, -50, 0);
         camera.controls.update();
+
+        this.gameCamera = camera;
     }
 
     public get invaderCount(): number {

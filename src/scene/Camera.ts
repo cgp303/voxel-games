@@ -1,17 +1,16 @@
-import * as THREE from 'three';
+﻿import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import type { GameRenderer } from './Renderer';
+import { VIEW } from '../data/constants';
 
 export class GameCamera {
     public camera: THREE.PerspectiveCamera;
     public controls: OrbitControls;
 
     constructor(renderer: GameRenderer) {
-        const width = window.innerWidth;
-        const height = window.innerHeight;
+        const aspect = VIEW.internalWidth / VIEW.internalHeight;
 
-        this.camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 10000);
-        //  this.camera.position.set(550, 50, 1050);
+        this.camera = new THREE.PerspectiveCamera(70, aspect, 0.1, 10000);
 
         this.controls = new OrbitControls(this.camera, renderer.renderer.domElement);
         this.controls.autoRotate = false;
@@ -20,15 +19,14 @@ export class GameCamera {
         this.controls.dampingFactor = 0.05;
         this.controls.enablePan = true;
         this.controls.enableZoom = true;
-
-        window.addEventListener('resize', () => this.onWindowResize());
     }
 
+    /**
+     * Aspect is fixed to the design viewport (3:4). Safe to call on window resize;
+     * only re-asserts projection — does not track window size.
+     */
     public onWindowResize() {
-        const width = window.innerWidth;
-        const height = window.innerHeight;
-
-        this.camera.aspect = width / height;
+        this.camera.aspect = VIEW.internalWidth / VIEW.internalHeight;
         this.camera.updateProjectionMatrix();
     }
 

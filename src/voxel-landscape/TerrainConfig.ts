@@ -36,9 +36,9 @@ export interface TerrainConfig {
  * Default terrain configuration - balanced for a retro voxel landscape
  */
 export const DEFAULT_TERRAIN_CONFIG: TerrainConfig = {
-    width: 384,
+    width: 256,
     depth: 512,
-    maxHeight: 16,
+    maxHeight: 8,
     tileSize: 512, // same as the direction you want terrain to scroll in. here 'depth'.
 
     noiseScale: 4, // ~50 unit wavelength terrain features
@@ -119,17 +119,17 @@ export const DEFAULT_TERRAIN_CONFIG: TerrainConfig = {
 
 export const CRYSTAL_TERRAIN_CONFIG: TerrainConfig = {
     ...DEFAULT_TERRAIN_CONFIG,
-    noiseScale: 3,
-    noiseOctaves: 6,
+    noiseScale: 5,
+    noiseOctaves: 7,
     noiseExponent: 0.3,
     noisePersistence: 0.25,
     noiseLacunarity: 0.15,
     colorBands: [
-        { height: 0.00, color: { r: 20, g: 25, b: 35 } },    // Abyssal blue-black
-        { height: 0.25, color: { r: 40, g: 45, b: 55 } },    // Charcoal navy
-        { height: 0.40, color: { r: 35, g: 35, b: 40 } },    // Iron grey
-        { height: 0.65, color: { r: 150, g: 80, b: 40 } },    // Ember orange-brown
-        { height: 0.70, color: { r: 200, g: 40, b: 10 } },    // Brooding volcanic red
+        { height: 0.15, color: { r: 3, g: 0, b: 40 } },     // Absolute void‑black with a blood tint
+        { height: 0.25, color: { r: 12, g: 2, b: 2 } },     // Subsurface black‑crimson
+        { height: 0.60, color: { r: 28, g: 6, b: 6 } },     // Crushed dark‑red slate
+        { height: 0.85, color: { r: 70, g: 20, b: 20 } },    // Faint abyssal red‑steel
+        { height: 1.00, color: { r: 160, g: 160, b: 160 } },    // Ghost‑red crest (dim, not bright)
     ],
     seed: 98765,
 };

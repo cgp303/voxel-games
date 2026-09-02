@@ -1,11 +1,12 @@
 import type { GameContext } from '../app/GameContext';
+import { PlaySession } from '../systems/PlaySession';
 import type { Screen } from './Screen';
 import type { DemoScreen } from './DemoScreen';
 import type { GameOverScreen } from './GameOverScreen';
 
 /**
  * Gameplay mode over the shared PlayField.
- * Phase 2: world visible, orbit locked; player/combat later.
+ * Restarts the invader entry intro on each enter; Esc returns to Demo (intro restarts there).
  */
 export class PlayScreen implements Screen {
   public readonly id = 'play';
@@ -13,6 +14,7 @@ export class PlayScreen implements Screen {
   private ctx: GameContext | null = null;
   private demoScreen: DemoScreen | null = null;
   private gameOverScreen: GameOverScreen | null = null;
+  private session: PlaySession | null = null;
   private hud: HTMLDivElement | null = null;
 
   public setTransitions(demo: DemoScreen, gameOver: GameOverScreen): void {
@@ -29,12 +31,18 @@ export class PlayScreen implements Screen {
     // Lock camera for play; free-look stays on Demo
     ctx.camera.controls.enabled = false;
 
+    this.session?.dispose();
+    this.session = new PlaySession();
+    this.session.start(ctx);
+
     this.ensureHud();
     this.refreshHud();
-    console.log('[PlayScreen] enter - Esc returns to Demo, G triggers Game Over');
+    console.log('[PlayScreen] enter — entry intro; Esc=Demo, G=GameOver');
   }
 
   public exit(): void {
+    this.session?.dispose();
+    this.session = null;
     this.destroyHud();
     if (this.ctx) {
       this.ctx.camera.controls.enabled = true;
@@ -43,20 +51,22 @@ export class PlayScreen implements Screen {
     console.log('[PlayScreen] exit');
   }
 
-  public update(_dt: number): void {
+  public update(dt: number): void {
     const ctx = this.ctx;
     if (!ctx || !this.demoScreen || !this.gameOverScreen) return;
 
+    this.session?.update(dt);
     this.refreshHud();
 
-    // Quit play: skip game-over card
+    // Quit play → Demo: session disposed on exit; Demo enter starts a fresh intro
     if (ctx.input.wasPressed('Escape')) {
       void ctx.screens.set(this.demoScreen);
       return;
     }
 
-    // Placeholder real game-over path
+    // Placeholder player-death / game-over path
     if (ctx.input.wasPressed('g') || ctx.input.wasPressed('G')) {
+      this.session?.onPlayerDeath();
       void ctx.screens.set(this.gameOverScreen);
     }
   }
@@ -66,7 +76,7 @@ export class PlayScreen implements Screen {
     const el = document.createElement('div');
     el.id = 'play-hud';
     el.style.cssText = [
-      'position: fixed',
+      'position: absolute',
       'top: 20px',
       'left: 20px',
       'background: rgba(0, 0, 0, 0.7)',
@@ -78,7 +88,7 @@ export class PlayScreen implements Screen {
       'border: 1px solid #00ff66',
       'pointer-events: none',
     ].join(';');
-    document.body.appendChild(el);
+    document.getElementById('ui-root')?.appendChild(el);
     this.hud = el;
   }
 
@@ -90,6 +100,12 @@ export class PlayScreen implements Screen {
   private refreshHud(): void {
     if (!this.hud || !this.ctx) return;
     const g = this.ctx.game;
-    this.hud.textContent = 'SCORE ' + g.score + '   LIVES ' + g.lives + '   ESC=Demo  G=GameOver';
+    const entryNote = this.session?.isEntryCancelled()
+      ? '  ENTRY:cancelled'
+      : this.session?.isEntryComplete()
+        ? '  ENTRY:ok'
+        : '';
+    this.hud.textContent =
+      'SCORE ' + g.score + '   LIVES ' + g.lives + '   ESC=Demo  G=Die' + entryNote;
   }
 }
