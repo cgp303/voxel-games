@@ -8,14 +8,16 @@ import type {
 import { GameEvents } from '../app/types';
 import type { GameContext } from '../app/GameContext';
 import { EntityManager } from '../entities/EntityManager';
-import { EntryDirector } from './EntryDirector';
+import { EntryPatternDirector } from './patterns/directors/EntryPatternDirector';
 import { FormationController } from './FormationController';
+import type { PatternDirector } from './patterns/interfaces';
 
 export interface PlaySessionStartOptions {
     /** Asset key for invader mesh template (default: 'invader'). */
     invaderAssetKey?: string;
     formation?: Partial<FormationConfig>;
     entry?: Partial<EntryConfig>;
+    entryDirector?: PatternDirector;
 }
 
 /**
@@ -36,7 +38,7 @@ export interface PlaySessionStartOptions {
 export class PlaySession {
     public readonly entities = new EntityManager();
     public readonly formation = new FormationController();
-    public readonly entry = new EntryDirector();
+    private entryDirector: PatternDirector | null = null;
 
     private ctx: GameContext | null = null;
     private template: Object3D | null = null;
@@ -51,6 +53,7 @@ export class PlaySession {
      */
     public start(ctx: GameContext, options: PlaySessionStartOptions = {}): void {
         this.ctx = ctx;
+        this.entryDirector = options.entryDirector ?? new EntryPatternDirector();
         this.invaderAssetKey = options.invaderAssetKey ?? 'invader1';
         this.formationOverride = options.formation ?? {};
         this.entryOverride = options.entry ?? {};
@@ -78,9 +81,9 @@ export class PlaySession {
      */
     public cancelEntry(reason: EntryCancelledPayload['reason'] = 'manual'): void {
         if (!this.started) return;
-        if (this.entry.isCancelled() && this.entry.queueRemaining === 0) return;
+        if (this.entryDirector?.isCancelled() && this.entryDirector.queueRemaining === 0) return;
 
-        this.entry.cancel();
+        this.entryDirector?.cancel();
         this.ctx?.events.emit(GameEvents.entryCancelled, {
             reason,
         } satisfies EntryCancelledPayload);
@@ -111,17 +114,17 @@ export class PlaySession {
         if (!this.started) return;
 
         this.formation.update(dt);
-        this.entry.update(dt);
+        this.entryDirector?.update(dt);
         this.entities.update(dt);
 
-        if (!this.entryCompleteEmitted && this.entry.isComplete()) {
+        if (!this.entryCompleteEmitted && this.entryDirector?.isComplete()) {
             this.entryCompleteEmitted = true;
             this.ctx?.events.emit(GameEvents.entryComplete, undefined);
         }
     }
 
     public isEntryComplete(): boolean {
-        return this.entry.isComplete();
+        return this.entryDirector?.isComplete() ?? false;
     }
 
     public isStarted(): boolean {
@@ -129,15 +132,15 @@ export class PlaySession {
     }
 
     public isEntryCancelled(): boolean {
-        return this.entry.isCancelled();
+        return this.entryDirector?.isCancelled() ?? false;
     }
 
     public dispose(): void {
         if (this.started) {
             const hadPending =
-                this.entry.isRunning() &&
-                (this.entry.queueRemaining > 0 || !this.entry.isComplete());
-            this.entry.cancel();
+                this.entryDirector?.isRunning() &&
+                (this.entryDirector?.queueRemaining > 0 || !this.entryDirector?.isComplete());
+            this.entryDirector?.cancel();
             if (hadPending) {
                 this.ctx?.events.emit(GameEvents.entryCancelled, {
                     reason: 'dispose',
@@ -159,13 +162,13 @@ export class PlaySession {
         if (!ctx || !template) return;
 
         // Full reset: stop any prior queue, drop actors, rebuild formation + queue.
-        if (this.entry.isRunning()) {
-            this.entry.cancel();
+        if (this.entryDirector?.isRunning()) {
+            this.entryDirector?.cancel();
             ctx.events.emit(GameEvents.entryCancelled, {
                 reason: 'restart',
             } satisfies EntryCancelledPayload);
         } else {
-            this.entry.cancel();
+            this.entryDirector?.cancel();
         }
 
         this.entities.clear();
@@ -174,12 +177,12 @@ export class PlaySession {
 
         this.formation.setup(ctx.playField.bounds.height, this.formationOverride);
 
-        this.entry.begin({
+        this.entryDirector?.begin({
             formation: this.formation,
             entities: this.entities,
             playField: ctx.playField,
             template,
-            entry: this.entryOverride,
+            config: this.entryOverride,
         });
 
         ctx.events.emit(GameEvents.introStarted, { reason } satisfies IntroStartedPayload);

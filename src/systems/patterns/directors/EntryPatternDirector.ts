@@ -1,11 +1,16 @@
 import { Object3D, Vector3 } from 'three';
-import type { EntryConfig, EntrySide, FormationSlot } from '../app/types';
-import { ENTRY } from '../data/constants';
-import { EntityManager } from '../entities/EntityManager';
-import { Invader } from '../entities/Invader';
-import type { PlayField } from '../world/PlayField';
-import type { FormationController } from './FormationController';
-import { buildEntryControlsFromConfig } from './path/cubicBezier';
+import type { EntryConfig, EntrySide, FormationSlot } from '../../../app/types';
+import { ENTRY } from '../../../data/constants';
+import { EntityManager } from '../../../entities/EntityManager';
+import { Invader } from '../../../entities/Invader';
+import type { PlayField } from '../../../world/PlayField';
+import type { FormationController } from '../../FormationController';
+import { buildEntryControlsFromConfig } from '../../path/cubicBezier';
+import { BezierEntryPattern } from '../patterns/BezierEntryPattern';
+import { CubicBezierSegment } from '../segments/CubicBezierSegment';
+import { defaultOrientationConfig } from '../../patterns/config/defaultOrientationConfig';
+import type { DirectorContext } from '../interfaces';
+
 
 type QueueJob =
     | { kind: 'pair'; left: FormationSlot }
@@ -25,7 +30,7 @@ export interface EntryDirectorBeginArgs {
  * builds mirrored entry paths, registers them with EntityManager.
  * Does not tick entities — PlaySession runs formation → entry → entities.
  */
-export class EntryDirector {
+export class EntryPatternDirector {
     private formation: FormationController | null = null;
     private entities: EntityManager | null = null;
     private playField: PlayField | null = null;
@@ -41,12 +46,13 @@ export class EntryDirector {
     private readonly homeScratch = new Vector3();
     private readonly spawnScratch = new Vector3();
 
-    public begin(args: EntryDirectorBeginArgs): void {
-        this.formation = args.formation;
-        this.entities = args.entities;
-        this.playField = args.playField;
-        this.template = args.template;
-        this.entry = { ...ENTRY, ...args.entry };
+    public begin(ctx: DirectorContext): void {
+        this.formation = ctx.formation;
+        this.entities = ctx.entities;
+        this.playField = ctx.playField;
+        this.template = ctx.template;
+        const entryConfig = ctx.config ?? {};
+        this.entry = { ...ENTRY, ...entryConfig };
 
         const perSec = Math.max(0.01, this.entry.invadersPerSecond);
         // Two invaders per pair release.
@@ -57,11 +63,11 @@ export class EntryDirector {
         this.queue.length = 0;
 
         // Pairs from left half (mirror supplies right).
-        for (const left of args.formation.leftHalfSlots()) {
+        for (const left of ctx.formation.leftHalfSlots()) {
             this.queue.push({ kind: 'pair', left });
         }
         // Odd center column: solo, alternating sides at release time.
-        for (const slot of args.formation.centerColumnSlots()) {
+        for (const slot of ctx.formation.centerColumnSlots()) {
             this.queue.push({ kind: 'center', slot });
         }
     }
@@ -156,6 +162,9 @@ export class EntryDirector {
             entry,
         );
 
+        const segment = new CubicBezierSegment(controls);
+        const pattern = new BezierEntryPattern(segment, entry.pathDuration);
+
         const mesh = template.clone(true);
         mesh.traverse((child) => {
             const m = child as { castShadow?: boolean; receiveShadow?: boolean; isMesh?: boolean };
@@ -170,16 +179,10 @@ export class EntryDirector {
             slot,
             side,
             spawn: this.spawnScratch.clone(),
-            controls,
+            pattern,
             formation,
             pathDuration: entry.pathDuration,
-            entry: {
-                bankGain: entry.bankGain,
-                maxBankRad: entry.maxBankRad,
-                orientSmooth: entry.orientSmooth,
-                dockSmooth: entry.dockSmooth,
-                debugForwardArrow: entry.debugForwardArrow,
-            },
+            entry: defaultOrientationConfig,
         });
 
         playField.attachInvader(mesh);
