@@ -71,7 +71,7 @@ export interface FormationConfig {
  */
 export const GameEvents = {
     /** Entry queue cancelled (player death, forced stop). In-flight may still exist. */
-    entryCancelled: 'entry:cancelled',
+    stageCancelled: 'stage:cancelled',
     /** Full intro boot (start / restartIntro). */
     introStarted: 'intro:started',
     /** Entry queue empty and no invader still entering. */
@@ -84,7 +84,7 @@ export const GameEvents = {
 
 export type GameEventName = (typeof GameEvents)[keyof typeof GameEvents];
 
-export interface EntryCancelledPayload {
+export interface StageCancelledPayload {
     reason: 'player_death' | 'manual' | 'dispose' | 'restart';
 }
 

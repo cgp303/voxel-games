@@ -18,7 +18,7 @@ type QueueJob =
 
 export interface EntryDirectorBeginArgs {
     formation: FormationController;
-    entities: EntityManager;
+    invaders: EntityManager;
     playField: PlayField;
     /** Shared mesh template from AssetManager (cloned per invader). */
     template: Object3D;
@@ -28,11 +28,11 @@ export interface EntryDirectorBeginArgs {
 /**
  * Releases invaders off-stage in L/R pairs (plus alternating center column when odd),
  * builds mirrored entry paths, registers them with EntityManager.
- * Does not tick entities — PlaySession runs formation → entry → entities.
+ * Does not tick invaders — PlaySession runs formation → entry → invaders.
  */
 export class EntryPatternDirector {
     private formation: FormationController | null = null;
-    private entities: EntityManager | null = null;
+    private invaders: EntityManager | null = null;
     private playField: PlayField | null = null;
     private template: Object3D | null = null;
     private entry: EntryConfig = { ...ENTRY };
@@ -48,7 +48,7 @@ export class EntryPatternDirector {
 
     public begin(ctx: DirectorContext): void {
         this.formation = ctx.formation;
-        this.entities = ctx.entities;
+        this.invaders = ctx.invaders;
         this.playField = ctx.playField;
         this.template = ctx.template;
         const entryConfig = ctx.config ?? {};
@@ -74,7 +74,7 @@ export class EntryPatternDirector {
 
     public update(dt: number): void {
         if (!this.running || this.cancelled) return;
-        if (!this.formation || !this.entities || !this.playField || !this.template) {
+        if (!this.formation || !this.invaders || !this.playField || !this.template) {
             return;
         }
         if (this.queue.length === 0) return;
@@ -111,8 +111,8 @@ export class EntryPatternDirector {
      */
     public isComplete(): boolean {
         if (this.queue.length > 0) return false;
-        if (!this.entities) return true;
-        for (const e of this.entities.getAll()) {
+        if (!this.invaders) return true;
+        for (const e of this.invaders.getAll()) {
             if (e instanceof Invader && e.active && e.isEntering()) {
                 return false;
             }
@@ -137,7 +137,7 @@ export class EntryPatternDirector {
 
     private spawnOne(slot: FormationSlot, side: EntrySide): void {
         const formation = this.formation!;
-        const entities = this.entities!;
+        const invaders = this.invaders!;
         const playField = this.playField!;
         const template = this.template!;
         const entry = this.entry;
@@ -186,7 +186,7 @@ export class EntryPatternDirector {
         });
 
         playField.attachInvader(mesh);
-        entities.add(invader);
+        invaders.add(invader);
     }
 
     private resolveHalfExtentX(playField: PlayField): number {

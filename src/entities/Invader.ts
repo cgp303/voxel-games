@@ -144,6 +144,20 @@ export class Invader extends Entity {
         this.syncTransform();
     }
 
+    public startPattern(cfg: { pattern: any; formation: any; entry: any }): void {
+        // Implementation for initialising the invader's pattern.
+        const entry = cfg.entry;
+        this.bankGain = entry?.bankGain ?? ENTRY.bankGain;
+        this.maxBankRad = entry?.maxBankRad ?? ENTRY.maxBankRad;
+        this.orientSmooth = entry?.orientSmooth ?? ENTRY.orientSmooth;
+        this.dockSmooth = entry?.dockSmooth ?? ENTRY.dockSmooth;
+        this.formation = cfg.formation;
+        this.pathPattern = cfg.pattern ?? null;
+        this.pathDuration = Math.max(0.05, this.pathPattern?.duration ?? ENTRY.pathDuration);
+        this.mode = 'diving';
+        this.pathT = 0;
+    }
+
     /**
      * Re-arm for another entry without reallocating the mesh (pool-friendly).
      */
@@ -156,6 +170,7 @@ export class Invader extends Entity {
 
         switch (this.mode) {
             case 'entering':
+            case 'diving':
                 this.updateEntering(dt);
                 break;
             case 'formation':

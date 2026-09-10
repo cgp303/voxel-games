@@ -12,7 +12,7 @@ import * as THREE from 'three';
  */
 export interface DirectorContext {
     formation: FormationController;
-    entities: EntityManager;
+    invaders: EntityManager;
     playField: PlayField;
     template: Object3D;
 
