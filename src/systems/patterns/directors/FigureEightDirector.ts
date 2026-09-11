@@ -17,9 +17,9 @@ export class FigureEightDirector implements PatternDirector {
     private currentCol = 0;
     private timeSinceLastTrigger = 0;
     private nextRowAt = 0;
-    private msBetweenRows = 500;
+    private msBetweenRows = 6000;
 
-    private triggerDelay = 0.2; // conga line spacing
+    private triggerDelay = 0.3 // conga line spacing
 
     begin(ctx: DirectorContext): void {
         this.running = true;

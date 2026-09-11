@@ -1,0 +1,139 @@
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: #0a0a0a;
+    font-family: 'Courier New', monospace;
+}
+
+#editor-container {
+    position: absolute;
+    inset: 0;
+}
+
+#editor-container canvas {
+    display: block;
+}
+
+#editor-ui {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+.editor-layout {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    flex-direction: row;
+    pointer-events: none;
+}
+
+.editor-panel {
+    pointer-events: auto;
+    width: 240px;
+    background: rgba(0, 0, 0, 0.82);
+    color: #7cff7c;
+    border-left: 1px solid #00ff66;
+    padding: 12px;
+    overflow-y: auto;
+    font-size: 12px;
+}
+
+.editor-heading {
+    margin: 14px 0 6px;
+    color: #00ff66;
+    font-weight: bold;
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 0.05em;
+}
+
+.editor-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.editor-toolbar button,
+.editor-panel button {
+    background: #004400;
+    color: #00ff00;
+    border: 1px solid #00ff00;
+    padding: 6px 8px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 11px;
+}
+
+.editor-toolbar button:hover,
+.editor-panel button:hover {
+    background: #006600;
+}
+
+.editor-segment-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-height: 140px;
+    overflow-y: auto;
+}
+
+.editor-segment-btn {
+    text-align: left;
+}
+
+.editor-role-label {
+    margin-bottom: 6px;
+    color: #ffff66;
+}
+
+.editor-field-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+
+.editor-number-field {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    color: #7cff7c;
+}
+
+.editor-number-field input,
+.editor-number-field select {
+    background: #001a00;
+    color: #00ff66;
+    border: 1px solid #00ff66;
+    padding: 4px;
+    font-family: inherit;
+}
+
+.editor-mode-row {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.editor-output {
+    width: 100%;
+    height: 220px;
+    margin-top: 8px;
+    background: #001a00;
+    color: #00ff66;
+    border: 1px solid #00ff66;
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    resize: vertical;
+}

@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "editor": "vite --open /bezier-editor.html",
     "build": "tsc && vite build",
     "preview": "vite preview"
   },

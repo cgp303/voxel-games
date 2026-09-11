@@ -50,73 +50,131 @@ const CFG = {
 
 } as const;
 
+// export class FigureEightPatternBuilder {
+
+//     private debugBezier;
+
+//     constructor(scene) {
+//         this.debugBezier = new BezierDebugRenderer(scene);
+//     }
+
+//     build(invader, rowParity): MultiSegmentPattern {
+//         const start = invader.position.clone();
+//         const side = (rowParity === 0) ? +1 : -1;
+
+//         // Use absolute anchor instead of start.x/start.z
+//         const baseX = 20;
+//         const baseZ = -20;
+
+//         // Segment A
+//         const A0 = new Vector3(start.x, CFG.segmentA.startY, start.z);
+//         const A1 = new Vector3(side * CFG.segmentA.swayX1, CFG.segmentA.startY, baseZ + CFG.segmentA.forwardZ1);
+//         const A2 = new Vector3(side * CFG.segmentA.swayX2, CFG.segmentA.startY, baseZ + CFG.segmentA.forwardZ2);
+//         const A3 = new Vector3(0, CFG.segmentA.startY, baseZ + CFG.segmentA.endOffsetZ);
+
+//         const segmentA = new CubicBezierSegment({ p0: A0, p1: A1, p2: A2, p3: A3 });
+
+//         // Segment B
+//         const B0 = A3.clone();
+//         const B1 = new Vector3(baseX + side * CFG.segmentB.swayX1, start.y, baseZ + CFG.segmentB.diveZ1);
+//         const B2 = new Vector3(baseX + side * CFG.segmentB.swayX2, start.y, baseZ + CFG.segmentB.diveZ2);
+//         //const B3 = new Vector3(baseX + side * CFG.segmentB.swayX3, start.y, baseZ + CFG.segmentB.diveZ3);
+//         const B3 = new Vector3(start.x, 5, start.z);
+
+//         const segmentB = new CubicBezierSegment({ p0: B0, p1: B1, p2: B2, p3: B3 });
+
+//         // Segment C
+//         const C0 = B3.clone();
+//         const C1 = new Vector3(baseX - side * CFG.segmentC.returnSwayX1, start.y, baseZ + CFG.segmentC.returnZ1);
+//         const C2 = new Vector3(baseX - side * CFG.segmentC.returnSwayX2, start.y, baseZ + CFG.segmentC.returnZ2);
+//         const C3 = start.clone(); // new Vector3(baseX, start.y, baseZ + CFG.segmentC.endOffsetZ);
+
+//         const segmentC = new CubicBezierSegment({ p0: C0, p1: C1, p2: C2, p3: C3 });
+
+//         // return new MultiSegmentPattern(
+//         //     [segmentA, segmentB, segmentC],
+//         //     [
+//         //         { start: 0.0, end: 0.33 },
+//         //         { start: 0.33, end: 0.66 },
+//         //         { start: 0.66, end: 1.0 },
+//         //     ],
+//         //     CFG.duration
+//         // );
+//         const thePattern = new MultiSegmentPattern(
+//             [segmentA],
+//             [
+//                 { start: 0.0, end: 1.0 }
+//             ],
+//             CFG.duration
+//         );
+
+//         this.debugBezier.drawMultiSegmentPattern(thePattern);
+//         // return new MultiSegmentPattern(
+//         //     [segmentA, segmentB],
+//         //     [
+//         //         { start: 0.0, end: 0.5 },
+//         //         { start: 0.5, end: 1.0 }
+//         //     ],
+//         //     CFG.duration
+//         // );
+//         return thePattern;
+//     }
+
 export class FigureEightPatternBuilder {
 
     private debugBezier;
 
     constructor(scene) {
-        this.debugBezier = new BezierDebugRenderer(scene);
+        //this.debugBezier = new BezierDebugRenderer(scene);
     }
 
     build(invader, rowParity): MultiSegmentPattern {
         const start = invader.position.clone();
-        const side = (rowParity === 0) ? +1 : -1;
-
-        // Use absolute anchor instead of start.x/start.z
-        const baseX = 20;
-        const baseZ = -20;
 
         // Segment A
         const A0 = new Vector3(start.x, CFG.segmentA.startY, start.z);
-        const A1 = new Vector3(side * CFG.segmentA.swayX1, CFG.segmentA.startY, baseZ + CFG.segmentA.forwardZ1);
-        const A2 = new Vector3(side * CFG.segmentA.swayX2, CFG.segmentA.startY, baseZ + CFG.segmentA.forwardZ2);
-        const A3 = new Vector3(0, CFG.segmentA.startY, baseZ + CFG.segmentA.endOffsetZ);
 
-        const segmentA = new CubicBezierSegment({ p0: A0, p1: A1, p2: A2, p3: A3 });
+        const segment1 = new CubicBezierSegment({
+            p0: { x: start.x, y: start.y, z: start.z },
+            p1: { x: 108.71, y: 20, z: 0.17 },
+            p2: { x: 109.05, y: 20, z: -39.39 },
+            p3: { x: 0, y: 20, z: -40.98 },
+        });
+        const segment2 = new CubicBezierSegment({
+            p0: { x: 0, y: 20, z: -40.98 },
+            p1: { x: -110.65, y: 20, z: -40.27 },
+            p2: { x: -110.65, y: 20, z: -80.21 },
+            p3: { x: 0, y: 20, z: -80.42 },
+        });
+        const segment3 = new CubicBezierSegment({
+            p0: { x: 0, y: 20, z: -80.42 },
+            p1: { x: 110.22, y: 20, z: -80.21 },
+            p2: { x: 109.37, y: 20, z: -39.84 },
+            p3: { x: 0, y: 20, z: -40.48 },
+        });
+        const segment4 = new CubicBezierSegment({
+            p0: { x: 0, y: 20, z: -40.48 },
+            p1: { x: -110.86, y: 20, z: -40.91 },
+            p2: { x: -109.79, y: 20, z: -0.32 },
+            p3: { x: start.x, y: start.y, z: start.z },
+        });
 
-        // Segment B
-        const B0 = A3.clone();
-        const B1 = new Vector3(baseX + side * CFG.segmentB.swayX1, start.y, baseZ + CFG.segmentB.diveZ1);
-        const B2 = new Vector3(baseX + side * CFG.segmentB.swayX2, start.y, baseZ + CFG.segmentB.diveZ2);
-        //const B3 = new Vector3(baseX + side * CFG.segmentB.swayX3, start.y, baseZ + CFG.segmentB.diveZ3);
-        const B3 = new Vector3(start.x, 5, start.z);
 
-        const segmentB = new CubicBezierSegment({ p0: B0, p1: B1, p2: B2, p3: B3 });
-
-        // Segment C
-        const C0 = B3.clone();
-        const C1 = new Vector3(baseX - side * CFG.segmentC.returnSwayX1, start.y, baseZ + CFG.segmentC.returnZ1);
-        const C2 = new Vector3(baseX - side * CFG.segmentC.returnSwayX2, start.y, baseZ + CFG.segmentC.returnZ2);
-        const C3 = start.clone(); // new Vector3(baseX, start.y, baseZ + CFG.segmentC.endOffsetZ);
-
-        const segmentC = new CubicBezierSegment({ p0: C0, p1: C1, p2: C2, p3: C3 });
-
-        // return new MultiSegmentPattern(
-        //     [segmentA, segmentB, segmentC],
-        //     [
-        //         { start: 0.0, end: 0.33 },
-        //         { start: 0.33, end: 0.66 },
-        //         { start: 0.66, end: 1.0 },
-        //     ],
-        //     CFG.duration
-        // );
         const thePattern = new MultiSegmentPattern(
-            [segmentA],
-            [
-                { start: 0.0, end: 1.0 }
-            ],
-            CFG.duration
-        );
+            [segment1, segment2, segment3, segment4],
+            [{ start: 0, end: 0.25 }, { start: 0.25, end: 0.5 }, { start: 0.5, end: 0.75 }, { start: 0.75, end: 1 }],
+            6,
+        )
 
-        this.debugBezier.drawMultiSegmentPattern(thePattern);
-        // return new MultiSegmentPattern(
-        //     [segmentA, segmentB],
+
+        // const thePattern = new MultiSegmentPattern(
+        //     [segmentA],
         //     [
-        //         { start: 0.0, end: 0.5 },
-        //         { start: 0.5, end: 1.0 }
+        //         { start: 0.0, end: 1.0 }
         //     ],
         //     CFG.duration
         // );
+
         return thePattern;
     }
 

@@ -1,0 +1,10 @@
+HTTP/1.1 200 OK
+Vary: Origin
+Content-Type: text/javascript
+Cache-Control: no-cache
+Etag: W/"199-knJSgYZrlQsV8BUCLzne0CZZGUc"
+Date: Fri, 11 Sep 2026 13:45:58 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+Content-Length: 1348
+
