@@ -4,22 +4,24 @@ import { Vector3 } from 'three';
 import { CubicBezierSegment } from '../segments/CubicBezierSegment';
 import { MultiSegmentPattern } from '../patterns/MultiSegmentPattern';
 import type { CubicBezierControls } from '../../path/cubicBezier';
+import { BezierDebugRenderer } from '../../path/pathVisulizer/BezierDebugRenderer';
 
 const CFG = {
-    duration: 8.0,
+    duration: 3.0,
 
     // Forward/back dominant (Z), gentle sway (X)
     segmentA: {
-        swayX1: 10,
-        forwardZ1: 60,
+        swayX1: -160,
+        forwardZ1: 240,
 
-        swayX2: 20,
-        forwardZ2: 40,
+        swayX2: -160,
+        forwardZ2: 30,
 
-        endOffsetX: 25,
-        endOffsetZ: 20,
+        endOffsetX: 0,
+        endOffsetZ: 0,
 
-        startY: 3
+        startY: 20
+
     },
 
     segmentB: {
@@ -27,7 +29,7 @@ const CFG = {
         diveZ1: -80,
 
         swayX2: 25,
-        diveZ2: -450,
+        diveZ2: -80,
 
         swayX3: 35,
         diveZ3: -40,
@@ -50,7 +52,11 @@ const CFG = {
 
 export class FigureEightPatternBuilder {
 
-    constructor() { }
+    private debugBezier;
+
+    constructor(scene) {
+        this.debugBezier = new BezierDebugRenderer(scene);
+    }
 
     build(invader, rowParity): MultiSegmentPattern {
         const start = invader.position.clone();
@@ -58,13 +64,13 @@ export class FigureEightPatternBuilder {
 
         // Use absolute anchor instead of start.x/start.z
         const baseX = 20;
-        const baseZ = -100;
+        const baseZ = -20;
 
         // Segment A
-        const A0 = start.clone(); // still start at invader's position
-        const A1 = new Vector3(baseX + side * CFG.segmentA.swayX1, start.y, baseZ + CFG.segmentA.forwardZ1);
-        const A2 = new Vector3(baseX + side * CFG.segmentA.swayX2, start.y, baseZ + CFG.segmentA.forwardZ2);
-        const A3 = new Vector3(baseX + side * CFG.segmentA.endOffsetX, start.y, baseZ + CFG.segmentA.endOffsetZ);
+        const A0 = new Vector3(start.x, CFG.segmentA.startY, start.z);
+        const A1 = new Vector3(side * CFG.segmentA.swayX1, CFG.segmentA.startY, baseZ + CFG.segmentA.forwardZ1);
+        const A2 = new Vector3(side * CFG.segmentA.swayX2, CFG.segmentA.startY, baseZ + CFG.segmentA.forwardZ2);
+        const A3 = new Vector3(0, CFG.segmentA.startY, baseZ + CFG.segmentA.endOffsetZ);
 
         const segmentA = new CubicBezierSegment({ p0: A0, p1: A1, p2: A2, p3: A3 });
 
@@ -72,7 +78,8 @@ export class FigureEightPatternBuilder {
         const B0 = A3.clone();
         const B1 = new Vector3(baseX + side * CFG.segmentB.swayX1, start.y, baseZ + CFG.segmentB.diveZ1);
         const B2 = new Vector3(baseX + side * CFG.segmentB.swayX2, start.y, baseZ + CFG.segmentB.diveZ2);
-        const B3 = new Vector3(baseX + side * CFG.segmentB.swayX3, start.y, baseZ + CFG.segmentB.diveZ3);
+        //const B3 = new Vector3(baseX + side * CFG.segmentB.swayX3, start.y, baseZ + CFG.segmentB.diveZ3);
+        const B3 = new Vector3(start.x, 5, start.z);
 
         const segmentB = new CubicBezierSegment({ p0: B0, p1: B1, p2: B2, p3: B3 });
 
@@ -84,15 +91,33 @@ export class FigureEightPatternBuilder {
 
         const segmentC = new CubicBezierSegment({ p0: C0, p1: C1, p2: C2, p3: C3 });
 
-        return new MultiSegmentPattern(
-            [segmentA, segmentB, segmentC],
+        // return new MultiSegmentPattern(
+        //     [segmentA, segmentB, segmentC],
+        //     [
+        //         { start: 0.0, end: 0.33 },
+        //         { start: 0.33, end: 0.66 },
+        //         { start: 0.66, end: 1.0 },
+        //     ],
+        //     CFG.duration
+        // );
+        const thePattern = new MultiSegmentPattern(
+            [segmentA],
             [
-                { start: 0.0, end: 0.33 },
-                { start: 0.33, end: 0.66 },
-                { start: 0.66, end: 1.0 },
+                { start: 0.0, end: 1.0 }
             ],
             CFG.duration
         );
+
+        this.debugBezier.drawMultiSegmentPattern(thePattern);
+        // return new MultiSegmentPattern(
+        //     [segmentA, segmentB],
+        //     [
+        //         { start: 0.0, end: 0.5 },
+        //         { start: 0.5, end: 1.0 }
+        //     ],
+        //     CFG.duration
+        // );
+        return thePattern;
     }
 
 

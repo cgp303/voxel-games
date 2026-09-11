@@ -137,10 +137,8 @@ export class Invader extends Entity {
         }
 
         this.displayQuat.copy(this.baseQuat);
-
         const wantArrow = entry?.debugForwardArrow ?? ENTRY.debugForwardArrow;
         this.setupDebugArrow(wantArrow);
-
         this.syncTransform();
     }
 

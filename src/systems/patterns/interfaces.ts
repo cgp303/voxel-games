@@ -18,6 +18,7 @@ export interface DirectorContext {
 
     /** Director-specific config (EntryConfig, WaveConfig, BossConfig, etc.) */
     config?: any;
+    scene?: THREE.Scene;
 }
 
 /**

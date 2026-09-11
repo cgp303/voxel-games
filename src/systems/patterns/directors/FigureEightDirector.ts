@@ -2,41 +2,35 @@
 
 import { FigureEightPatternBuilder } from '../patterns/FigureEightPatternBuilder';
 import type { DirectorContext, PatternDirector } from '../interfaces';
-
 export class FigureEightDirector implements PatternDirector {
 
     private running = false;
     private cancelled = false;
     public queueRemaining = 0;
-
     private formation;
     private invaders;
     private playField;
     private template;
     private config;
-
     private builder;
-
     private currentRow = 0;
     private currentCol = 0;
     private timeSinceLastTrigger = 0;
+    private nextRowAt = 0;
+    private msBetweenRows = 500;
 
-    private triggerDelay = 0.25; // conga line spacing
+    private triggerDelay = 0.2; // conga line spacing
 
     begin(ctx: DirectorContext): void {
         this.running = true;
         this.cancelled = false;
-
         this.formation = ctx.formation;
         this.invaders = ctx.invaders;
         this.playField = ctx.playField;
         this.template = ctx.template;
         this.config = ctx.config ?? {};
-
-        this.builder = new FigureEightPatternBuilder();
-
+        this.builder = new FigureEightPatternBuilder(ctx.scene);
         this.queueRemaining = this.formation.rows * this.formation.cols;
-
         this.currentRow = this.formation.rows - 1;
         this.currentCol = 0;
         this.timeSinceLastTrigger = 0;
@@ -46,10 +40,11 @@ export class FigureEightDirector implements PatternDirector {
         if (!this.running || this.cancelled) return;
         if (this.currentRow < 0) return;
 
+        // Row pause gate
+        if (performance.now() < this.nextRowAt) return;
+
         this.timeSinceLastTrigger += dt;
-
         if (this.timeSinceLastTrigger < this.triggerDelay) return;
-
         this.timeSinceLastTrigger = 0;
 
         const row = this.currentRow;
@@ -78,12 +73,16 @@ export class FigureEightDirector implements PatternDirector {
         if (this.currentCol >= this.formation.cols) {
             this.currentCol = 0;
             this.currentRow--;
+
+            // schedule next row trigger
+            this.nextRowAt = performance.now() + this.msBetweenRows;
         }
 
         if (this.currentRow < 0) {
             this.queueRemaining = 0;
         }
     }
+
 
     cancel(): void {
         this.cancelled = true;

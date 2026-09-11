@@ -191,6 +191,7 @@ export class PlaySession {
             playField: this.ctx.playField,
             template: this.template,
             config: this.currentStage.directorConfig,
+            scene: this.ctx.scene.scene,
         });
     }
 
