@@ -3,6 +3,7 @@ import { PlaySession } from '../systems/PlaySession';
 import type { Screen } from './Screen';
 import type { DemoScreen } from './DemoScreen';
 import type { GameOverScreen } from './GameOverScreen';
+import { createBasicStages } from '../systems/stages/stages-basic';
 
 /**
  * Gameplay mode over the shared PlayField.
@@ -33,7 +34,10 @@ export class PlayScreen implements Screen {
 
     this.session?.dispose();
     this.session = new PlaySession();
-    this.session.start(ctx);
+    this.session.start(ctx, {
+      stageQueue: createBasicStages()
+    });
+
 
     this.ensureHud();
     this.refreshHud();
@@ -100,12 +104,15 @@ export class PlayScreen implements Screen {
   private refreshHud(): void {
     if (!this.hud || !this.ctx) return;
     const g = this.ctx.game;
-    const entryNote = this.session?.isEntryCancelled()
-      ? '  ENTRY:cancelled'
-      : this.session?.isEntryComplete()
-        ? '  ENTRY:ok'
+
+    const entryNote = this.session?.isStageCancelled()
+      ? '  STAGE:cancelled'
+      : this.session?.isStageComplete()
+        ? '  STAGE:ok'
         : '';
+
     this.hud.textContent =
       'SCORE ' + g.score + '   LIVES ' + g.lives + '   ESC=Demo  G=Die' + entryNote;
   }
+
 }

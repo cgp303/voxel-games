@@ -1,13 +1,10 @@
 import { Vector3, type Object3D } from 'three';
 
-let nextEntityId = 1;
-
 /**
  * Lightweight base for world actors (ship, invader, shot).
  * Logical transform lives on the entity; mesh follows via syncTransform().
  */
 export class Entity {
-    public readonly id: number;
     public active = true;
     public readonly object3d: Object3D | null;
 
@@ -24,7 +21,6 @@ export class Entity {
     protected integrateVelocity = true;
 
     constructor(object3d: Object3D | null = null) {
-        this.id = nextEntityId++;
         this.object3d = object3d;
         if (object3d) {
             this.position.copy(object3d.position);

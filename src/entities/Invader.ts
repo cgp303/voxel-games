@@ -13,6 +13,7 @@ import type {
     InvaderMode,
     InvaderTypeId,
 } from '../app/types';
+import type { PathPattern } from '../systems/patterns/interfaces';
 import { ENTRY } from '../data/constants';
 import type { FormationController } from '../systems/FormationController';
 import {
@@ -28,8 +29,6 @@ export interface InvaderInitConfig {
     slot: FormationSlot;
     side: EntrySide;
     spawn: Vector3;
-    /** Pre-built path controls (P3 should match home at init; live-updated while entering) */
-    controls: CubicBezierControls;
     formation: FormationController;
     /** Path duration seconds; defaults to ENTRY.pathDuration */
     pathDuration?: number;
@@ -41,6 +40,7 @@ export interface InvaderInitConfig {
             'bankGain' | 'maxBankRad' | 'orientSmooth' | 'dockSmooth' | 'debugForwardArrow'
         >
     >;
+    pattern?: PathPattern;
 }
 
 /** Shared flag so only one debug arrow exists across invaders. */
@@ -66,6 +66,7 @@ export class Invader extends Entity {
 
     private formation: FormationController | null = null;
     private controls: CubicBezierControls | null = null;
+    private pathPattern: PathPattern | null = null;
     private pathDuration: number = ENTRY.pathDuration;
     private pathT = 0;
 
@@ -103,7 +104,7 @@ export class Invader extends Entity {
         // Keep this on baseQuat only; flight multiplies on top.
         object3d.rotation.set(0, 0, 0);
         object3d.quaternion.identity();
-        object3d.rotateX(Math.PI / 2);
+        // object3d.rotateX(Math.PI / 2);
         this.baseQuat.copy(object3d.quaternion);
         this.displayQuat.copy(this.baseQuat);
     }
@@ -114,7 +115,7 @@ export class Invader extends Entity {
         this.slot = { ...cfg.slot };
         this.side = cfg.side;
         this.formation = cfg.formation;
-        this.controls = cfg.controls;
+        this.pathPattern = cfg.pattern ?? null;
         this.pathDuration = Math.max(0.05, cfg.pathDuration ?? ENTRY.pathDuration);
         this.pathT = 0;
 
@@ -136,11 +137,23 @@ export class Invader extends Entity {
         }
 
         this.displayQuat.copy(this.baseQuat);
-
         const wantArrow = entry?.debugForwardArrow ?? ENTRY.debugForwardArrow;
         this.setupDebugArrow(wantArrow);
-
         this.syncTransform();
+    }
+
+    public startPattern(cfg: { pattern: any; formation: any; entry: any }): void {
+        // Implementation for initialising the invader's pattern.
+        const entry = cfg.entry;
+        this.bankGain = entry?.bankGain ?? ENTRY.bankGain;
+        this.maxBankRad = entry?.maxBankRad ?? ENTRY.maxBankRad;
+        this.orientSmooth = entry?.orientSmooth ?? ENTRY.orientSmooth;
+        this.dockSmooth = entry?.dockSmooth ?? ENTRY.dockSmooth;
+        this.formation = cfg.formation;
+        this.pathPattern = cfg.pattern ?? null;
+        this.pathDuration = Math.max(0.05, this.pathPattern?.duration ?? ENTRY.pathDuration);
+        this.mode = 'diving';
+        this.pathT = 0;
     }
 
     /**
@@ -155,6 +168,7 @@ export class Invader extends Entity {
 
         switch (this.mode) {
             case 'entering':
+            case 'diving':
                 this.updateEntering(dt);
                 break;
             case 'formation':
@@ -171,12 +185,11 @@ export class Invader extends Entity {
 
     private updateEntering(dt: number): void {
         const formation = this.formation;
-        const controls = this.controls;
-        if (!formation || !controls) return;
+        const pattern = this.pathPattern;
+        if (!formation || !pattern) return;
 
         // Live end point — formation root may be moving.
         formation.getWorldHomeSlot(this.slot, this.homeScratch);
-        setLiveHome(controls, this.homeScratch);
 
         if (this.pathDuration > 0) {
             this.pathT += dt / this.pathDuration;
@@ -194,23 +207,10 @@ export class Invader extends Entity {
             return;
         }
 
-        sampleCubic(
-            controls.p0,
-            controls.p1,
-            controls.p2,
-            controls.p3,
-            this.pathT,
-            this.position,
-        );
-
-        sampleCubicDerivative(
-            controls.p0,
-            controls.p1,
-            controls.p2,
-            controls.p3,
-            this.pathT,
-            this.tangentScratch,
-        );
+        if (pattern) {
+            pattern.samplePosition(this.pathT, this.position);
+            pattern.sampleTangent(this.pathT, this.tangentScratch);
+        }
 
         if (this.tangentScratch.lengthSq() < 1e-8) {
             this.tangentScratch.subVectors(this.homeScratch, this.position);

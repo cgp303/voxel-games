@@ -1,13 +1,20 @@
 import type { Entity } from './Entity';
+import type { FormationSlot } from '../app/types';
+import { Invader } from './Invader';
 
 /**
  * Spawn / despawn / tick entities for a screen (usually Play).
  */
 export class EntityManager {
+
     private entities: Entity[] = [];
+
+    // Map of invaders by their formation slot for quick lookup.
+    private invadersBySlot = new Map<string, Invader>();
 
     public add(entity: Entity): void {
         this.entities.push(entity);
+        this.registerInvaderInFormation(entity as Invader);
     }
 
     public remove(entity: Entity): void {
@@ -15,6 +22,7 @@ export class EntityManager {
         if (i >= 0) {
             this.entities.splice(i, 1);
         }
+        this.unregisterInvaderFromFormation(entity as Invader);
         entity.dispose();
     }
 
@@ -36,6 +44,7 @@ export class EntityManager {
             e.dispose();
         }
         this.entities.length = 0;
+        this.invadersBySlot.clear();
     }
 
     public getAll(): readonly Entity[] {
@@ -45,4 +54,24 @@ export class EntityManager {
     public get count(): number {
         return this.entities.length;
     }
+
+    // Helpers for using the invadersBySlot map.
+    private slotKey(slot: FormationSlot): string {
+        return `${slot.col},${slot.row}`;
+    }
+
+    public registerInvaderInFormation(invader: Invader): void {
+        this.invadersBySlot.set(this.slotKey(invader.slot), invader);
+    }
+
+    public unregisterInvaderFromFormation(invader: Invader): void {
+        this.invadersBySlot.delete(this.slotKey(invader.slot));
+    }
+
+    public getInvaderAtSlot(slot: FormationSlot): Invader | null {
+        const inv = this.invadersBySlot.get(this.slotKey(slot));
+        if (!inv) return null;
+        return inv.mode === 'formation' ? inv : null;
+    }
+
 }

@@ -107,15 +107,15 @@ export const VIEW = {
     bezelColor: '#0a0a0a',
 } as const;
 
-// export const CAMERA = {
-//     isoAngleDeg: 36,
-//     distanceFactor: 0.3,
-// } as const;
-
 export const CAMERA = {
-    isoAngleDeg: 10,
-    distanceFactor: 0.27,
+    isoAngleDeg: 36,
+    distanceFactor: 0.3,
 } as const;
+
+// export const CAMERA = {
+//     isoAngleDeg: 10,
+//     distanceFactor: 0.27,
+// } as const;
 
 /** Demo attract mode: info panel ↔ high scores */
 export const DEMO = {

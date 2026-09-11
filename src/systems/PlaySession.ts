@@ -1,21 +1,24 @@
 ﻿import type { Object3D } from 'three';
 import type {
-    EntryCancelledPayload,
-    EntryConfig,
     FormationConfig,
     IntroStartedPayload,
+    StageCancelledPayload,
 } from '../app/types';
 import { GameEvents } from '../app/types';
 import type { GameContext } from '../app/GameContext';
 import { EntityManager } from '../entities/EntityManager';
-import { EntryDirector } from './EntryDirector';
+import { EntryPatternDirector } from './patterns/directors/EntryPatternDirector';
 import { FormationController } from './FormationController';
+import type { PatternDirector } from './patterns/interfaces';
+import { Stage } from './stages/Stage';
+import { StageQueue } from './stages/StageQueue';
 
 export interface PlaySessionStartOptions {
     /** Asset key for invader mesh template (default: 'invader'). */
     invaderAssetKey?: string;
     formation?: Partial<FormationConfig>;
-    entry?: Partial<EntryConfig>;
+    stageQueue?: StageQueue;
+
 }
 
 /**
@@ -34,28 +37,41 @@ export interface PlaySessionStartOptions {
  * - Demo/Play screen enter creates a fresh session (Esc→Demo restarts intro that way)
  */
 export class PlaySession {
-    public readonly entities = new EntityManager();
+    public readonly invaders = new EntityManager();
     public readonly formation = new FormationController();
-    public readonly entry = new EntryDirector();
 
     private ctx: GameContext | null = null;
     private template: Object3D | null = null;
     private invaderAssetKey = 'invader1';
     private formationOverride: Partial<FormationConfig> = {};
-    private entryOverride: Partial<EntryConfig> = {};
     private started = false;
-    private entryCompleteEmitted = false;
+
+    private stageQueue: StageQueue | null = null;
+    private currentStage: Stage | null = null;
+    private director: PatternDirector | null = null;
+
 
     /**
-     * Clear field, setup formation from terrain height, begin entry queue.
+     * Clear field, setup formation from terrain height, begin first stage
      */
     public start(ctx: GameContext, options: PlaySessionStartOptions = {}): void {
         this.ctx = ctx;
+
         this.invaderAssetKey = options.invaderAssetKey ?? 'invader1';
         this.formationOverride = options.formation ?? {};
-        this.entryOverride = options.entry ?? {};
 
         this.template = ctx.assets.getOrCreateMeshTemplate(this.invaderAssetKey);
+
+        this.stageQueue = options.stageQueue ?? null;
+
+        if (this.stageQueue) {
+            this.currentStage = this.stageQueue.next();
+            this.director = new this.currentStage.director();
+        } else {
+            // Fallback mode: demo screen or legacy behavior
+            this.director = new EntryPatternDirector();
+        }
+
         this.bootIntro('start');
         this.started = true;
     }
@@ -72,19 +88,19 @@ export class PlaySession {
         this.bootIntro('restart');
     }
 
-    /**
-     * Stop scheduling new entry spawns. In-flight invaders keep flying/docking
-     * unless the caller also clearCombatants() or dispose().
-     */
-    public cancelEntry(reason: EntryCancelledPayload['reason'] = 'manual'): void {
-        if (!this.started) return;
-        if (this.entry.isCancelled() && this.entry.queueRemaining === 0) return;
+    // /**
+    //  * Stop scheduling new entry spawns. In-flight invaders keep flying/docking
+    //  * unless the caller also clearCombatants() or dispose().
+    //  */
+    // public cancelEntry(reason: EntryCancelledPayload['reason'] = 'manual'): void {
+    //     if (!this.started) return;
+    //     if (this.entryDirector?.isCancelled() && this.entryDirector.queueRemaining === 0) return;
 
-        this.entry.cancel();
-        this.ctx?.events.emit(GameEvents.entryCancelled, {
-            reason,
-        } satisfies EntryCancelledPayload);
-    }
+    //     this.entryDirector?.cancel();
+    //     this.ctx?.events.emit(GameEvents.entryCancelled, {
+    //         reason,
+    //     } satisfies EntryCancelledPayload);
+    // }
 
     /**
      * Player death policy: cancel the entry queue (decision #2).
@@ -94,16 +110,25 @@ export class PlaySession {
     public onPlayerDeath(): void {
         if (!this.started || !this.ctx) return;
 
-        this.cancelEntry('player_death');
+        // Cancel current director/stage
+        if (this.director && !this.director.isCancelled()) {
+            this.director.cancel();
+
+            this.ctx.events.emit(GameEvents.stageCancelled, {
+                reason: 'player_death',
+            } satisfies StageCancelledPayload);
+        }
+
         this.ctx.events.emit(GameEvents.playerDied, undefined);
     }
 
+
     /**
-     * Remove all session entities and playfield invader meshes without
+     * Remove all session invaders and playfield invader meshes without
      * restarting entry (board wipe after death, etc.).
      */
     public clearCombatants(): void {
-        this.entities.clear();
+        this.invaders.clear();
         this.ctx?.playField.clearInvaders();
     }
 
@@ -111,46 +136,63 @@ export class PlaySession {
         if (!this.started) return;
 
         this.formation.update(dt);
-        this.entry.update(dt);
-        this.entities.update(dt);
+        this.director?.update(dt);
 
-        if (!this.entryCompleteEmitted && this.entry.isComplete()) {
-            this.entryCompleteEmitted = true;
-            this.ctx?.events.emit(GameEvents.entryComplete, undefined);
+        this.invaders.update(dt);
+
+        if (this.director?.isComplete()) {
+            this.advanceStage();
         }
-    }
 
-    public isEntryComplete(): boolean {
-        return this.entry.isComplete();
     }
 
     public isStarted(): boolean {
         return this.started;
     }
 
-    public isEntryCancelled(): boolean {
-        return this.entry.isCancelled();
+    public isStageCancelled(): boolean {
+        return this.director?.isCancelled() ?? false;
     }
+
+    public isStageComplete(): boolean {
+        return this.director?.isComplete() ?? false;
+    }
+
 
     public dispose(): void {
         if (this.started) {
             const hadPending =
-                this.entry.isRunning() &&
-                (this.entry.queueRemaining > 0 || !this.entry.isComplete());
-            this.entry.cancel();
+                this.director?.isRunning() &&
+                (this.director?.queueRemaining > 0 || !this.director?.isComplete());
+            this.director?.cancel();
             if (hadPending) {
-                this.ctx?.events.emit(GameEvents.entryCancelled, {
+                this.ctx?.events.emit(GameEvents.stageCancelled, {
                     reason: 'dispose',
-                } satisfies EntryCancelledPayload);
+                } satisfies StageCancelledPayload);
             }
         }
 
-        this.entities.clear();
+        this.invaders.clear();
         this.ctx?.playField.clearInvaders();
         this.ctx = null;
         this.template = null;
         this.started = false;
-        this.entryCompleteEmitted = false;
+    }
+
+    private advanceStage(): void {
+        if (!this.stageQueue || !this.ctx || !this.template) return;
+
+        this.currentStage = this.stageQueue.next();
+        this.director = new this.currentStage.director();
+
+        this.director?.begin({
+            formation: this.formation,
+            invaders: this.invaders,
+            playField: this.ctx.playField,
+            template: this.template,
+            config: this.currentStage.directorConfig,
+            scene: this.ctx.scene.scene,
+        });
     }
 
     private bootIntro(reason: IntroStartedPayload['reason']): void {
@@ -159,28 +201,29 @@ export class PlaySession {
         if (!ctx || !template) return;
 
         // Full reset: stop any prior queue, drop actors, rebuild formation + queue.
-        if (this.entry.isRunning()) {
-            this.entry.cancel();
-            ctx.events.emit(GameEvents.entryCancelled, {
+        if (this.director?.isRunning()) {
+            this.director?.cancel();
+
+            ctx.events.emit(GameEvents.stageCancelled, {
                 reason: 'restart',
-            } satisfies EntryCancelledPayload);
+            } satisfies StageCancelledPayload);
         } else {
-            this.entry.cancel();
+            this.director?.cancel();
         }
 
-        this.entities.clear();
+        this.invaders.clear();
         ctx.playField.clearInvaders();
-        this.entryCompleteEmitted = false;
 
         this.formation.setup(ctx.playField.bounds.height, this.formationOverride);
 
-        this.entry.begin({
+        this.director?.begin({
             formation: this.formation,
-            entities: this.entities,
+            invaders: this.invaders,
             playField: ctx.playField,
-            template,
-            entry: this.entryOverride,
+            template: this.template,
+            config: this.currentStage?.directorConfig ?? {},
         });
+
 
         ctx.events.emit(GameEvents.introStarted, { reason } satisfies IntroStartedPayload);
     }
