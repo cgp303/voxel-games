@@ -25,8 +25,10 @@ export class SegmentPanel {
     private yInput!: HTMLInputElement;
     private zInput!: HTMLInputElement;
     private selectedIndex: number | null = null;
+    private readonly callbacks: SegmentPanelCallbacks;
 
-    constructor(private readonly callbacks: SegmentPanelCallbacks) {
+    constructor(callbacks: SegmentPanelCallbacks) {
+        this.callbacks = callbacks;
         this.root = document.createElement('div');
         this.root.className = 'editor-panel';
         this.build();

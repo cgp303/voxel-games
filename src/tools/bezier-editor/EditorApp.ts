@@ -7,7 +7,9 @@ import { PathRenderer } from './PathRenderer';
 import { PointDragger } from './PointDragger';
 import { SegmentPanel } from './SegmentPanel';
 import { ExportPanel } from './ExportPanel';
+import { ImportPanel } from './ImportPanel';
 import { exportAbsolute, exportRelative, exportMultiSegmentSnippet } from './exportPath';
+import { parseSegments } from './importPath';
 
 export class EditorApp {
     private readonly scene: EditorScene;
@@ -16,6 +18,7 @@ export class EditorApp {
     private readonly dragger: PointDragger;
     private readonly segmentPanel: SegmentPanel;
     private readonly exportPanel: ExportPanel;
+    private readonly importPanel: ImportPanel;
     private selectedPoint: number | null = null;
 
     constructor(container: HTMLElement, uiRoot: HTMLElement) {
@@ -53,9 +56,14 @@ export class EditorApp {
             onSettingsChange: () => this.refreshExport(),
         });
 
+        this.importPanel = new ImportPanel({
+            onImport: (text) => this.handleImport(text),
+        });
+
         const layout = document.createElement('div');
         layout.className = 'editor-layout';
         layout.appendChild(this.segmentPanel.root);
+        layout.appendChild(this.importPanel.root);
         layout.appendChild(this.exportPanel.root);
         uiRoot.appendChild(layout);
 
@@ -87,6 +95,25 @@ export class EditorApp {
     private withRefresh(mutate: () => void): void {
         mutate();
         this.refreshAll();
+    }
+
+    private handleImport(text: string): void {
+        const parsed = parseSegments(text);
+        if (parsed.points.length === 0) {
+            this.importPanel.setStatus('No segments found in pasted text.', true);
+            return;
+        }
+
+        this.doc.loadParsed(parsed);
+        this.selectedPoint = null;
+        this.refreshAll();
+
+        const segCount = parsed.segmentWeights.length;
+        const status = `Imported ${segCount} segment${segCount === 1 ? '' : 's'}.`;
+        this.importPanel.setStatus(
+            parsed.warnings.length > 0 ? `${status} ${parsed.warnings.join(' ')}` : status,
+            parsed.warnings.length > 0,
+        );
     }
 
     private refreshAll(): void {

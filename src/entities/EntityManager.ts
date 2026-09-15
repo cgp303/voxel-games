@@ -68,8 +68,8 @@ export class EntityManager {
         this.invadersBySlot.delete(this.slotKey(invader.slot));
     }
 
-    public getInvaderAtSlot(slot: FormationSlot): Invader | null {
-        const inv = this.invadersBySlot.get(this.slotKey(slot));
+    public getInvaderAtSlot(key: string): Invader | null {
+        const inv = this.invadersBySlot.get(key);
         if (!inv) return null;
         return inv.mode === 'formation' ? inv : null;
     }

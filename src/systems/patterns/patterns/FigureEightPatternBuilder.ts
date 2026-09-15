@@ -131,51 +131,57 @@ export class FigureEightPatternBuilder {
     build(invader, rowParity): MultiSegmentPattern {
         const start = invader.position.clone();
 
-        // Segment A
-        const A0 = new Vector3(start.x, CFG.segmentA.startY, start.z);
-
-        const segment1 = new CubicBezierSegment({
+        const pAsegment1 = new CubicBezierSegment({
             p0: { x: start.x, y: start.y, z: start.z },
-            p1: { x: 108.71, y: 20, z: 0.17 },
-            p2: { x: 109.05, y: 20, z: -39.39 },
-            p3: { x: 0, y: 20, z: -40.98 },
+            p1: { x: 19.83, y: 20, z: 69.57 },
+            p2: { x: 117.66, y: 20, z: 61.02 },
+            p3: { x: 88.49, y: 20, z: 0.2 },
         });
-        const segment2 = new CubicBezierSegment({
-            p0: { x: 0, y: 20, z: -40.98 },
-            p1: { x: -110.65, y: 20, z: -40.27 },
-            p2: { x: -110.65, y: 20, z: -80.21 },
-            p3: { x: 0, y: 20, z: -80.42 },
+        const pAsegment2 = new CubicBezierSegment({
+            p0: { x: 88.49, y: 20, z: 0.2 },
+            p1: { x: 42.33, y: 20, z: -4.56 },
+            p2: { x: -32.82, y: 20, z: -47.48 },
+            p3: { x: 40.78, y: 20, z: -74.08 },
         });
-        const segment3 = new CubicBezierSegment({
-            p0: { x: 0, y: 20, z: -80.42 },
-            p1: { x: 110.22, y: 20, z: -80.21 },
-            p2: { x: 109.37, y: 20, z: -39.84 },
-            p3: { x: 0, y: 20, z: -40.48 },
-        });
-        const segment4 = new CubicBezierSegment({
-            p0: { x: 0, y: 20, z: -40.48 },
-            p1: { x: -110.86, y: 20, z: -40.91 },
-            p2: { x: -109.79, y: 20, z: -0.32 },
+        const pAsegment3 = new CubicBezierSegment({
+            p0: { x: 40.78, y: 20, z: -74.08 },
+            p1: { x: 89.72, y: 20, z: -76.8 },
+            p2: { x: 127.78, y: 20, z: -8.25 },
             p3: { x: start.x, y: start.y, z: start.z },
         });
 
-
-        const thePattern = new MultiSegmentPattern(
-            [segment1, segment2, segment3, segment4],
-            [{ start: 0, end: 0.25 }, { start: 0.25, end: 0.5 }, { start: 0.5, end: 0.75 }, { start: 0.75, end: 1 }],
-            6,
+        const patternA = new MultiSegmentPattern(
+            [pAsegment1, pAsegment2, pAsegment3],
+            [{ start: 0, end: 0.3 }, { start: 0.3, end: 0.7 }, { start: 0.7, end: 1 }],
+            4,
         )
 
+        const pBsegment1 = new CubicBezierSegment({
+            p0: { x: start.x, y: start.y, z: start.z },
+            p1: { x: -19.83, y: 20, z: 69.57 },
+            p2: { x: -117.66, y: 20, z: 61.02 },
+            p3: { x: -88.49, y: 20, z: 0.2 },
+        });
+        const pBsegment2 = new CubicBezierSegment({
+            p0: { x: -88.49, y: 20, z: 0.2 },
+            p1: { x: -42.33, y: 20, z: -4.56 },
+            p2: { x: 32.82, y: 20, z: -47.48 },
+            p3: { x: -40.78, y: 20, z: -74.08 },
+        });
+        const pBsegment3 = new CubicBezierSegment({
+            p0: { x: -40.78, y: 20, z: -74.08 },
+            p1: { x: -89.72, y: 20, z: -76.8 },
+            p2: { x: -127.78, y: 20, z: -8.25 },
+            p3: { x: start.x, y: start.y, z: start.z },
+        });
 
-        // const thePattern = new MultiSegmentPattern(
-        //     [segmentA],
-        //     [
-        //         { start: 0.0, end: 1.0 }
-        //     ],
-        //     CFG.duration
-        // );
+        const patternB = new MultiSegmentPattern(
+            [pBsegment1, pBsegment2, pBsegment3],
+            [{ start: 0, end: 0.3 }, { start: 0.3, end: 0.7 }, { start: 0.7, end: 1 }],
+            4,
+        )
 
-        return thePattern;
+        return (rowParity === 0) ? patternB : patternA;
     }
 
 

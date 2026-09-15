@@ -40,4 +40,11 @@ export class MultiSegmentPattern implements PathPattern {
         const lt = this.remapToLocalT(t, idx);
         return this.segments[idx].sampleTangent(lt, out);
     }
+
+    public sampleSpinRate(t: number): number {
+        const segIndex = this.findSegmentIndex(t);
+        const seg = this.segments[segIndex];
+        const localT = this.remapToLocalT(t, segIndex);
+        return seg.sampleSpinRate(localT);
+    }
 }

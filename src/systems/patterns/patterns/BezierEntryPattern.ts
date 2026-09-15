@@ -22,4 +22,8 @@ export class BezierEntryPattern implements PathPattern {
     public sampleTangent(t: number, out: Vector3): Vector3 {
         return this.segment.sampleTangent(t, out);
     }
+
+    public sampleSpinRate(t: number): number {
+        return this.segment.sampleSpinRate(t);
+    }
 }

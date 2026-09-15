@@ -10,6 +10,8 @@ export interface ExportPanelCallbacks {
 export class ExportPanel {
     readonly root: HTMLDivElement;
 
+    private readonly callbacks: ExportPanelCallbacks;
+
     private modeRelative!: HTMLInputElement;
     private anchorXInput!: HTMLInputElement;
     private anchorZInput!: HTMLInputElement;
@@ -17,7 +19,8 @@ export class ExportPanel {
     private relativeFieldsWrap!: HTMLDivElement;
     private output!: HTMLTextAreaElement;
 
-    constructor(private readonly callbacks: ExportPanelCallbacks) {
+    constructor(callbacks: ExportPanelCallbacks) {
+        this.callbacks = callbacks;
         this.root = document.createElement('div');
         this.root.className = 'editor-panel';
         this.build();

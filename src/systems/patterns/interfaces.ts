@@ -27,6 +27,7 @@ export interface DirectorContext {
 export interface PathSegment {
     samplePosition(t: number, out: THREE.Vector3): THREE.Vector3;
     sampleTangent(t: number, out: THREE.Vector3): THREE.Vector3;
+    sampleSpinRate(t: number): number;
 }
 
 /**
@@ -34,6 +35,7 @@ export interface PathSegment {
  */
 export interface PathPattern {
     duration: number;
+    sampleSpinRate(t: number): number;
     samplePosition(t: number, out: THREE.Vector3): THREE.Vector3;
     sampleTangent(t: number, out: THREE.Vector3): THREE.Vector3;
 }

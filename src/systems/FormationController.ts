@@ -102,9 +102,9 @@ export class FormationController {
         return this.getWorldHome(slot.col, slot.row, out);
     }
 
-    public getSlot(col: number, row: number): FormationSlot {
-        return { col, row };
-    }
+    // public getSlot(col: number, row: number): FormationSlot {
+    //     return { col, row };
+    // }
 
     public isCenterCol(col: number): boolean {
         const { cols } = this.config;

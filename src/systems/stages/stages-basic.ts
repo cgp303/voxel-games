@@ -3,6 +3,7 @@ import { StageQueue } from './StageQueue';
 
 import { EntryPatternDirector } from '../patterns/directors/EntryPatternDirector';
 import { FigureEightDirector } from '../patterns/directors/FigureEightDirector';
+import { ColumnDivesDirector } from '../patterns/directors/ColumnDivesDirector';
 
 export function createBasicStages(): StageQueue {
     return new StageQueue(
@@ -16,8 +17,8 @@ export function createBasicStages(): StageQueue {
             ),
 
             new Stage(
-                "Figure Eight",
-                FigureEightDirector,
+                "Column Dives",
+                ColumnDivesDirector,
                 { orientation: "front" },
                 1.0,
                 1.2
