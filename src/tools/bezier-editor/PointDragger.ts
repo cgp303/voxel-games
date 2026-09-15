@@ -4,6 +4,12 @@ import * as THREE from 'three';
 
 /** Raycast-picks a handle on left pointerdown, then drags it on a horizontal plane. */
 export class PointDragger {
+    private readonly domElement: HTMLElement;
+    private readonly camera: THREE.Camera;
+    private readonly getHandles: () => THREE.Mesh[];
+    private readonly onSelect: (index: number | null) => void;
+    private readonly onDrag: (index: number, position: THREE.Vector3) => void;
+
     private dragging = false;
     private selectedIndex: number | null = null;
     private readonly raycaster = new THREE.Raycaster();
@@ -12,12 +18,18 @@ export class PointDragger {
     private readonly hitPoint = new THREE.Vector3();
 
     constructor(
-        private readonly domElement: HTMLElement,
-        private readonly camera: THREE.Camera,
-        private readonly getHandles: () => THREE.Mesh[],
-        private readonly onSelect: (index: number | null) => void,
-        private readonly onDrag: (index: number, position: THREE.Vector3) => void,
+        domElement: HTMLElement,
+        camera: THREE.Camera,
+        getHandles: () => THREE.Mesh[],
+        onSelect: (index: number | null) => void,
+        onDrag: (index: number, position: THREE.Vector3) => void,
     ) {
+        this.domElement = domElement;
+        this.camera = camera;
+        this.getHandles = getHandles;
+        this.onSelect = onSelect;
+        this.onDrag = onDrag;
+
         this.domElement.addEventListener('pointerdown', this.onPointerDown);
         this.domElement.addEventListener('pointermove', this.onPointerMove);
         window.addEventListener('pointerup', this.onPointerUp);

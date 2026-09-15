@@ -11,9 +11,15 @@ export class CubicBezierSegment implements PathSegment {
 
     private readonly posScratch = new Vector3();
     private readonly tanScratch = new Vector3();
+    private spinRate = 0;
 
-    constructor(controls: CubicBezierControls) {
+    constructor(controls: CubicBezierControls, spinRate: number = 0) {
         this.controls = controls;
+        this.spinRate = spinRate;
+    }
+
+    public sampleSpinRate(t: number): number {
+        return this.spinRate;
     }
 
     public samplePosition(t: number, out: Vector3): Vector3 {

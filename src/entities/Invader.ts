@@ -81,6 +81,8 @@ export class Invader extends Entity {
     private readonly displayQuat = new Quaternion();
     private readonly flightQuat = new Quaternion();
     private readonly bankQuat = new Quaternion();
+    private readonly spinQuat = new Quaternion();
+
     private readonly targetFlightQuat = new Quaternion();
 
     private readonly homeScratch = new Vector3();
@@ -93,6 +95,7 @@ export class Invader extends Entity {
     private prevForwardZ = 1;
     private hasPrevForward = false;
     private roll = 0;
+    private spinAngle = 0;
 
     private debugArrow: ArrowHelper | null = null;
 
@@ -154,6 +157,7 @@ export class Invader extends Entity {
         this.pathDuration = Math.max(0.05, this.pathPattern?.duration ?? ENTRY.pathDuration);
         this.mode = 'diving';
         this.pathT = 0;
+        this.spinAngle = 0;
     }
 
     /**
@@ -282,12 +286,30 @@ export class Invader extends Entity {
 
         const smooth = 1 - Math.exp(-this.orientSmooth * dt);
         this.roll += (targetRoll - this.roll) * smooth;
+        if (this.pathPattern) {
+            const spinRate = this.pathPattern.sampleSpinRate(this.pathT);
+            this.spinAngle += spinRate * dt;
+        }
 
         // Path face: lookAt puts local -Z along +forward.
         this.lookDummy.position.set(0, 0, 0);
         this.lookDummy.up.copy(this.worldUp);
         this.lookDummy.lookAt(forward.x, forward.y, forward.z);
         this.targetFlightQuat.copy(this.lookDummy.quaternion);
+
+        // tangent axis in world space
+        const tangentAxis = forward.clone();
+
+        // convert tangent axis into local space AFTER lookAt
+        const localTangentAxis = tangentAxis.applyQuaternion(this.lookDummy.quaternion.clone().invert());
+
+        // spin around local tangent axis
+        this.spinQuat.setFromAxisAngle(localTangentAxis, this.spinAngle);
+
+        this.targetFlightQuat.copy(this.lookDummy.quaternion);
+
+        // spin first
+        this.targetFlightQuat.multiply(this.spinQuat);
 
         // Bank about local Z after path face (mesh-local Z roll).
         this.bankQuat.setFromAxisAngle(this.localForward, this.roll);

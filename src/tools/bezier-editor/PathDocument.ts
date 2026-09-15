@@ -1,6 +1,7 @@
 // tools/bezier-editor/PathDocument.ts
 
 import { Vector3 } from 'three';
+import type { ParsedPath } from './importPath';
 
 export type SegmentRange = { start: number; end: number };
 
@@ -54,6 +55,13 @@ export class PathDocument {
         if (this.segmentCount === 0) return;
         this.points.splice(this.points.length - 3, 3);
         this.segmentWeights.pop();
+    }
+
+    /** Wholesale replace from a parsed import (see importPath.ts). */
+    loadParsed(parsed: ParsedPath): void {
+        this.points = parsed.points;
+        this.segmentWeights = parsed.segmentWeights;
+        this.totalDuration = parsed.totalDuration;
     }
 
     segmentPoints(i: number): [Vector3, Vector3, Vector3, Vector3] {
