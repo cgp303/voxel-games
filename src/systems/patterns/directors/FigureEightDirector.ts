@@ -1,45 +1,73 @@
-// systems/patterns/directors/FigureEightDirector.ts
-
 import { FigureEightPatternBuilder } from '../patterns/FigureEightPatternBuilder';
 import type { DirectorContext, PatternDirector } from '../interfaces';
+
 export class FigureEightDirector implements PatternDirector {
 
     public queueRemaining = 0;
     private running = false;
     private cancelled = false;
+
     private formation;
     private invaders;
     private config;
     private builder;
-    private currentRow = 0;
-    private currentCol = 0;
-    private timeSinceLastTrigger = 0;
-    private nextRowAt = 0;
-    private msBetweenRows = 3500;
-    private rowsPerTrigger = 2;
-    private completionCooldown = 0;
 
-    private triggerDelay = 0.3 // conga line spacing
+    private triggerOrder: string[][] = [];
+    private currentIndex = 0;
+    private spawnType: string = "LeftRightPairs";
+    private nextTriggerAt = 0;
+
+    private msBetweenTriggers = 250;
+    private completionCooldown = 0;
+    private coolDownPeriod = 4;
+
 
     begin(ctx: DirectorContext): void {
         this.running = true;
         this.cancelled = false;
+
         this.formation = ctx.formation;
         this.invaders = ctx.invaders;
         this.config = ctx.config ?? {};
         this.builder = new FigureEightPatternBuilder(ctx.scene);
-        this.queueRemaining = this.formation.rows * this.formation.cols;
-        this.currentRow = this.formation.rows - 1;
-        this.currentCol = 0;
-        this.timeSinceLastTrigger = 0;
-        this.completionCooldown = 0; // reset completion cooldown on begin
+
+        // Build trigger order from spawnOrder
+        this.spawnType = this.formation.getSpawnType();
+        this.triggerOrder = this.makeTriggerOrder();
+        this.queueRemaining = this.triggerOrder.length;
+
+        this.currentIndex = 0;
+        this.completionCooldown = 0;
+        this.nextTriggerAt = 0;
+    }
+
+    private makeTriggerOrder(): string[][] {
+        this.triggerOrder = [];
+        const maxCol = this.formation.maxCol;
+        const maxRow = this.formation.maxRow;
+
+        for (let row = maxRow; row >= 0; row -= 2) {
+            for (let col = 0; col <= maxCol; col++) {
+
+                const row1 = row;
+                const row2 = row - 1;
+                const colLeft = col;
+                const colRight = maxCol - colLeft;
+                const slot1 = `${colLeft},${row1}`;
+                const slot2 = `${colRight},${row2}`;
+                const group = [slot1, slot2];
+                this.triggerOrder.push(group);
+
+            }
+        }
+
+        return this.triggerOrder;
     }
 
     update(dt: number): void {
-        // return if not active
         if (!this.running || this.cancelled) return;
 
-        // return if in completion cooldown
+        // Completion cooldown
         if (this.completionCooldown > 0) {
             this.completionCooldown -= dt;
             if (this.completionCooldown <= 0) {
@@ -48,71 +76,58 @@ export class FigureEightDirector implements PatternDirector {
             return;
         }
 
-        // return if all rows have been processed
-        if (this.currentRow < 0) return;
+        // Finished all columns
+        if (this.currentIndex >= this.triggerOrder.length) return;
 
-        // Row pause gate
-        if (performance.now() < this.nextRowAt) return;
+        // Column pause gate
+        if (performance.now() < this.nextTriggerAt) return;
 
-        // pause between invader triggers
-        this.timeSinceLastTrigger += dt;
-        if (this.timeSinceLastTrigger < this.triggerDelay) return;
+        // Trigger the next column/group
+        this.trigger();
 
-        // reset time since last trigger
-        this.timeSinceLastTrigger = 0;
+        // Move to next column
+        this.currentIndex++;
 
+        // Schedule next column trigger
+        this.nextTriggerAt = performance.now() + this.msBetweenTriggers;
 
-        let index = 0;
-        while (index < this.rowsPerTrigger) {
-            // determine current row and column direction
-            const row = this.currentRow - index;
-            const leftToRight = (row % 2 === 0);
+        // If done, start cooldown
+        if (this.currentIndex >= this.triggerOrder.length) {
+            this.completionCooldown = this.coolDownPeriod;
+        }
+    }
 
-            // determine column order based on direction
-            const cols = leftToRight
-                ? [...Array(this.formation.cols).keys()]
-                : [...Array(this.formation.cols).keys()].reverse();
+    private trigger(): void {
+        const group = this.triggerOrder[this.currentIndex];
 
-            const col = cols[this.currentCol];
+        if (this.spawnType === "LeftRightPairs") {
+            const [leftKey, rightKey] = group;
 
-            // get the slot and invader at the current column and row
-            const key = `${col},${row}`;
-            const invader = this.invaders.getInvaderAtSlot(key);
+            const invLeft = this.invaders.getInvaderAtSlot(leftKey);
+            const invRight = this.invaders.getInvaderAtSlot(rightKey);
 
-            // trigger the invader's pattern if it exists and is active
-            if (invader && invader.active) {
-                const pattern = this.builder.build(invader, row % 2);
-                invader.startPattern({
+            if (invLeft && invLeft.active) {
+                const pattern = this.builder.build(invLeft, 0);
+                invLeft.startPattern({
                     pattern,
                     formation: this.formation,
                     entry: this.config.orientation,
                 });
             }
-            index++;
-        }
 
+            if (invRight && invRight.active) {
+                const pattern = this.builder.build(invRight, 1);
+                invRight.startPattern({
+                    pattern,
+                    formation: this.formation,
+                    entry: this.config.orientation,
+                });
+            }
 
-
-        // advance to the next column
-        this.currentCol++;
-
-        if (this.currentCol >= this.formation.cols) {
-            // move to the next row
-            this.currentCol = 0;
-            this.currentRow -= 2;
-            // schedule next row trigger
-            this.nextRowAt = performance.now() + this.msBetweenRows;
-        }
-
-        if (this.currentRow < 0) {
-            // all rows have been processed, start completion cooldown
-            this.completionCooldown = this.msBetweenRows / 1000;
+            return;
         }
     }
 
-    /*
-    // Cancel the director's operation
-    */
     cancel(): void {
         this.cancelled = true;
         this.running = false;

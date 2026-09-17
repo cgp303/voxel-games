@@ -4,6 +4,7 @@ import { DEMO } from '../data/constants';
 import { PlaySession } from '../systems/PlaySession';
 import type { Screen } from './Screen';
 import type { PlayScreen } from './PlayScreen';
+import { createDemoStages } from '../systems/stages/stages-basic';
 
 /** Attract panels cycled on the demo screen */
 export type DemoAttractPanel = 'info' | 'highscores';
@@ -41,7 +42,9 @@ export class DemoScreen implements Screen {
 
     this.session?.dispose();
     this.session = new PlaySession();
-    this.session.start(ctx);
+    this.session.start(ctx, {
+      stageQueue: createDemoStages()
+    });
 
     this.ensureOverlay();
     this.renderPanel();

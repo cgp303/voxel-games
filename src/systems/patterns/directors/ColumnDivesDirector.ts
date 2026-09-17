@@ -1,48 +1,63 @@
-// systems/patterns/directors/ColumnDivesDirector.ts
-
 import { ColumnDivesPatternBuilder } from '../patterns/ColumnDivesPatternBuilder';
 import type { DirectorContext, PatternDirector } from '../interfaces';
+
 export class ColumnDivesDirector implements PatternDirector {
 
     public queueRemaining = 0;
     private running = false;
     private cancelled = false;
+
     private formation;
     private invaders;
     private config;
     private builder;
-    private currentRow = 0;
-    private currentCol = 0;
-    private timeSinceLastTrigger = 0;
-    private nextColAt = 0;
-    private msBetweenCols = 500;
-    private colsPerTrigger = 1;
-    private halCols = 0;
-    private completionCooldown = 0;
-    private coolDownPeriod = 2.5; // example value in milliseconds
 
-    private triggerDelay = 0.3 // conga line spacing
+    private triggerOrder: string[][] = [];
+    private spawnType: string = "LeftRightPairs";
+
+    private currentIndex = 0;
+    private nextTriggerAt = 0;
+
+    private msBetweenTriggers = 250;
+    private completionCooldown = 0;
+    private coolDownPeriod = 4;
 
     begin(ctx: DirectorContext): void {
         this.running = true;
         this.cancelled = false;
+
         this.formation = ctx.formation;
         this.invaders = ctx.invaders;
         this.config = ctx.config ?? {};
         this.builder = new ColumnDivesPatternBuilder(ctx.scene);
-        this.queueRemaining = this.formation.rows * this.formation.cols;
-        this.currentRow = this.formation.rows - 1;
-        this.currentCol = 0;
-        this.timeSinceLastTrigger = 0;
-        this.completionCooldown = 0; // reset completion cooldown on begin
-        this.halCols = this.formation.cols / 2;
+
+        this.spawnType = this.formation.getSpawnType();
+
+        this.triggerOrder = this.makeTriggerOrder();
+        this.queueRemaining = this.triggerOrder.length;
+        this.currentIndex = 0;
+        this.nextTriggerAt = 0;
+        this.completionCooldown = 0;
+    }
+
+    makeTriggerOrder(): string[][] {
+        this.triggerOrder = [];
+        const maxCol = this.formation.maxCol;
+        const maxRow = this.formation.maxRow;
+        const halfCol = maxCol / 2;
+        for (let colLeft = 0; colLeft <= halfCol; colLeft++) {
+            const colRight = maxCol - colLeft;
+            for (let rowBack = maxRow; rowBack >= 0; rowBack--) {
+                this.triggerOrder.push([`${colLeft},${rowBack}`, `${colRight},${rowBack}`]);
+            }
+        }
+        return this.triggerOrder;
     }
 
     update(dt: number): void {
-        // return if not active
         if (!this.running || this.cancelled) return;
 
-        // return if in completion cooldown
+        // Completion cooldown
         if (this.completionCooldown > 0) {
             this.completionCooldown -= dt;
             if (this.completionCooldown <= 0) {
@@ -51,86 +66,91 @@ export class ColumnDivesDirector implements PatternDirector {
             return;
         }
 
-        // return if all columns have been processed
-        if (this.currentCol >= this.halCols) return;
+        // Finished all columns
+        if (this.currentIndex >= this.triggerOrder.length) return;
 
-        // Row pause gate
-        if (performance.now() < this.nextColAt) return;
+        // Column pause gate
+        if (performance.now() < this.nextTriggerAt) return;
 
-        // pause between invader triggers
-        this.timeSinceLastTrigger += dt;
-        if (this.timeSinceLastTrigger < this.triggerDelay) return;
+        // Trigger the next column/group
+        this.trigger();
 
-        // reset time since last trigger
-        this.timeSinceLastTrigger = 0;
+        // Move to next column
+        this.currentIndex++;
 
-        let index = 0;
-        while (index < this.colsPerTrigger) {
+        // Schedule next column trigger
+        this.nextTriggerAt = performance.now() + this.msBetweenTriggers;
 
-            // determine row
-            const row = this.currentRow - index;
-
-            // define arrays. reverse for right side columns
-            const cols = [...Array(this.formation.cols).keys()];
-            const revCols = [...Array(this.formation.cols).keys()].reverse();
-
-            const colLeft = cols[this.currentCol];
-            const colRight = revCols[this.currentCol];
-
-            // derive key for invadersBySlot function
-            const keyLeft = `${colLeft},${row}`;
-            const keyRight = `${colRight},${row}`;
-
-            // get the slot and invader at the current column and row
-            // const slotLeft = this.formation.getSlot(colLeft, row);
-            // const slotRight = this.formation.getSlot(colRight, row);
-            const invaderleft = this.invaders.getInvaderAtSlot(keyLeft);
-            const invaderright = this.invaders.getInvaderAtSlot(keyRight);
-
-            // trigger the invader's pattern if it exists and is active
-            if (invaderleft && invaderleft.active) {
-                const pattern = this.builder.build(invaderleft, 0);
-                invaderleft.startPattern({
-                    pattern,
-                    formation: this.formation,
-                    entry: this.config.orientation,
-                });
-            }
-
-            if (invaderright && invaderright.active) {
-                const pattern = this.builder.build(invaderright, 1);
-                invaderright.startPattern({
-                    pattern,
-                    formation: this.formation,
-                    entry: this.config.orientation,
-                });
-            }
-
-            index++;
-        }
-
-
-
-        // advance to the next column
-        this.currentRow--;
-
-        if (this.currentRow < 0) {
-            // move to the next column
-            this.currentRow = this.formation.rows - 1;
-            this.currentCol++;
-            // schedule next column trigger
-            this.nextColAt = performance.now() + this.msBetweenCols;
-        }
-
-        if (this.currentCol >= this.halCols) {
-            // all columns have been processed, start completion cooldown
+        // If done, start cooldown
+        if (this.currentIndex >= this.triggerOrder.length) {
             this.completionCooldown = this.coolDownPeriod;
         }
     }
 
-    /*
-    // Cancel the director's operation
-    */
+    private trigger(): void {
+        const group = this.triggerOrder[this.currentIndex];
+
+        if (this.spawnType === "LeftRightPairs") {
+            const [leftKey, rightKey] = group;
+
+            const invLeft = this.invaders.getInvaderAtSlot(leftKey);
+            const invRight = this.invaders.getInvaderAtSlot(rightKey);
+
+            if (invLeft && invLeft.active) {
+                const pattern = this.builder.build(invLeft, 0);
+                invLeft.startPattern({
+                    pattern,
+                    formation: this.formation,
+                    entry: this.config.orientation,
+                });
+            }
+
+            if (invRight && invRight.active) {
+                const pattern = this.builder.build(invRight, 1);
+                invRight.startPattern({
+                    pattern,
+                    formation: this.formation,
+                    entry: this.config.orientation,
+                });
+            }
+
+            return;
+        }
+
+        if (this.spawnType === "Single") {
+            const [key] = group;
+            const inv = this.invaders.getInvaderAtSlot(key);
+
+            if (inv && inv.active) {
+                const pattern = this.builder.build(inv, 0);
+                inv.startPattern({
+                    pattern,
+                    formation: this.formation,
+                    entry: this.config.orientation,
+                });
+            }
+
+            return;
+        }
+
+        if (this.spawnType === "Wave") {
+            for (const key of group) {
+                const inv = this.invaders.getInvaderAtSlot(key);
+                if (inv && inv.active) {
+                    const pattern = this.builder.build(inv, 0);
+                    inv.startPattern({
+                        pattern,
+                        formation: this.formation,
+                        entry: this.config.orientation,
+                    });
+                }
+            }
+            return;
+        }
+
+        // Unknown spawn type — do nothing
+    }
+
     cancel(): void {
         this.cancelled = true;
         this.running = false;

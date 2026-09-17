@@ -1,5 +1,5 @@
 ﻿import { Vector3 } from 'three';
-import type { EntryConfig } from '../../app/types';
+import type { EntryConfig, EntrySide } from '../../app/types';
 
 /** Cubic Bezier control polygon in world space. */
 export interface CubicBezierControls {
@@ -170,7 +170,8 @@ export function buildEntryControlsFromConfig(
     spawn: Vector3,
     home: Vector3,
     centerX: number,
-    side: 'left' | 'right',
+    // side: 'left' | 'right',
+    side: EntrySide,
     entry: Pick<EntryConfig, 'bulgeDepth' | 'bulgeSignZ' | 'centerApproachX'>,
 ): CubicBezierControls {
     const sideSign: 1 | -1 = side === 'left' ? -1 : 1;

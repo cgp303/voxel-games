@@ -14,7 +14,7 @@ export interface FormationSlot {
 }
 
 /** Which wing an entry path starts from */
-export type EntrySide = 'left' | 'right';
+export type EntrySide = 'left' | 'right' | 'center';
 
 /**
  * Invader behaviour FSM.
@@ -63,6 +63,7 @@ export interface FormationConfig {
     hoverPadding: number;
     rootVelocityX: number;
     rootVelocityZ: number;
+    formationDescription?: FormationDescriptor | null;
 }
 
 /**
@@ -97,3 +98,25 @@ export interface InvaderKilledPayload {
     typeId: string;
     scoreValue: number;
 }
+
+export interface FormationDescriptor {
+    /** Map of "col,row" → world‑space offset { x, z } */
+    map: Map<string, { x: number; z: number }>;
+
+    /** Ordered list of lists of slot keys ("col,row") describing EXACT spawn order */
+    spawnOrder: string[][];
+
+    /**
+     * How the director should consume spawnOrder:
+     * - "LeftRightPairs": spawn two invaders per tick, left then right
+     * - "Single": spawn one invader per tick
+     * - "Wave": spawn rows or groups together
+     * - "Custom": formation builder provides its own spawn logic
+     */
+    spawnType: "LeftRightPairs" | "Single" | "Wave" | "Custom";
+    /** Maximum column index (cols - 1) */
+    maxCol: number;
+    /** Maximum row index (rows - 1) */
+    maxRow: number;
+}
+

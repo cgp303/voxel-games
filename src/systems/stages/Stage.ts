@@ -1,8 +1,10 @@
 // systems/stages/Stage.ts
 
+import { PatternDirector } from "../patterns/interfaces";
+
 export class Stage {
     name: string;
-    director: any;               // You can tighten this later with a Director interface
+    director: PatternDirector;   // Updated to use the PatternDirector interface
     directorConfig: Record<string, any>;
     fireRate: number;
     missileStrength: number;
@@ -10,7 +12,7 @@ export class Stage {
 
     constructor(
         name: string,
-        director: any,
+        director: PatternDirector,
         directorConfig: Record<string, any> = {},
         fireRate: number = 1.0,
         missileStrength: number = 1.0,

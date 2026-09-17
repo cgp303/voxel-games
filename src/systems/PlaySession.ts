@@ -66,7 +66,7 @@ export class PlaySession {
 
         if (this.stageQueue) {
             this.currentStage = this.stageQueue.next();
-            this.director = new this.currentStage.director();
+            this.director = this.currentStage.director;
         } else {
             // Fallback mode: demo screen or legacy behavior
             this.director = new EntryPatternDirector();
@@ -179,11 +179,18 @@ export class PlaySession {
         this.started = false;
     }
 
+    private onlyEntryStage(): boolean {
+        return this.stageQueue?.stages.length === 1 && this.stageQueue?.stages[0].name === 'Entry';
+    }
+
     private advanceStage(): void {
         if (!this.stageQueue || !this.ctx || !this.template) return;
+        if (this.onlyEntryStage()) {
+            return;
+        }
 
         this.currentStage = this.stageQueue.next();
-        this.director = new this.currentStage.director();
+        this.director = this.currentStage.director;
 
         this.director?.begin({
             formation: this.formation,
@@ -214,7 +221,14 @@ export class PlaySession {
         this.invaders.clear();
         ctx.playField.clearInvaders();
 
-        this.formation.setup(ctx.playField.bounds.height, this.formationOverride);
+
+        const formationDescription = this.stageQueue?.getFormationDescription();
+        if (!formationDescription) {
+            throw new Error("StageQueue has no formation descriptor");
+        }
+
+        this.formation.setup(ctx.playField.bounds.height, formationDescription);
+
 
         this.director?.begin({
             formation: this.formation,

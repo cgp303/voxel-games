@@ -9,12 +9,13 @@ import { buildEntryControlsFromConfig } from '../../path/cubicBezier';
 import { BezierEntryPattern } from '../patterns/BezierEntryPattern';
 import { CubicBezierSegment } from '../segments/CubicBezierSegment';
 import { defaultOrientationConfig } from '../../patterns/config/defaultOrientationConfig';
-import type { DirectorContext } from '../interfaces';
+import type { DirectorContext, PatternDirector } from '../interfaces';
 
 
 type QueueJob =
-    | { kind: 'pair'; left: FormationSlot }
-    | { kind: 'center'; slot: FormationSlot };
+    | { kind: 'pair'; left: FormationSlot; right: FormationSlot }
+    | { kind: 'single'; slot: FormationSlot };
+
 
 export interface EntryDirectorBeginArgs {
     formation: FormationController;
@@ -30,7 +31,7 @@ export interface EntryDirectorBeginArgs {
  * builds mirrored entry paths, registers them with EntityManager.
  * Does not tick invaders — PlaySession runs formation → entry → invaders.
  */
-export class EntryPatternDirector {
+export class EntryPatternDirector implements PatternDirector {
     private formation: FormationController | null = null;
     private invaders: EntityManager | null = null;
     private playField: PlayField | null = null;
@@ -62,14 +63,35 @@ export class EntryPatternDirector {
         this.running = true;
         this.queue.length = 0;
 
-        // Pairs from left half (mirror supplies right).
-        for (const left of ctx.formation.leftHalfSlots()) {
-            this.queue.push({ kind: 'pair', left });
+        const spawnOrder = this.formation.getSpawnOrder();
+        const spawnType = this.formation.getSpawnType();
+
+        switch (spawnType) {
+            case "LeftRightPairs":
+                for (const [leftKey, rightKey] of spawnOrder) {
+                    const [lcol, lrow] = leftKey.split(',').map(Number);
+                    const [rcol, rrow] = rightKey.split(',').map(Number);
+
+                    this.queue.push({
+                        kind: 'pair',
+                        left: { col: lcol, row: lrow },
+                        right: { col: rcol, row: rrow }
+                    });
+                }
+                break;
+            case "Single":
+                for (const [key] of spawnOrder) {
+                    const [col, row] = key.split(',').map(Number);
+                    this.queue.push({
+                        kind: 'single',
+                        slot: { col, row }
+                    });
+                }
+                break;
+            default:
+                throw new Error(`Unknown spawnType: ${spawnType}`);
         }
-        // Odd center column: solo, alternating sides at release time.
-        for (const slot of ctx.formation.centerColumnSlots()) {
-            this.queue.push({ kind: 'center', slot });
-        }
+
     }
 
     public update(dt: number): void {
@@ -125,17 +147,19 @@ export class EntryPatternDirector {
         if (!job) return;
 
         if (job.kind === 'pair') {
-            const right = this.formation!.mirrorSlot(job.left);
             this.spawnOne(job.left, 'left');
-            this.spawnOne(right, 'right');
+            this.spawnOne(job.right, 'right');
             return;
         }
 
-        const side = this.formation!.nextCenterSide();
-        this.spawnOne(job.slot, side);
+        if (job.kind === 'single') {
+            this.spawnOne(job.slot, 'center');
+        }
+
     }
 
     private spawnOne(slot: FormationSlot, side: EntrySide): void {
+
         const formation = this.formation!;
         const invaders = this.invaders!;
         const playField = this.playField!;
