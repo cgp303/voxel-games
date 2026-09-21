@@ -2,6 +2,11 @@
 
 import { GroupAttackPatternBuilder } from '../patterns/GroupAttackPatternBuilder';
 import type { DirectorContext, PatternDirector } from '../interfaces';
+import { groupAttackSets as GroupAttackSets, GroupType, InvaderGroup } from '../config/GroupAttackSets';
+
+const ATTACK_GROUP_TYPE = 0;
+const ATTACK_GROUP_ITERATIONS = 1;
+
 export class GroupAttackPatternDirector implements PatternDirector {
 
     public queueRemaining = 0;
@@ -11,17 +16,34 @@ export class GroupAttackPatternDirector implements PatternDirector {
     private invaders;
     private config;
     private builder;
-    private currentRow = 0;
-    private currentCol = 0;
+    private invaderGroups;
     private timeSinceLastTrigger = 0;
-    private nextColAt = 0;
-    private msBetweenCols = 500;
-    private colsPerTrigger = 1;
-    private halCols = 0;
     private completionCooldown = 0;
-    private coolDownPeriod = 2.5; // example value in milliseconds
+    private coolDownPeriod = 5.2; // example value in milliseconds
+    private _isComplete = false;
+    private triggerDelay = 5.2; // time between triggers
 
-    private triggerDelay = 0.3 // conga line spacing
+    private groupAttackSet: [string, number][];
+    private currentGroupSetIndex = 0;
+    private currentGroupAttackSet: [string, number] | undefined;
+    private maxSetIterations: number = 0;
+    private numGroups: number;
+    private groupAttackType: string = "";
+    private currentInvaderGroup: InvaderGroup | undefined;
+    private setIterations: number = 0;
+
+
+
+    constructor(groupAttackSet: [string, number][]) {
+
+        // instructions from the stage-queue
+        // about what kinds of group attack to perform
+        // and in what order
+        this.groupAttackSet = groupAttackSet;
+
+        // store the number of groups for later reference
+        this.numGroups = groupAttackSet.length;
+    }
 
     begin(ctx: DirectorContext): void {
         this.running = true;
@@ -30,12 +52,38 @@ export class GroupAttackPatternDirector implements PatternDirector {
         this.invaders = ctx.invaders;
         this.config = ctx.config ?? {};
         this.builder = new GroupAttackPatternBuilder(ctx.scene);
-        this.queueRemaining = this.formation.rows * this.formation.cols;
-        this.currentRow = this.formation.rows - 1;
-        this.currentCol = 0;
+
+        // reset set index
+        this.currentGroupSetIndex = 0;
+
+        // set the current group attack set based on the current group index
+        // this contains a key to the group attack set and the number of iterations
+        // it should play.
+        this.currentGroupAttackSet = this.groupAttackSet[this.currentGroupSetIndex];
+
+        // get the attack type and iterations from the current group attack set
+        // so we now have the the attack set and the number of times it should play.
+
+        // number of times this group attach should play
+        this.maxSetIterations = this.currentGroupAttackSet?.[ATTACK_GROUP_ITERATIONS] ?? 0;
+        this.setIterations = 0;
+
+        // type of group attack to perform
+        this.groupAttackType = this.currentGroupAttackSet?.[ATTACK_GROUP_TYPE] ?? "";
+
+        // this retrieves sets of invaders for the specified group attack type
+        // ie. sets of 2 x 2 invaders
+        this.invaderGroups = this.shuffleArray(GroupAttackSets.get(this.groupAttackType as GroupType) || []);
+
+        // this is now a list of keys to the formation's invader map and can be
+        // used to trigger the corresponding invaders in the formation.
+        this.currentInvaderGroup = this.invaderGroups.pop();
+
+
+        this._isComplete = false
         this.timeSinceLastTrigger = 0;
         this.completionCooldown = 0; // reset completion cooldown on begin
-        this.halCols = this.formation.cols / 2;
+
     }
 
     update(dt: number): void {
@@ -51,88 +99,92 @@ export class GroupAttackPatternDirector implements PatternDirector {
         if (this.completionCooldown > 0) {
             this.completionCooldown -= dt;
             if (this.completionCooldown <= 0) {
-                this.queueRemaining = 0;
+                this._isComplete = true;
             }
             return;
         }
 
-        // return if all columns have been processed
-        if (this.currentCol >= this.halCols) return;
-
-        // Row pause gate
-        if (performance.now() < this.nextColAt) return;
-
-        // pause between invader triggers
+        // // pause between invader triggers
         this.timeSinceLastTrigger += dt;
         if (this.timeSinceLastTrigger < this.triggerDelay) return;
 
         // reset time since last trigger
         this.timeSinceLastTrigger = 0;
 
+        // release group of invaders
+        // release group of invaders
+        const attackGroup = this.currentInvaderGroup?.group;
+        const path = this.currentInvaderGroup?.path;
+        const side = path === "left" ? 0 : path === "right" ? 1 : Math.random() < 0.5 ? 0 : 1;
 
-        ////////////////////////////////////////////
-        // Select and Trigger Invaders
-        ////////////////////////////////////////////
-        let index = 0;
-        while (index < this.colsPerTrigger) {
 
-            // determine row
-            const row = this.currentRow - index;
-
-            // define arrays. reverse for right side columns
-            const cols = [...Array(this.formation.cols).keys()];
-            const revCols = [...Array(this.formation.cols).keys()].reverse();
-
-            const colLeft = cols[this.currentCol];
-            const colRight = revCols[this.currentCol];
-
-            // get the slot and invader at the current column and row
-            const slotLeft = this.formation.getSlot(colLeft, row);
-            const slotRight = this.formation.getSlot(colRight, row);
-            const invaderleft = this.invaders.getInvaderAtSlot(slotLeft);
-            const invaderright = this.invaders.getInvaderAtSlot(slotRight);
-
-            // trigger the invader's pattern if it exists and is active
-            if (invaderleft && invaderleft.active) {
-                const pattern = this.builder.build(invaderleft, 0);
-                invaderleft.startPattern({
+        attackGroup?.forEach((invaderKey) => {
+            //const slot = this.formation.getSlotByKey(invaderKey);
+            const invader = this.invaders.getInvaderAtSlot(invaderKey);
+            if (invader && invader.active) {
+                const pattern = this.builder.build(invader, side);
+                invader.startPattern({
                     pattern,
                     formation: this.formation,
                     entry: this.config.orientation,
                 });
             }
+        });
 
-            if (invaderright && invaderright.active) {
-                const pattern = this.builder.build(invaderright, 1);
-                invaderright.startPattern({
-                    pattern,
-                    formation: this.formation,
-                    entry: this.config.orientation,
-                });
+        // prepare for the next set iteration
+        this.setIterations++;
+        if (this.setIterations >= this.maxSetIterations) {
+            this.currentGroupSetIndex++;
+
+            if (this.currentGroupSetIndex >= this.numGroups) {
+                // end stage here:
+                this.completionCooldown = this.coolDownPeriod;
+
+                //
+                return;
+
             }
+            // otherwise set up a new group attack set
+            this.currentGroupAttackSet = this.groupAttackSet[this.currentGroupSetIndex];
 
-            index++;
+            // number of repeats
+            this.maxSetIterations = this.currentGroupAttackSet?.[ATTACK_GROUP_ITERATIONS];
+
+            // type of group attack to perform
+            this.groupAttackType = this.currentGroupAttackSet?.[ATTACK_GROUP_TYPE];
+
+            // this retrieves sets of invaders for the specified group attack type
+            // ie. sets of 2 x 2 invaders
+            this.invaderGroups = this.shuffleArray(GroupAttackSets.get(this.groupAttackType as GroupType) || []);
+
+            // this is now a list of keys to the formation's invader map and can be
+            // used to trigger the corresponding invaders in the formation.
+            this.currentInvaderGroup = this.invaderGroups.pop();
+
+            console.log("Selected invader group: ", this.groupAttackType, "with invaders ", this.currentInvaderGroup);
+
+            // prepare for a new set
+            this.setIterations = 0;
+
+            return;
+        } else {
+
+            this.currentInvaderGroup = this.invaderGroups.pop();
+        }
+    }
+
+    // Fisher-Yates shuffle
+    shuffleArray(arrayA: InvaderGroup[]): InvaderGroup[] {
+        // 1. Fast shallow clone (A remains untouched)
+        const B = [...arrayA];
+
+        // 2. In-place Fisher-Yates shuffle on B
+        for (let i = B.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [B[i], B[j]] = [B[j], B[i]]; // Fast swap
         }
 
-        ////////////////////////////////////////////
-        // Set up for the next iteration
-        ////////////////////////////////////////////
-
-        // advance to the next column
-        this.currentRow--;
-
-        if (this.currentRow < 0) {
-            // move to the next column
-            this.currentRow = this.formation.rows - 1;
-            this.currentCol++;
-            // schedule next column trigger
-            this.nextColAt = performance.now() + this.msBetweenCols;
-        }
-
-        if (this.currentCol >= this.halCols) {
-            // all columns have been processed, start completion cooldown
-            this.completionCooldown = this.coolDownPeriod;
-        }
+        return B;
     }
 
     /*
@@ -152,6 +204,6 @@ export class GroupAttackPatternDirector implements PatternDirector {
     }
 
     isComplete(): boolean {
-        return this.queueRemaining <= 0;
+        return this._isComplete;
     }
 }

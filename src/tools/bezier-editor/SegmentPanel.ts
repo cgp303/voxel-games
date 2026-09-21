@@ -7,6 +7,7 @@ export interface SegmentPanelCallbacks {
     onClearPath(): void;
     onAddSegment(): void;
     onRemoveLastSegment(): void;
+    onMirrorX(): void;
     onSelectSegment(index: number): void;
     onPointFieldChange(index: number, axis: 'x' | 'y' | 'z', value: number): void;
 }
@@ -63,6 +64,7 @@ export class SegmentPanel {
         toolbar.appendChild(this.button('Clear Path', () => this.callbacks.onClearPath()));
         toolbar.appendChild(this.button('Add Segment', () => this.callbacks.onAddSegment()));
         toolbar.appendChild(this.button('Remove Last', () => this.callbacks.onRemoveLastSegment()));
+        toolbar.appendChild(this.button('Mirror X', () => this.callbacks.onMirrorX()));
         this.root.appendChild(toolbar);
 
         this.root.appendChild(this.heading('Segments'));

@@ -13,6 +13,7 @@ export class ExportPanel {
     private readonly callbacks: ExportPanelCallbacks;
 
     private modeRelative!: HTMLInputElement;
+    private modeRelativeToStart!: HTMLInputElement;
     private anchorXInput!: HTMLInputElement;
     private anchorZInput!: HTMLInputElement;
     private sideSelect!: HTMLSelectElement;
@@ -27,6 +28,7 @@ export class ExportPanel {
     }
 
     get mode(): ExportMode {
+        if (this.modeRelativeToStart.checked) return 'relativeToStart';
         return this.modeRelative.checked ? 'relative' : 'absolute';
     }
 
@@ -72,8 +74,17 @@ export class ExportPanel {
         relLabel.appendChild(this.modeRelative);
         relLabel.append(' Relative (CFG-style)');
 
+        this.modeRelativeToStart = document.createElement('input');
+        this.modeRelativeToStart.type = 'radio';
+        this.modeRelativeToStart.name = 'export-mode';
+        this.modeRelativeToStart.addEventListener('change', () => this.onModeChange());
+        const relToStartLabel = document.createElement('label');
+        relToStartLabel.appendChild(this.modeRelativeToStart);
+        relToStartLabel.append(' Relative to Start');
+
         modeRow.appendChild(absLabel);
         modeRow.appendChild(relLabel);
+        modeRow.appendChild(relToStartLabel);
         this.root.appendChild(modeRow);
 
         this.relativeFieldsWrap = document.createElement('div');

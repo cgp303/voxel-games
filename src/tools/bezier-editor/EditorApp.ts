@@ -8,7 +8,7 @@ import { PointDragger } from './PointDragger';
 import { SegmentPanel } from './SegmentPanel';
 import { ExportPanel } from './ExportPanel';
 import { ImportPanel } from './ImportPanel';
-import { exportAbsolute, exportRelative, exportMultiSegmentSnippet } from './exportPath';
+import { exportAbsolute, exportRelative, exportRelativeToStart, exportMultiSegmentSnippet } from './exportPath';
 import { parseSegments } from './importPath';
 
 export class EditorApp {
@@ -42,6 +42,7 @@ export class EditorApp {
                     this.doc.removeLastSegment();
                     this.selectedPoint = null;
                 }),
+            onMirrorX: () => this.withRefresh(() => this.doc.mirrorX()),
             onSelectSegment: (i) =>
                 this.withRefresh(() => {
                     this.selectedPoint = i * 3;
@@ -138,14 +139,20 @@ export class EditorApp {
 
     private refreshExport(): void {
         const mode = this.exportPanel.mode;
-        const pathText =
-            mode === 'absolute'
-                ? exportAbsolute(this.doc)
-                : exportRelative(this.doc, {
-                    anchorX: this.exportPanel.anchorX,
-                    anchorZ: this.exportPanel.anchorZ,
-                    side: this.exportPanel.side,
-                });
+        if (mode === 'absolute') {
+            // Segment + patternA/patternB declarations are already combined in this output.
+            this.exportPanel.setOutput(exportAbsolute(this.doc));
+            return;
+        }
+        if (mode === 'relativeToStart') {
+            this.exportPanel.setOutput(exportRelativeToStart(this.doc));
+            return;
+        }
+        const pathText = exportRelative(this.doc, {
+            anchorX: this.exportPanel.anchorX,
+            anchorZ: this.exportPanel.anchorZ,
+            side: this.exportPanel.side,
+        });
         const patternText = exportMultiSegmentSnippet(this.doc);
         this.exportPanel.setOutput(`${pathText}\n\n${patternText}`);
     }

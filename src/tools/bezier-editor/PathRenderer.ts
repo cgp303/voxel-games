@@ -15,7 +15,8 @@ export class PathRenderer {
 
     private readonly debug: BezierDebugRenderer;
     private readonly handleGroup: THREE.Group;
-    private readonly sphereGeom = new THREE.SphereGeometry(2.5, 12, 12);
+    private readonly handleGeom = new THREE.SphereGeometry(1.5, 12, 12);
+    private readonly jointGeom = new THREE.SphereGeometry(2.5, 12, 12);
 
     constructor(scene: THREE.Scene) {
         this.debug = new BezierDebugRenderer(scene);
@@ -45,8 +46,10 @@ export class PathRenderer {
 
         doc.points.forEach((p, idx) => {
             const isJoint = idx > 0 && idx < doc.points.length - 1 && idx % 3 === 0;
-            const color = idx === selectedIndex ? SELECTED_COLOR : isJoint ? JOINT_COLOR : HANDLE_COLOR;
-            const mesh = new THREE.Mesh(this.sphereGeom, new THREE.MeshBasicMaterial({ color }));
+            const isSelected = idx === selectedIndex;
+            const color = isSelected ? SELECTED_COLOR : isJoint ? JOINT_COLOR : HANDLE_COLOR;
+            const geom = isSelected || isJoint ? this.jointGeom : this.handleGeom;
+            const mesh = new THREE.Mesh(geom, new THREE.MeshBasicMaterial({ color }));
             mesh.position.copy(p);
             mesh.userData.pointIndex = idx;
             this.handleGroup.add(mesh);

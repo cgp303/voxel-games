@@ -57,6 +57,13 @@ export class PathDocument {
         this.segmentWeights.pop();
     }
 
+    /** Negates X on every point, turning the path into its mirror image. */
+    mirrorX(): void {
+        for (const p of this.points) {
+            p.x = -p.x;
+        }
+    }
+
     /** Wholesale replace from a parsed import (see importPath.ts). */
     loadParsed(parsed: ParsedPath): void {
         this.points = parsed.points;

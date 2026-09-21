@@ -9,7 +9,7 @@ export class ColumnDivesPatternBuilder {
     private debugBezier;
 
     constructor(scene) {
-        //this.debugBezier = new BezierDebugRenderer(scene);
+
     }
 
     build(invader, side): MultiSegmentPattern {

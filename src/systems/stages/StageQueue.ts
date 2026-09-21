@@ -20,6 +20,10 @@ export class StageQueue {
         return this.formationDescription;
     }
 
+    numberOfStages(): number {
+        return this.stages.length;
+    }
+
     next(): Stage {
         const stage = this.stages[this.index];
 

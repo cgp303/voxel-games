@@ -28,6 +28,22 @@ function propName(name: ts.PropertyName): string {
     return name.getText().replace(/^['"]|['"]$/g, '');
 }
 
+// The tool's own convention: paths are authored/re-imported anchored at (0, 20, 0).
+const START_ANCHOR: Record<'x' | 'y' | 'z', number> = { x: 0, y: 20, z: 0 };
+
+/** Matches `start.x` / `start.y` / `start.z` and returns the anchor value for that axis. */
+function startAxisValue(expr: ts.Expression): number | null {
+    if (
+        ts.isPropertyAccessExpression(expr) &&
+        ts.isIdentifier(expr.expression) &&
+        expr.expression.text === 'start' &&
+        (expr.name.text === 'x' || expr.name.text === 'y' || expr.name.text === 'z')
+    ) {
+        return START_ANCHOR[expr.name.text];
+    }
+    return null;
+}
+
 function numberFromExpression(expr: ts.Expression | undefined): number {
     if (!expr) return 0;
     if (ts.isNumericLiteral(expr)) {
@@ -40,7 +56,19 @@ function numberFromExpression(expr: ts.Expression | undefined): number {
     ) {
         return -Number(expr.operand.text);
     }
-    // Non-literal expressions (start.x, foo(), identifiers, …) resolve to 0.
+    const startValue = startAxisValue(expr);
+    if (startValue !== null) return startValue;
+    // Relative-to-start offsets: `start.x + 130.83` / `start.z - 6.31`.
+    if (ts.isBinaryExpression(expr)) {
+        const leftStart = startAxisValue(expr.left);
+        const isAdd = expr.operatorToken.kind === ts.SyntaxKind.PlusToken;
+        const isSub = expr.operatorToken.kind === ts.SyntaxKind.MinusToken;
+        if (leftStart !== null && (isAdd || isSub)) {
+            const rhs = numberFromExpression(expr.right);
+            return isAdd ? leftStart + rhs : leftStart - rhs;
+        }
+    }
+    // Other non-literal expressions (foo(), unknown identifiers, …) resolve to 0.
     return 0;
 }
 
@@ -101,43 +129,71 @@ function rangeFromObjectLiteral(obj: ts.ObjectLiteralExpression): RawRange | nul
     return { start, end };
 }
 
+interface PatternCandidate {
+    name: string | null;
+    segmentNames: string[];
+    ranges: RawRange[] | null;
+    duration: number | null;
+}
+
+function patternFromNewExpression(node: ts.NewExpression, name: string | null): PatternCandidate | null {
+    if (!node.arguments || node.arguments.length < 3) return null;
+    const namesArg = node.arguments[0];
+    const segmentNames = ts.isArrayLiteralExpression(namesArg)
+        ? namesArg.elements.filter(ts.isIdentifier).map((e) => e.text)
+        : [];
+    const rangesArg = node.arguments[1];
+    let ranges: RawRange[] | null = null;
+    if (ts.isArrayLiteralExpression(rangesArg)) {
+        const parsedRanges = rangesArg.elements
+            .filter((e): e is ts.ObjectLiteralExpression => ts.isObjectLiteralExpression(e))
+            .map(rangeFromObjectLiteral)
+            .filter((r): r is RawRange => r !== null);
+        if (parsedRanges.length > 0) ranges = parsedRanges;
+    }
+    return { name, segmentNames, ranges, duration: numberFromExpression(node.arguments[2]) };
+}
+
 /**
  * Parses pasted code into a joint-shared point array. Recognizes any
  * `{p0,p1,p2,p3}`-shaped object literal (bare, or wrapped in `new
- * CubicBezierSegment(...)`), in source order, plus an optional
- * `new MultiSegmentPattern([...], [{start,end},...], duration)` call used to
- * recover segment-weight ratios. Non-literal numeric fields (e.g. `start.x`)
- * resolve to 0. Purely static AST inspection — no code is ever executed.
+ * CubicBezierSegment(...)`), plus `new MultiSegmentPattern([...], [{start,end},...], duration)`
+ * calls used to recover segment order and weight ratios. When multiple named patterns are
+ * pasted at once (e.g. exported `patternA`/`patternB` pairs), `patternA` is preferred and its
+ * referenced segments are used, ignoring the other (mirrored) set. `start.x`/`start.y`/`start.z`
+ * and `start.x ± N` offset expressions resolve against this tool's own (0, 20, 0) anchor
+ * convention. Purely static AST inspection — no code is ever executed.
  */
 export function parseSegments(text: string): ParsedPath {
     const source = ts.createSourceFile('pasted.ts', text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
 
-    const rawSegments: RawSegment[] = [];
-    let ranges: RawRange[] | null = null;
-    let totalDuration: number | null = null;
+    const namedSegments = new Map<string, RawSegment>();
+    const bareSegments: RawSegment[] = [];
+    const patterns: PatternCandidate[] = [];
 
     const visit = (node: ts.Node): void => {
-        if (
-            ts.isNewExpression(node) &&
-            ts.isIdentifier(node.expression) &&
-            node.expression.text === 'MultiSegmentPattern' &&
-            node.arguments &&
-            node.arguments.length >= 3
-        ) {
-            const rangesArg = node.arguments[1];
-            if (ts.isArrayLiteralExpression(rangesArg)) {
-                const parsedRanges = rangesArg.elements
-                    .filter((e): e is ts.ObjectLiteralExpression => ts.isObjectLiteralExpression(e))
-                    .map(rangeFromObjectLiteral)
-                    .filter((r): r is RawRange => r !== null);
-                if (parsedRanges.length > 0) ranges = parsedRanges;
+        if (ts.isNewExpression(node) && ts.isIdentifier(node.expression)) {
+            const parent = node.parent;
+            const varName =
+                parent && ts.isVariableDeclaration(parent) && ts.isIdentifier(parent.name) ? parent.name.text : null;
+
+            if (node.expression.text === 'CubicBezierSegment' && node.arguments && node.arguments.length > 0) {
+                const first = node.arguments[0];
+                if (varName && ts.isObjectLiteralExpression(first) && isSegmentControlsLiteral(first)) {
+                    const seg = segmentFromObjectLiteral(first);
+                    if (seg) namedSegments.set(varName, seg);
+                }
             }
-            totalDuration = numberFromExpression(node.arguments[2]);
+
+            if (node.expression.text === 'MultiSegmentPattern') {
+                const pattern = patternFromNewExpression(node, varName);
+                if (pattern) patterns.push(pattern);
+            }
         }
 
         if (ts.isObjectLiteralExpression(node) && isSegmentControlsLiteral(node)) {
             const seg = segmentFromObjectLiteral(node);
-            if (seg) rawSegments.push(seg);
+            if (seg) bareSegments.push(seg);
         }
 
         ts.forEachChild(node, visit);
@@ -146,6 +202,30 @@ export function parseSegments(text: string): ParsedPath {
     visit(source);
 
     const warnings: string[] = [];
+    const preferredPattern = patterns.find((p) => p.name === 'patternA') ?? patterns[0] ?? null;
+
+    let rawSegments: RawSegment[];
+    let ranges: RawRange[] | null;
+    let totalDuration: number | null;
+
+    if (preferredPattern && preferredPattern.segmentNames.length > 0) {
+        rawSegments = preferredPattern.segmentNames
+            .map((n) => namedSegments.get(n))
+            .filter((s): s is RawSegment => s !== undefined);
+        if (rawSegments.length !== preferredPattern.segmentNames.length) {
+            warnings.push('Some segments referenced by the pattern could not be found — path may be incomplete.');
+        }
+        ranges = preferredPattern.ranges;
+        totalDuration = preferredPattern.duration;
+        if (patterns.length > 1) {
+            warnings.push(`Found ${patterns.length} patterns — imported '${preferredPattern.name ?? 'the first'}' only.`);
+        }
+    } else {
+        rawSegments = bareSegments;
+        ranges = patterns[0]?.ranges ?? null;
+        totalDuration = patterns[0]?.duration ?? null;
+    }
+
     const points: Vector3[] = [];
 
     rawSegments.forEach((seg, i) => {

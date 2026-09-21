@@ -2,7 +2,7 @@
 
 import * as THREE from 'three';
 
-const INITIAL_VIEW_HALF_HEIGHT = 220;
+const INITIAL_VIEW_HALF_HEIGHT = 44;
 const CAMERA_HEIGHT = 500;
 
 /** Top-down ortho view: screen-up is world +Z, matching FORMATION's "forward". */
@@ -19,8 +19,10 @@ export class EditorScene {
 
     constructor(container: HTMLElement) {
         this.scene.background = new THREE.Color(0x0a0a0a);
-        this.scene.add(new THREE.GridHelper(1600, 160, 0x2a2a2a, 0x1a1a1a));
-        this.scene.add(new THREE.AxesHelper(40));
+        // Grid cell = 2 world units (1/5 of the old 10), zoom scaled to match so squares look the same size.
+        // Extent is 75% larger than the base 320 so lines reach further in each direction.
+        this.scene.add(new THREE.GridHelper(560, 280, 0x2a2a2a, 0x1a1a1a));
+        this.scene.add(new THREE.AxesHelper(8));
 
         this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 5000);
         this.camera.up.set(0, 0, 1);
@@ -74,7 +76,7 @@ export class EditorScene {
     private onWheel = (ev: WheelEvent): void => {
         ev.preventDefault();
         const factor = ev.deltaY > 0 ? 1.1 : 1 / 1.1;
-        this.viewHalfHeight = THREE.MathUtils.clamp(this.viewHalfHeight * factor, 20, 2000);
+        this.viewHalfHeight = THREE.MathUtils.clamp(this.viewHalfHeight * factor, 4, 400);
         this.applyFrustum(this.domElement.clientWidth / this.domElement.clientHeight);
     };
 
