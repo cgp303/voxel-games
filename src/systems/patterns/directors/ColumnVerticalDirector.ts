@@ -1,7 +1,7 @@
-import { ColumnDivesPatternBuilder } from '../patterns/ColumnDivesPatternBuilder';
+import { ColumnVerticalPatternBuilder } from '../patterns/ColumnVerticalPatternBuilder';
 import type { DirectorContext, PatternDirector } from '../interfaces';
 
-export class ColumnDivesDirector implements PatternDirector {
+export class ColumnVerticalDirector implements PatternDirector {
 
     public queueRemaining = 0;
     private running = false;
@@ -29,7 +29,7 @@ export class ColumnDivesDirector implements PatternDirector {
         this.formation = ctx.formation;
         this.invaders = ctx.invaders;
         this.config = ctx.config ?? {};
-        this.builder = new ColumnDivesPatternBuilder(ctx.scene);
+        this.builder = new ColumnVerticalPatternBuilder(ctx.scene);
 
         this.spawnType = this.formation.getSpawnType();
 

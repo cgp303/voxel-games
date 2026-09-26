@@ -99,6 +99,8 @@ export class Invader extends Entity {
 
     private debugArrow: ArrowHelper | null = null;
 
+    private _attackOffset: Vector3 = new Vector3(0, 0, 0);
+
     constructor(object3d: Object3DType) {
         super(object3d);
         this.integrateVelocity = false;
@@ -145,7 +147,7 @@ export class Invader extends Entity {
         this.syncTransform();
     }
 
-    public startPattern(cfg: { pattern: any; formation: any; entry: any }): void {
+    public startPattern(cfg: { pattern: any; formation: any; entry: any; attackOffset?: Vector3 }): void {
         // Implementation for initialising the invader's pattern.
         const entry = cfg.entry;
         this.bankGain = entry?.bankGain ?? ENTRY.bankGain;
@@ -158,6 +160,15 @@ export class Invader extends Entity {
         this.mode = 'diving';
         this.pathT = 0;
         this.spinAngle = 0;
+        this.attackOffset = cfg.attackOffset ?? new Vector3(0, 0, 0);
+    }
+
+    public get attackOffset(): Vector3 {
+        return this._attackOffset;
+    }
+
+    public set attackOffset(value: Vector3) {
+        this._attackOffset.copy(value);
     }
 
     /**
@@ -215,6 +226,7 @@ export class Invader extends Entity {
             pattern.samplePosition(this.pathT, this.position);
             pattern.sampleTangent(this.pathT, this.tangentScratch);
         }
+        this.position.add(this._attackOffset);
 
         if (this.tangentScratch.lengthSq() < 1e-8) {
             this.tangentScratch.subVectors(this.homeScratch, this.position);
@@ -239,86 +251,154 @@ export class Invader extends Entity {
         }
     }
 
-    /**
-     * Face along path tangent; bank (roll about local Z) from horizontal turn rate.
-     *
-     * Three.js Object3D.lookAt aims the local -Z axis toward the target.
-     * After lookAt, we bank about local +Z so the mesh rolls into the turn.
-     */
     private applyFlightOrientation(forwardIn: Vector3, dt: number): void {
         const forward = this.tangentScratch.copy(forwardIn);
-        if (forward.lengthSq() < 1e-10) {
-            return;
-        }
+        if (forward.lengthSq() < 1e-10) return;
         forward.normalize();
 
-        // Avoid lookAt singularity when forward approx world up.
-        if (Math.abs(forward.dot(this.worldUp)) > 0.98) {
-            forward.x += 0.05;
-            forward.normalize();
+        // ---------- 1. Decide whether we are allowed to stay inverted ----------
+        // You can drive this from the path pattern, a timer, or a boolean you set when the loop starts.
+        const allowInversion = this.pathPattern?.allowInversion?.(this.pathT) ?? false;
+        // or simply: const allowInversion = this.isDoingHalfLoop;
+
+        // ---------- 2. Build the base orientation ----------
+        this.lookDummy.position.set(0, 0, 0);
+
+        if (allowInversion) {
+            // Free mode: do NOT force worldUp.
+            // Use the previous up (or a stable reference) so the ship can go inverted.
+            // A simple and stable choice is to keep the previous up and only re-orthogonalise.
+            this.lookDummy.up.copy(this.prevUp);           // you need to store prevUp
+            this.lookDummy.lookAt(forward.x, forward.y, forward.z);
+
+            // Re-orthonormalise so up stays perpendicular to forward
+            const right = this.rightScratch.crossVectors(forward, this.lookDummy.up).normalize();
+            this.lookDummy.up.crossVectors(right, forward).normalize();
+        } else {
+            // Normal mode – keep the old upright behaviour
+            if (Math.abs(forward.dot(this.worldUp)) > 0.98) {
+                forward.x += 0.05;
+                forward.normalize();
+            }
+            this.lookDummy.up.copy(this.worldUp);
+            this.lookDummy.lookAt(forward.x, forward.y, forward.z);
         }
 
-        const fx = forward.x;
-        const fz = forward.z;
-        const horizLen = Math.hypot(fx, fz);
+        // Store the up we just used so the next frame has a continuous reference
+        this.prevUp.copy(this.lookDummy.up);
+
+        this.targetFlightQuat.copy(this.lookDummy.quaternion);
+
+        // ---------- 3. Banking (optional – you can also suppress it during the loop) ----------
         let targetRoll = 0;
-        if (this.hasPrevForward && dt > 1e-6 && horizLen > 1e-5) {
-            const inv = 1 / horizLen;
-            const nx = fx * inv;
-            const nz = fz * inv;
-            const cross = this.prevForwardX * nz - this.prevForwardZ * nx;
-            const dot = this.prevForwardX * nx + this.prevForwardZ * nz;
-            const yawDelta = Math.atan2(cross, dot);
-            const yawRate = yawDelta / dt;
-            // Bank into the turn.
-            targetRoll = MathUtils.clamp(
-                -yawRate * this.bankGain,
-                -this.maxBankRad,
-                this.maxBankRad,
-            );
-            this.prevForwardX = nx;
-            this.prevForwardZ = nz;
-        } else if (horizLen > 1e-5) {
-            this.prevForwardX = fx / horizLen;
-            this.prevForwardZ = fz / horizLen;
-        }
-        this.hasPrevForward = true;
+        // … keep your existing yaw-rate banking code here …
+        // You may want to zero targetRoll while allowInversion is true:
+        if (allowInversion) targetRoll = 0;
 
         const smooth = 1 - Math.exp(-this.orientSmooth * dt);
         this.roll += (targetRoll - this.roll) * smooth;
+
+        // ---------- 4. Controlled spin (this is what will actually invert them) ----------
         if (this.pathPattern) {
             const spinRate = this.pathPattern.sampleSpinRate(this.pathT);
             this.spinAngle += spinRate * dt;
         }
 
-        // Path face: lookAt puts local -Z along +forward.
-        this.lookDummy.position.set(0, 0, 0);
-        this.lookDummy.up.copy(this.worldUp);
-        this.lookDummy.lookAt(forward.x, forward.y, forward.z);
-        this.targetFlightQuat.copy(this.lookDummy.quaternion);
-
-        // tangent axis in world space
-        const tangentAxis = forward.clone();
-
-        // convert tangent axis into local space AFTER lookAt
-        const localTangentAxis = tangentAxis.applyQuaternion(this.lookDummy.quaternion.clone().invert());
-
-        // spin around local tangent axis
+        // Apply spin around the tangent
+        const localTangentAxis = forward.clone()
+            .applyQuaternion(this.lookDummy.quaternion.clone().invert());
         this.spinQuat.setFromAxisAngle(localTangentAxis, this.spinAngle);
 
-        this.targetFlightQuat.copy(this.lookDummy.quaternion);
-
-        // spin first
         this.targetFlightQuat.multiply(this.spinQuat);
 
-        // Bank about local Z after path face (mesh-local Z roll).
+        // Apply bank
         this.bankQuat.setFromAxisAngle(this.localForward, this.roll);
         this.targetFlightQuat.multiply(this.bankQuat);
 
-        // Smooth flight orientation, then apply model rest correction.
+        // Smooth & apply
         this.flightQuat.slerp(this.targetFlightQuat, smooth);
         this.displayQuat.copy(this.flightQuat).multiply(this.baseQuat);
     }
+    // /**
+    //  * Face along path tangent; bank (roll about local Z) from horizontal turn rate.
+    //  *
+    //  * Three.js Object3D.lookAt aims the local -Z axis toward the target.
+    //  * After lookAt, we bank about local +Z so the mesh rolls into the turn.
+    //  */
+    // private applyFlightOrientation(forwardIn: Vector3, dt: number): void {
+    //     const forward = this.tangentScratch.copy(forwardIn);
+    //     if (forward.lengthSq() < 1e-10) {
+    //         return;
+    //     }
+    //     forward.normalize();
+
+    //     // Avoid lookAt singularity when forward approx world up.
+    //     if (Math.abs(forward.dot(this.worldUp)) > 0.98) {
+    //         forward.x += 0.05;
+    //         forward.normalize();
+    //     }
+
+    //     const fx = forward.x;
+    //     const fz = forward.z;
+    //     const horizLen = Math.hypot(fx, fz);
+    //     let targetRoll = 0;
+    //     if (this.hasPrevForward && dt > 1e-6 && horizLen > 1e-5) {
+    //         const inv = 1 / horizLen;
+    //         const nx = fx * inv;
+    //         const nz = fz * inv;
+    //         const cross = this.prevForwardX * nz - this.prevForwardZ * nx;
+    //         const dot = this.prevForwardX * nx + this.prevForwardZ * nz;
+    //         const yawDelta = Math.atan2(cross, dot);
+    //         const yawRate = yawDelta / dt;
+    //         // Bank into the turn.
+    //         targetRoll = MathUtils.clamp(
+    //             -yawRate * this.bankGain,
+    //             -this.maxBankRad,
+    //             this.maxBankRad,
+    //         );
+    //         this.prevForwardX = nx;
+    //         this.prevForwardZ = nz;
+    //     } else if (horizLen > 1e-5) {
+    //         this.prevForwardX = fx / horizLen;
+    //         this.prevForwardZ = fz / horizLen;
+    //     }
+    //     this.hasPrevForward = true;
+
+    //     const smooth = 1 - Math.exp(-this.orientSmooth * dt);
+    //     this.roll += (targetRoll - this.roll) * smooth;
+    //     if (this.pathPattern) {
+    //         const spinRate = this.pathPattern.sampleSpinRate(this.pathT);
+    //         this.spinAngle += spinRate * dt;
+    //     }
+
+    //     // Path face: lookAt puts local -Z along +forward.
+    //     this.lookDummy.position.set(0, 0, 0);
+    //     this.lookDummy.up.copy(this.worldUp);
+    //     this.lookDummy.lookAt(forward.x, forward.y, forward.z);
+    //     this.targetFlightQuat.copy(this.lookDummy.quaternion);
+
+    //     // tangent axis in world space
+    //     const tangentAxis = forward.clone();
+
+    //     // convert tangent axis into local space AFTER lookAt
+    //     const localTangentAxis = tangentAxis.applyQuaternion(this.lookDummy.quaternion.clone().invert());
+
+    //     // spin around local tangent axis
+    //     this.spinQuat.setFromAxisAngle(localTangentAxis, this.spinAngle);
+
+    //     this.targetFlightQuat.copy(this.lookDummy.quaternion);
+
+    //     // spin first
+    //     this.targetFlightQuat.multiply(this.spinQuat);
+
+    //     // Bank about local Z after path face (mesh-local Z roll).
+    //     this.bankQuat.setFromAxisAngle(this.localForward, this.roll);
+    //     this.targetFlightQuat.multiply(this.bankQuat);
+
+    //     // Smooth flight orientation, then apply model rest correction.
+    //     this.flightQuat.slerp(this.targetFlightQuat, smooth);
+    //     this.displayQuat.copy(this.flightQuat).multiply(this.baseQuat);
+    // }
 
     public override syncTransform(): void {
         if (!this.object3d) return;
