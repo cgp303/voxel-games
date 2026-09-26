@@ -49,7 +49,7 @@ export class ColumnDivesPatternBuilder {
         const patternA = new MultiSegmentPattern(
             [pAsegment1, pAsegment2, pAsegment3, pAsegment4],
             [{ start: 0, end: 0.27 }, { start: 0.27, end: 0.54 }, { start: 0.54, end: 0.8 }, { start: 0.8, end: 1 }],
-            4.2,
+            6,
         )
 
         const pBsegment1 = new CubicBezierSegment({
@@ -85,7 +85,7 @@ export class ColumnDivesPatternBuilder {
         const patternB = new MultiSegmentPattern(
             [pBsegment1, pBsegment2, pBsegment3, pBsegment4],
             [{ start: 0, end: 0.27 }, { start: 0.27, end: 0.54 }, { start: 0.54, end: 0.8 }, { start: 0.8, end: 1 }],
-            4.2,
+            6,
         )
 
         return (side === 0) ? patternB : patternA;

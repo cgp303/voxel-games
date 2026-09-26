@@ -3,6 +3,7 @@ import type { PathPattern, PathSegment } from '../interfaces';
 
 export class MultiSegmentPattern implements PathPattern {
     public readonly duration: number;
+    public readonly durationOverlap: number;
     private readonly segments: PathSegment[];
     private readonly ranges: { start: number; end: number }[];
 
@@ -10,10 +11,12 @@ export class MultiSegmentPattern implements PathPattern {
         segments: PathSegment[],
         ranges: { start: number; end: number }[],
         duration: number,
+        durationOverlap: number = 0
     ) {
         this.segments = segments;
         this.ranges = ranges;
         this.duration = duration;
+        this.durationOverlap = durationOverlap; // or set it to an appropriate value based on your logic
     }
 
     private findSegmentIndex(t: number): number {
