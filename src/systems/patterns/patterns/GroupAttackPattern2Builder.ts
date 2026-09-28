@@ -20,28 +20,28 @@ export class GroupAttackPattern2Builder {
             p1: { x: 48.37, y: 20, z: 204.94 },
             p2: { x: 114.05, y: 20, z: -150.97 },
             p3: { x: 6.62, y: 20, z: -163.7 },
-        }, 0);
+        }, 0, false);
 
         const pAsegment2 = new CubicBezierSegment({
             p0: { x: 6.62, y: 20, z: -163.7 },
             p1: { x: -96.78, y: 20, z: -152.44 },
             p2: { x: 14.15, y: 20, z: -13.2 },
             p3: { x: start.x, y: start.y, z: start.z },
-        }, spinRate);
+        }, spinRate, false);
 
         const pBsegment1 = new CubicBezierSegment({
             p0: { x: start.x, y: start.y, z: start.z },
             p1: { x: -48.37, y: 20, z: 204.94 },
             p2: { x: -114.05, y: 20, z: -150.97 },
             p3: { x: -6.62, y: 20, z: -163.7 },
-        }, 0);
+        }, 0, false);
 
         const pBsegment2 = new CubicBezierSegment({
             p0: { x: -6.62, y: 20, z: -163.7 },
             p1: { x: 96.78, y: 20, z: -152.44 },
             p2: { x: -14.15, y: 20, z: -13.2 },
             p3: { x: start.x, y: start.y, z: start.z },
-        }, spinRate);
+        }, spinRate, false);
 
         const patternA = new MultiSegmentPattern(
             [pAsegment1, pAsegment2],

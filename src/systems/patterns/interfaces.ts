@@ -28,6 +28,9 @@ export interface PathSegment {
     samplePosition(t: number, out: THREE.Vector3): THREE.Vector3;
     sampleTangent(t: number, out: THREE.Vector3): THREE.Vector3;
     sampleSpinRate(t: number): number;
+    sampleTargetSpin(t: number): number;
+    sampleOrientationSmoothing(): number;
+    allowInversion: boolean;
 }
 
 /**
@@ -38,6 +41,9 @@ export interface PathPattern {
     sampleSpinRate(t: number): number;
     samplePosition(t: number, out: THREE.Vector3): THREE.Vector3;
     sampleTangent(t: number, out: THREE.Vector3): THREE.Vector3;
+    allowInversion(t: number): boolean;
+    sampleTargetSpin(t: number): number;
+    sampleOrientationSmoothing(t: number): number;
 }
 
 /**

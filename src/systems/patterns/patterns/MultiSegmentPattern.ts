@@ -50,4 +50,22 @@ export class MultiSegmentPattern implements PathPattern {
         const localT = this.remapToLocalT(t, segIndex);
         return seg.sampleSpinRate(localT);
     }
+
+    public sampleTargetSpin(t: number): number {
+        const segIndex = this.findSegmentIndex(t);
+        const seg = this.segments[segIndex];
+        const localT = this.remapToLocalT(t, segIndex);
+        return seg.sampleTargetSpin(localT);
+    }
+
+    public allowInversion(t: number): boolean {
+        const segIndex = this.findSegmentIndex(t);
+        const seg = this.segments[segIndex];
+        return seg.allowInversion;
+    }
+    public sampleOrientationSmoothing(t: number): number {
+        const segIndex = this.findSegmentIndex(t);
+        const seg = this.segments[segIndex];
+        return seg.sampleOrientationSmoothing();
+    }
 }

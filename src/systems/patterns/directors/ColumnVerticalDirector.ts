@@ -18,7 +18,7 @@ export class ColumnVerticalDirector implements PatternDirector {
     private currentIndex = 0;
     private nextTriggerAt = 0;
 
-    private msBetweenTriggers = 500;
+    private msBetweenTriggers = 250;
     private completionCooldown = 0;
     private coolDownPeriod = 4;
 

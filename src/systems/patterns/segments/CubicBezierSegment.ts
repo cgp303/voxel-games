@@ -4,22 +4,16 @@ import {
     sampleCubicDerivative,
     type CubicBezierControls,
 } from '../../path/cubicBezier';
-import type { PathSegment } from '../interfaces';
+import { BasePathSegment } from './BasePathSegment';
 
-export class CubicBezierSegment implements PathSegment {
+export class CubicBezierSegment extends BasePathSegment {
     public readonly controls: CubicBezierControls;
 
-    private readonly posScratch = new Vector3();
-    private readonly tanScratch = new Vector3();
-    private spinRate = 0;
 
-    constructor(controls: CubicBezierControls, spinRate: number = 0) {
+    constructor(controls: CubicBezierControls, spinRate: number = 0, allowInversion: boolean = false, orientationSmoothing: number = 1) {
+        super(controls, spinRate, allowInversion, orientationSmoothing);
         this.controls = controls;
-        this.spinRate = spinRate;
-    }
 
-    public sampleSpinRate(t: number): number {
-        return this.spinRate;
     }
 
     public samplePosition(t: number, out: Vector3): Vector3 {

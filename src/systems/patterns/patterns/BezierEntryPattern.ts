@@ -26,4 +26,18 @@ export class BezierEntryPattern implements PathPattern {
     public sampleSpinRate(t: number): number {
         return this.segment.sampleSpinRate(t);
     }
+
+    public sampleTargetSpin(t: number): number {
+        return this.segment.sampleTargetSpin(t);
+    }
+
+    public allowInversion(t: number): boolean {
+        return this.segment.allowInversion;
+    }
+
+    public sampleOrientationSmoothing(t: number): number {
+
+        return this.segment.sampleOrientationSmoothing();
+    }
+
 }
