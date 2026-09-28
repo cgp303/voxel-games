@@ -14,15 +14,15 @@ export class EntityManager {
 
     public add(entity: Entity): void {
         this.entities.push(entity);
-        this.registerInvaderInFormation(entity as Invader);
+        // only register invaders in the formation map
+        if (entity instanceof Invader) this.registerInvaderInFormation(entity);
     }
-
     public remove(entity: Entity): void {
         const i = this.entities.indexOf(entity);
-        if (i >= 0) {
-            this.entities.splice(i, 1);
-        }
-        this.unregisterInvaderFromFormation(entity as Invader);
+        if (i >= 0) this.entities.splice(i, 1);
+
+        // only unregister invaders from the formation map
+        if (entity instanceof Invader) this.unregisterInvaderFromFormation(entity);
         entity.dispose();
     }
 
