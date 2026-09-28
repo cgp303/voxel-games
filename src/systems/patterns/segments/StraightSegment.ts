@@ -1,15 +1,15 @@
-import { PathSegment } from "../interfaces";
+import { BasePathSegment } from './BasePathSegment';
+import type { Line3 } from 'three';
 import { Vector3 } from 'three';
 
-export class StraightSegment implements PathSegment {
+export class StraightSegment extends BasePathSegment {
     private a: Vector3;
     private b: Vector3;
-    private spinRate: number;
 
-    constructor(a: Vector3, b: Vector3, spinRate: number = 0) {
-        this.a = a;
-        this.b = b;
-        this.spinRate = spinRate;
+    constructor(line: Line3, spinRate: number = 0, allowInversion: boolean = false) {
+        super(line, spinRate, allowInversion);
+        this.a = line.start;
+        this.b = line.end;
     }
 
     samplePosition(t: number, out: Vector3): Vector3 {
@@ -22,7 +22,11 @@ export class StraightSegment implements PathSegment {
         return out;
     }
 
-    public sampleSpinRate(t: number): number {
-        return this.spinRate;
-    }
+    // public sampleSpinRate(t: number): number {
+    //     return this.spinRate;
+    // }
+
+    // public get allowInversion(): boolean {
+    //     return this._allowInversion;
+    // }
 }

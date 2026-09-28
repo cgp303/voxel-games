@@ -90,6 +90,9 @@ export class Invader extends Entity {
     private readonly localForward = new Vector3(0, 0, 1);
     private readonly lookDummy = new Object3D();
     private readonly worldUp = new Vector3(0, 1, 0);
+    private prevUp: Vector3 = new Vector3(0, 1, 0);
+    private rightScratch: Vector3 = new Vector3();
+    private isDoingHalfLoop = false;   // or drive it from the path pattern
 
     private prevForwardX = 0;
     private prevForwardZ = 1;
@@ -184,7 +187,7 @@ export class Invader extends Entity {
         switch (this.mode) {
             case 'entering':
             case 'diving':
-                this.updateEntering(dt);
+                this.updatePath(dt);
                 break;
             case 'formation':
                 this.updateFormation(dt);
@@ -193,14 +196,15 @@ export class Invader extends Entity {
                 // diving / returning / dying — later phases
                 break;
         }
-
+        // this.normaliseSpinAngle();
         this.syncTransform();
         this.updateDebugArrow();
     }
 
-    private updateEntering(dt: number): void {
+    private updatePath(dt: number): void {
         const formation = this.formation;
         const pattern = this.pathPattern;
+        let segmentSpecificSmoothing = 1;
         if (!formation || !pattern) return;
 
         // Live end point — formation root may be moving.
@@ -225,6 +229,7 @@ export class Invader extends Entity {
         if (pattern) {
             pattern.samplePosition(this.pathT, this.position);
             pattern.sampleTangent(this.pathT, this.tangentScratch);
+            segmentSpecificSmoothing = pattern.sampleOrientationSmoothing(this.pathT) ?? 1;
         }
         this.position.add(this._attackOffset);
 
@@ -232,8 +237,15 @@ export class Invader extends Entity {
             this.tangentScratch.subVectors(this.homeScratch, this.position);
         }
 
-        this.applyFlightOrientation(this.tangentScratch, dt);
+        this.applyFlightOrientation(this.tangentScratch, segmentSpecificSmoothing, dt);
     }
+
+    private normaliseSpinAngle(): void {
+        // keep spinAngle [0, 2π)
+        this.spinAngle = ((this.spinAngle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+
+    }
+
 
     private updateFormation(dt: number): void {
         const formation = this.formation;
@@ -251,31 +263,40 @@ export class Invader extends Entity {
         }
     }
 
-    private applyFlightOrientation(forwardIn: Vector3, dt: number): void {
+    private applyFlightOrientation(forwardIn: Vector3, segmentSpecificSmoothing: number, dt: number): void {
         const forward = this.tangentScratch.copy(forwardIn);
-        if (forward.lengthSq() < 1e-10) return;
+        if (forward.lengthSq() < 1e-10) {
+            return;
+        }
         forward.normalize();
 
-        // ---------- 1. Decide whether we are allowed to stay inverted ----------
-        // You can drive this from the path pattern, a timer, or a boolean you set when the loop starts.
-        const allowInversion = this.pathPattern?.allowInversion?.(this.pathT) ?? false;
-        // or simply: const allowInversion = this.isDoingHalfLoop;
+        // ------------------------------------------------------------------
+        // 1. Decide whether inversion is currently allowed
+        // ------------------------------------------------------------------
+        // Drive this however you like: a flag, a path-pattern method, etc.
+        const allowInversion = this.pathPattern?.allowInversion?.(this.pathT) ?? this.isDoingHalfLoop ?? false;
 
-        // ---------- 2. Build the base orientation ----------
+        // ------------------------------------------------------------------
+        // 2. Build the base “look-at” orientation
+        // ------------------------------------------------------------------
         this.lookDummy.position.set(0, 0, 0);
 
         if (allowInversion) {
-            // Free mode: do NOT force worldUp.
-            // Use the previous up (or a stable reference) so the ship can go inverted.
-            // A simple and stable choice is to keep the previous up and only re-orthogonalise.
-            this.lookDummy.up.copy(this.prevUp);           // you need to store prevUp
+            // Free mode – do NOT force world-up so the ship can stay inverted.
+            // Use the previous up vector as a continuous reference.
+            if (!this.prevUp) {
+                this.prevUp = new Vector3(0, 1, 0); // first-time fallback
+            }
+            this.lookDummy.up.copy(this.prevUp);
             this.lookDummy.lookAt(forward.x, forward.y, forward.z);
 
-            // Re-orthonormalise so up stays perpendicular to forward
-            const right = this.rightScratch.crossVectors(forward, this.lookDummy.up).normalize();
+            // Re-orthogonalise so up stays perpendicular to forward
+            const right = this.rightScratch
+                .crossVectors(forward, this.lookDummy.up)
+                .normalize();
             this.lookDummy.up.crossVectors(right, forward).normalize();
         } else {
-            // Normal mode – keep the old upright behaviour
+            // Normal upright mode (your original behaviour)
             if (Math.abs(forward.dot(this.worldUp)) > 0.98) {
                 forward.x += 0.05;
                 forward.normalize();
@@ -284,28 +305,63 @@ export class Invader extends Entity {
             this.lookDummy.lookAt(forward.x, forward.y, forward.z);
         }
 
-        // Store the up we just used so the next frame has a continuous reference
+        // Remember the up we just used for the next frame
+        if (!this.prevUp) this.prevUp = new Vector3();
         this.prevUp.copy(this.lookDummy.up);
 
         this.targetFlightQuat.copy(this.lookDummy.quaternion);
 
-        // ---------- 3. Banking (optional – you can also suppress it during the loop) ----------
+        // ------------------------------------------------------------------
+        // 3. Banking (yaw-rate based) – suppressed while inverted
+        // ------------------------------------------------------------------
+        const fx = forward.x;
+        const fz = forward.z;
+        const horizLen = Math.hypot(fx, fz);
         let targetRoll = 0;
-        // … keep your existing yaw-rate banking code here …
-        // You may want to zero targetRoll while allowInversion is true:
-        if (allowInversion) targetRoll = 0;
 
-        const smooth = 1 - Math.exp(-this.orientSmooth * dt);
+        if (!allowInversion && this.hasPrevForward && dt > 1e-6 && horizLen > 1e-5) {
+            const inv = 1 / horizLen;
+            const nx = fx * inv;
+            const nz = fz * inv;
+            const cross = this.prevForwardX * nz - this.prevForwardZ * nx;
+            const dot = this.prevForwardX * nx + this.prevForwardZ * nz;
+            const yawDelta = Math.atan2(cross, dot);
+            const yawRate = yawDelta / dt;
+
+            targetRoll = MathUtils.clamp(
+                -yawRate * this.bankGain,
+                -this.maxBankRad,
+                this.maxBankRad,
+            );
+            this.prevForwardX = nx;
+            this.prevForwardZ = nz;
+        } else if (horizLen > 1e-5) {
+            this.prevForwardX = fx / horizLen;
+            this.prevForwardZ = fz / horizLen;
+        }
+        this.hasPrevForward = true;
+
+        const smooth = segmentSpecificSmoothing * (1 - Math.exp(-this.orientSmooth * dt));
         this.roll += (targetRoll - this.roll) * smooth;
 
-        // ---------- 4. Controlled spin (this is what will actually invert them) ----------
+        // ------------------------------------------------------------------
+        // 4. Controlled spin (this is what actually performs the half-loop roll)
+        // ------------------------------------------------------------------
         if (this.pathPattern) {
             const spinRate = this.pathPattern.sampleSpinRate(this.pathT);
             this.spinAngle += spinRate * dt;
         }
 
-        // Apply spin around the tangent
-        const localTangentAxis = forward.clone()
+        // if (this.pathPattern) {
+        //     const targetSpin = this.pathPattern.sampleTargetSpin(this.pathT);
+        //     // Smoothly approach the target instead of integrating a rate
+        //     const spinSmooth = 1 - Math.exp(-0.5 * dt); // or reuse orientSmooth
+        //     this.spinAngle += (targetSpin - this.spinAngle) * spinSmooth;
+        // }
+
+        // Spin around the path tangent
+        const localTangentAxis = forward
+            .clone()
             .applyQuaternion(this.lookDummy.quaternion.clone().invert());
         this.spinQuat.setFromAxisAngle(localTangentAxis, this.spinAngle);
 
@@ -315,16 +371,89 @@ export class Invader extends Entity {
         this.bankQuat.setFromAxisAngle(this.localForward, this.roll);
         this.targetFlightQuat.multiply(this.bankQuat);
 
-        // Smooth & apply
+        // ------------------------------------------------------------------
+        // 5. Smooth and apply
+        // ------------------------------------------------------------------
         this.flightQuat.slerp(this.targetFlightQuat, smooth);
         this.displayQuat.copy(this.flightQuat).multiply(this.baseQuat);
     }
-    // /**
-    //  * Face along path tangent; bank (roll about local Z) from horizontal turn rate.
-    //  *
-    //  * Three.js Object3D.lookAt aims the local -Z axis toward the target.
-    //  * After lookAt, we bank about local +Z so the mesh rolls into the turn.
-    //  */
+
+
+
+    // private applyFlightOrientation(forwardIn: Vector3, dt: number): void {
+    //     const forward = this.tangentScratch.copy(forwardIn);
+    //     if (forward.lengthSq() < 1e-10) return;
+    //     forward.normalize();
+
+    //     // ---------- 1. Decide whether we are allowed to stay inverted ----------
+    //     // You can drive this from the path pattern, a timer, or a boolean you set when the loop starts.
+    //     const allowInversion = this.pathPattern?.allowInversion?.(this.pathT) ?? false;
+    //     // or simply: const allowInversion = this.isDoingHalfLoop;
+
+    //     // ---------- 2. Build the base orientation ----------
+    //     this.lookDummy.position.set(0, 0, 0);
+
+    //     if (allowInversion) {
+    //         // Free mode: do NOT force worldUp.
+    //         // Use the previous up (or a stable reference) so the ship can go inverted.
+    //         // A simple and stable choice is to keep the previous up and only re-orthogonalise.
+    //         this.lookDummy.up.copy(this.prevUp);           // you need to store prevUp
+    //         this.lookDummy.lookAt(forward.x, forward.y, forward.z);
+
+    //         // Re-orthonormalise so up stays perpendicular to forward
+    //         const right = this.rightScratch.crossVectors(forward, this.lookDummy.up).normalize();
+    //         this.lookDummy.up.crossVectors(right, forward).normalize();
+    //     } else {
+    //         // Normal mode – keep the old upright behaviour
+    //         if (Math.abs(forward.dot(this.worldUp)) > 0.98) {
+    //             forward.x += 0.05;
+    //             forward.normalize();
+    //         }
+    //         this.lookDummy.up.copy(this.worldUp);
+    //         this.lookDummy.lookAt(forward.x, forward.y, forward.z);
+    //     }
+
+    //     // Store the up we just used so the next frame has a continuous reference
+    //     this.prevUp.copy(this.lookDummy.up);
+
+    //     this.targetFlightQuat.copy(this.lookDummy.quaternion);
+
+    //     // ---------- 3. Banking (optional – you can also suppress it during the loop) ----------
+    //     let targetRoll = 0;
+    //     // … keep your existing yaw-rate banking code here …
+    //     // You may want to zero targetRoll while allowInversion is true:
+    //     if (allowInversion) targetRoll = 0;
+
+    //     const smooth = 1 - Math.exp(-this.orientSmooth * dt);
+    //     this.roll += (targetRoll - this.roll) * smooth;
+
+    //     // ---------- 4. Controlled spin (this is what will actually invert them) ----------
+    //     if (this.pathPattern) {
+    //         const spinRate = this.pathPattern.sampleSpinRate(this.pathT);
+    //         this.spinAngle += spinRate * dt;
+    //     }
+
+    //     // Apply spin around the tangent
+    //     const localTangentAxis = forward.clone()
+    //         .applyQuaternion(this.lookDummy.quaternion.clone().invert());
+    //     this.spinQuat.setFromAxisAngle(localTangentAxis, this.spinAngle);
+
+    //     this.targetFlightQuat.multiply(this.spinQuat);
+
+    //     // Apply bank
+    //     this.bankQuat.setFromAxisAngle(this.localForward, this.roll);
+    //     this.targetFlightQuat.multiply(this.bankQuat);
+
+    //     // Smooth & apply
+    //     this.flightQuat.slerp(this.targetFlightQuat, smooth);
+    //     this.displayQuat.copy(this.flightQuat).multiply(this.baseQuat);
+    // }
+    /**
+     * Face along path tangent; bank (roll about local Z) from horizontal turn rate.
+     *
+     * Three.js Object3D.lookAt aims the local -Z axis toward the target.
+     * After lookAt, we bank about local +Z so the mesh rolls into the turn.
+     */
     // private applyFlightOrientation(forwardIn: Vector3, dt: number): void {
     //     const forward = this.tangentScratch.copy(forwardIn);
     //     if (forward.lengthSq() < 1e-10) {
