@@ -29,7 +29,7 @@ export class ColumnDivesDirector implements PatternDirector {
         this.formation = ctx.formation;
         this.invaders = ctx.invaders;
         this.config = ctx.config ?? {};
-        this.builder = new ColumnDivesPatternBuilder(ctx.scene);
+        this.builder = new ColumnDivesPatternBuilder();
 
         this.spawnType = this.formation.getSpawnType();
 

@@ -29,7 +29,7 @@ export class ColumnVerticalDirector implements PatternDirector {
         this.formation = ctx.formation;
         this.invaders = ctx.invaders;
         this.config = ctx.config ?? {};
-        this.builder = new ColumnVerticalPatternBuilder(ctx.scene);
+        this.builder = new ColumnVerticalPatternBuilder();
 
         this.spawnType = this.formation.getSpawnType();
 
