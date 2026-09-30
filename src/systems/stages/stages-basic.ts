@@ -20,29 +20,29 @@ export function createBasicStages(): StageQueue {
                 1.0
             ),
 
-            // new Stage(
-            //     "Group Attack",
-            //     new GroupAttackPatternDirector([["groups2x2", 3, 1]]),
-            //     { orientation: "front" },
-            //     1.4,
-            //     1.6
-            // ),
+            new Stage(
+                "Group Attack",
+                new GroupAttackPatternDirector([["groups2x2", 3, 1]]),
+                { orientation: "front" },
+                1.4,
+                1.6
+            ),
 
-            // new Stage(
-            //     "Figure Eight Again",
-            //     new FigureEightDirector(),
-            //     { orientation: "front" },
-            //     1.2,
-            //     1.4
-            // ),
+            new Stage(
+                "Figure Eight Again",
+                new FigureEightDirector(),
+                { orientation: "front" },
+                1.2,
+                1.4
+            ),
 
-            // new Stage(
-            //     "Group Attack",
-            //     new GroupAttackPatternDirector([["groupXs", 3, 0]]),
-            //     { orientation: "front" },
-            //     1.4,
-            //     1.6
-            // ),
+            new Stage(
+                "Group Attack",
+                new GroupAttackPatternDirector([["groupXs", 3, 0]]),
+                { orientation: "front" },
+                1.4,
+                1.6
+            ),
 
             new Stage(
                 "Column Dives",
@@ -52,13 +52,13 @@ export function createBasicStages(): StageQueue {
                 1.2
             ),
 
-            // new Stage(
-            //     "Group Attack",
-            //     new GroupAttackPatternDirector([["groupDiamonds", 3, 1]]),
-            //     { orientation: "front" },
-            //     1.4,
-            //     1.6
-            // ),
+            new Stage(
+                "Group Attack",
+                new GroupAttackPatternDirector([["groupDiamonds", 3, 1]]),
+                { orientation: "front" },
+                1.4,
+                1.6
+            ),
 
             new Stage(
                 "Column Vertical",
@@ -68,21 +68,21 @@ export function createBasicStages(): StageQueue {
                 1.2
             ),
 
-            // new Stage(
-            //     "Group Attack",
-            //     new GroupAttackPatternDirector([["groupCrosses", 3, 0]]),
-            //     { orientation: "front" },
-            //     1.4,
-            //     1.6
-            // ),
+            new Stage(
+                "Group Attack",
+                new GroupAttackPatternDirector([["groupCrosses", 3, 0]]),
+                { orientation: "front" },
+                1.4,
+                1.6
+            ),
 
-            // new Stage(
-            //     "Column Vertical",
-            //     new ColumnVerticalDirector(),
-            //     { orientation: "front" },
-            //     1.0,
-            //     1.2
-            // ),
+            new Stage(
+                "Column Vertical",
+                new ColumnVerticalDirector(),
+                { orientation: "front" },
+                1.0,
+                1.2
+            ),
         ],
         1, // loopStartIndex
         formation

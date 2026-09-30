@@ -29,7 +29,7 @@ export class FigureEightDirector implements PatternDirector {
         this.formation = ctx.formation;
         this.invaders = ctx.invaders;
         this.config = ctx.config ?? {};
-        this.builder = new FigureEightPatternBuilder(ctx.scene);
+        this.builder = new FigureEightPatternBuilder();
 
         // Build trigger order from spawnOrder
         this.spawnType = this.formation.getSpawnType();
