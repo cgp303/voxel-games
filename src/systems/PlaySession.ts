@@ -199,6 +199,7 @@ export class PlaySession {
             template: this.template,
             config: this.currentStage.directorConfig,
             scene: this.ctx.scene.scene,
+            assetKey: this.invaderAssetKey,
         });
     }
 
@@ -236,6 +237,7 @@ export class PlaySession {
             playField: ctx.playField,
             template: this.template,
             config: this.currentStage?.directorConfig ?? {},
+            assetKey: this.invaderAssetKey,
         });
 
 

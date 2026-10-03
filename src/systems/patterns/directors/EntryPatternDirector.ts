@@ -43,6 +43,7 @@ export class EntryPatternDirector implements PatternDirector {
     private pairIntervalSec = 1;
     private running = false;
     private cancelled = false;
+    private assetKey: string = 'invader1'; // default asset key for invaders
 
     private readonly homeScratch = new Vector3();
     private readonly spawnScratch = new Vector3();
@@ -54,6 +55,7 @@ export class EntryPatternDirector implements PatternDirector {
         this.template = ctx.template;
         const entryConfig = ctx.config ?? {};
         this.entry = { ...ENTRY, ...entryConfig };
+        this.assetKey = ctx.assetKey ?? this.assetKey;
 
         const perSec = Math.max(0.01, this.entry.invadersPerSecond);
         // Two invaders per pair release.
@@ -65,6 +67,7 @@ export class EntryPatternDirector implements PatternDirector {
 
         const spawnOrder = this.formation.getSpawnOrder();
         const spawnType = this.formation.getSpawnType();
+
 
         switch (spawnType) {
             case "LeftRightPairs":
@@ -189,17 +192,13 @@ export class EntryPatternDirector implements PatternDirector {
         const segment = new CubicBezierSegment(controls);
         const pattern = new BezierEntryPattern(segment, entry.pathDuration);
 
-        const mesh = template.clone(true);
-        mesh.traverse((child) => {
-            const m = child as { castShadow?: boolean; receiveShadow?: boolean; isMesh?: boolean };
-            if (m.isMesh) {
-                m.castShadow = true;
-                m.receiveShadow = true;
-            }
-        });
+        // 1. Decide assetKey (need to pass this through DirectorContext)
+        const assetKey = this.assetKey; // e.g., 'invader1'
 
-        const invader = new Invader(mesh);
-        invader.init({
+        // 2. Acquire (pool handles clone + shadow traversal on first call only)
+        const invader = this.invaders!.acquireInvader(assetKey, template);
+
+        invader.reset({
             slot,
             side,
             spawn: this.spawnScratch.clone(),
@@ -207,9 +206,10 @@ export class EntryPatternDirector implements PatternDirector {
             formation,
             pathDuration: entry.pathDuration,
             entry: defaultOrientationConfig,
+            poolAssetKey: this.assetKey,
         });
 
-        playField.attachInvader(mesh);
+        playField.attachInvader(invader.object3d);
         invaders.add(invader);
     }
 

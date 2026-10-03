@@ -41,6 +41,7 @@ export interface InvaderInitConfig {
         >
     >;
     pattern?: PathPattern;
+    poolAssetKey?: string;
 }
 
 /** Shared flag so only one debug arrow exists across invaders. */
@@ -59,6 +60,7 @@ let debugArrowClaimed = false;
  */
 export class Invader extends Entity {
     public typeId: InvaderTypeId = 'grunt';
+    public poolAssetKey?: string | null = null;
     public scoreValue = 50;
     public mode: InvaderMode = 'inactive';
     public slot: FormationSlot = { col: 0, row: 0 };
@@ -126,6 +128,7 @@ export class Invader extends Entity {
         this.pathPattern = cfg.pattern ?? null;
         this.pathDuration = Math.max(0.05, cfg.pathDuration ?? ENTRY.pathDuration);
         this.pathT = 0;
+        this.poolAssetKey = cfg.poolAssetKey ?? null;
 
         const entry = cfg.entry;
         this.bankGain = entry?.bankGain ?? ENTRY.bankGain;

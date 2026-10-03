@@ -17,8 +17,9 @@ export class ColumnDivesDirector implements PatternDirector {
 
     private currentIndex = 0;
     private nextTriggerAt = 0;
+    private triggerTime = 0;
 
-    private msBetweenTriggers = 500;
+    private msBetweenTriggers = 0.5;
     private completionCooldown = 0;
     private coolDownPeriod = 4;
 
@@ -37,6 +38,7 @@ export class ColumnDivesDirector implements PatternDirector {
         this.queueRemaining = this.triggerOrder.length;
         this.currentIndex = 0;
         this.nextTriggerAt = 0;
+        this.triggerTime = 0;
         this.completionCooldown = 0;
     }
 
@@ -65,21 +67,21 @@ export class ColumnDivesDirector implements PatternDirector {
             }
             return;
         }
+        this.triggerTime += dt;
 
         // Finished all columns
         if (this.currentIndex >= this.triggerOrder.length) return;
 
         // Column pause gate
-        if (performance.now() < this.nextTriggerAt) return;
+        if (this.triggerTime < this.msBetweenTriggers) return;
+
+        this.triggerTime = 0;
 
         // Trigger the next column/group
         this.trigger();
 
         // Move to next column
         this.currentIndex++;
-
-        // Schedule next column trigger
-        this.nextTriggerAt = performance.now() + this.msBetweenTriggers;
 
         // If done, start cooldown
         if (this.currentIndex >= this.triggerOrder.length) {

@@ -9,7 +9,7 @@ import { makeGridFormation, makeVFormation, makeXFormation, makeDiamondFormation
 import { GroupAttackPatternDirector } from '../patterns/directors/GroupAttackPatternDirector';
 
 export function createBasicStages(): StageQueue {
-    const formation = makeGridFormation(10, 6, 12);
+    const formation = makeVFormation(10, 6, 12);
     return new StageQueue(
         [
             new Stage(
