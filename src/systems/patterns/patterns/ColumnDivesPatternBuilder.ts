@@ -3,8 +3,9 @@ import { CubicBezierSegment } from '../segments/CubicBezierSegment';
 import { MultiSegmentPattern } from '../patterns/MultiSegmentPattern';
 import { mirrorCubicControlsX } from '../../path/cubicBezier';
 import type { CubicBezierControls } from '../../path/cubicBezier';
+import type { PatternBuilder } from '../interfaces';
 
-export class ColumnDivesPatternBuilder {
+export class ColumnDivesPatternBuilder implements PatternBuilder {
     // Canonical RIGHT-side path; must be real Vector3 instances (mirror helpers need .clone()/.set()).
     private static readonly SEGMENTS: CubicBezierControls[] = [
         { p0: new Vector3(0, 0, 0), p1: new Vector3(0.69, 20, 49.71), p2: new Vector3(-0.34, 20, 194.54), p3: new Vector3(40.25, 20, 179.06) },
@@ -17,8 +18,8 @@ export class ColumnDivesPatternBuilder {
         { start: 0, end: 0.27 }, { start: 0.27, end: 0.54 }, { start: 0.54, end: 0.8 }, { start: 0.8, end: 1 },
     ];
 
-    build(invader, side): MultiSegmentPattern {
-        const start = invader.position.clone();
+    build(origin: Vector3, side: number): MultiSegmentPattern {
+        const start = origin.clone();
         const last = ColumnDivesPatternBuilder.SEGMENTS.length - 1;
 
         const segments = ColumnDivesPatternBuilder.SEGMENTS.map((canonical, i) => {

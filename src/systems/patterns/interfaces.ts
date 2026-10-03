@@ -5,6 +5,7 @@ import type { EntityManager } from '../../entities/EntityManager';
 import type { PlayField } from '../../world/PlayField';
 import type { Object3D } from 'three';
 import * as THREE from 'three';
+import type { MultiSegmentPattern } from './patterns/MultiSegmentPattern';
 
 /**
  * Generic context passed to ANY PatternDirector.
@@ -45,6 +46,14 @@ export interface PathPattern {
     allowInversion(t: number): boolean;
     sampleTargetSpin(t: number): number;
     sampleOrientationSmoothing(t: number): number;
+}
+
+/**
+ * Builds a side-aware (mirrored) movement pattern from a world-space origin.
+ * Shared contract for every pattern builder used by InvaderRepathDirector subclasses.
+ */
+export interface PatternBuilder {
+    build(origin: THREE.Vector3, side: number): MultiSegmentPattern;
 }
 
 /**

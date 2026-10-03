@@ -9,7 +9,8 @@ import { buildEntryControlsFromConfig } from '../../path/cubicBezier';
 import { BezierEntryPattern } from '../patterns/BezierEntryPattern';
 import { CubicBezierSegment } from '../segments/CubicBezierSegment';
 import { defaultOrientationConfig } from '../../patterns/config/defaultOrientationConfig';
-import type { DirectorContext, PatternDirector } from '../interfaces';
+import type { DirectorContext } from '../interfaces';
+import { BasePatternDirector } from './BasePatternDirector';
 
 
 type QueueJob =
@@ -30,10 +31,10 @@ export interface EntryDirectorBeginArgs {
  * Releases invaders off-stage in L/R pairs (plus alternating center column when odd),
  * builds mirrored entry paths, registers them with EntityManager.
  * Does not tick invaders — PlaySession runs formation → entry → invaders.
+ * Spawns brand-new invaders (unlike InvaderRepathDirector subclasses, which redirect
+ * already-spawned ones), so it extends BasePatternDirector directly.
  */
-export class EntryPatternDirector implements PatternDirector {
-    private formation: FormationController | null = null;
-    private invaders: EntityManager | null = null;
+export class EntryPatternDirector extends BasePatternDirector {
     private playField: PlayField | null = null;
     private template: Object3D | null = null;
     private entry: EntryConfig = { ...ENTRY };
@@ -41,16 +42,13 @@ export class EntryPatternDirector implements PatternDirector {
     private queue: QueueJob[] = [];
     private timer = 0;
     private pairIntervalSec = 1;
-    private running = false;
-    private cancelled = false;
     private assetKey: string = 'invader1'; // default asset key for invaders
 
     private readonly homeScratch = new Vector3();
     private readonly spawnScratch = new Vector3();
 
     public begin(ctx: DirectorContext): void {
-        this.formation = ctx.formation;
-        this.invaders = ctx.invaders;
+        this.captureCommon(ctx);
         this.playField = ctx.playField;
         this.template = ctx.template;
         const entryConfig = ctx.config ?? {};
@@ -61,8 +59,6 @@ export class EntryPatternDirector implements PatternDirector {
         // Two invaders per pair release.
         this.pairIntervalSec = 2 / perSec;
         this.timer = 0; // first pair on first eligible update (immediate)
-        this.cancelled = false;
-        this.running = true;
         this.queue.length = 0;
 
         const spawnOrder = this.formation.getSpawnOrder();
@@ -99,9 +95,7 @@ export class EntryPatternDirector implements PatternDirector {
 
     public update(dt: number): void {
         if (!this.running || this.cancelled) return;
-        if (!this.formation || !this.invaders || !this.playField || !this.template) {
-            return;
-        }
+        if (!this.playField || !this.template) return;
         if (this.queue.length === 0) return;
 
         this.timer -= dt;
@@ -112,19 +106,9 @@ export class EntryPatternDirector implements PatternDirector {
         }
     }
 
-    /** Stop scheduling new spawns (in-flight invaders keep flying). */
-    public cancel(): void {
-        this.cancelled = true;
+    /** Clear any pending releases; in-flight invaders keep flying. */
+    protected override onCancel(): void {
         this.queue.length = 0;
-        this.running = false;
-    }
-
-    public isCancelled(): boolean {
-        return this.cancelled;
-    }
-
-    public isRunning(): boolean {
-        return this.running && !this.cancelled;
     }
 
     public get queueRemaining(): number {
@@ -136,7 +120,6 @@ export class EntryPatternDirector implements PatternDirector {
      */
     public isComplete(): boolean {
         if (this.queue.length > 0) return false;
-        if (!this.invaders) return true;
         for (const e of this.invaders.getAll()) {
             if (e instanceof Invader && e.active && e.isEntering()) {
                 return false;

@@ -3,8 +3,9 @@ import { CubicBezierSegment } from '../segments/CubicBezierSegment';
 import { MultiSegmentPattern } from '../patterns/MultiSegmentPattern';
 import { mirrorCubicControlsX } from '../../path/cubicBezier';
 import type { CubicBezierControls } from '../../path/cubicBezier';
+import type { PatternBuilder } from '../interfaces';
 
-export class FigureEightPatternBuilder {
+export class FigureEightPatternBuilder implements PatternBuilder {
     // Canonical RIGHT-side path; must be real Vector3 instances (mirror helpers need .clone()/.set()).
     private static readonly SEGMENTS: CubicBezierControls[] = [
         {
@@ -37,8 +38,8 @@ export class FigureEightPatternBuilder {
     private static readonly DURATION = 4;
     private static readonly DURATION_OVERLAP = 1;
 
-    build(invader, side): MultiSegmentPattern {
-        const start = invader.position.clone();
+    build(origin: Vector3, side: number): MultiSegmentPattern {
+        const start = origin.clone();
         const last = FigureEightPatternBuilder.SEGMENTS.length - 1;
 
         const segments = FigureEightPatternBuilder.SEGMENTS.map((canonical, i) => {

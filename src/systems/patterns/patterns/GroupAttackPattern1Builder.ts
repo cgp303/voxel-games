@@ -3,8 +3,9 @@ import { CubicBezierSegment } from '../segments/CubicBezierSegment';
 import { MultiSegmentPattern } from '../patterns/MultiSegmentPattern';
 import { mirrorCubicControlsX } from '../../path/cubicBezier';
 import type { CubicBezierControls } from '../../path/cubicBezier';
+import type { PatternBuilder } from '../interfaces';
 
-export class GroupAttackPattern1Builder {
+export class GroupAttackPattern1Builder implements PatternBuilder {
     // Canonical RIGHT-side path; must be real Vector3 instances (mirror helpers need .clone()/.set()).
     private static readonly SEGMENTS: CubicBezierControls[] = [
         {
@@ -45,8 +46,8 @@ export class GroupAttackPattern1Builder {
     private static readonly ALLOW_INVERSION = [false, false, false, false, false];
     private static readonly ORIENTATION_SMOOTHING = [1, 1, 1, 1, 1];
 
-    build(centralPosition: Vector3, side): MultiSegmentPattern {
-        const start = centralPosition.clone();
+    build(origin: Vector3, side: number): MultiSegmentPattern {
+        const start = origin.clone();
         const last = GroupAttackPattern1Builder.SEGMENTS.length - 1;
         let prevControls: CubicBezierControls;
 

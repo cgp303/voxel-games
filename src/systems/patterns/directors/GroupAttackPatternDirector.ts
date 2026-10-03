@@ -1,28 +1,20 @@
 // systems/patterns/directors/GroupAttackPatternDirector.ts
 
+import { Vector3 } from 'three';
 import { GroupAttackPattern1Builder } from '../patterns/GroupAttackPattern1Builder';
 import { GroupAttackPattern2Builder } from '../patterns/GroupAttackPattern2Builder';
-import type { DirectorContext, PatternDirector } from '../interfaces';
+import type { DirectorContext } from '../interfaces';
 import { groupAttackSets as GroupAttackSets, GroupType, InvaderGroup } from '../config/GroupAttackSets';
-import { Vector3 } from 'three';
+import { InvaderRepathDirector } from './InvaderRepathDirector';
 
 
 const ATTACK_GROUP_TYPE = 0;
 const ATTACK_GROUP_ITERATIONS = 1;
 const ATTACK_GROUP_PATH = 2;
-export class GroupAttackPatternDirector implements PatternDirector {
+export class GroupAttackPatternDirector extends InvaderRepathDirector {
 
-    public queueRemaining = 0;
-    private running = false;
-    private cancelled = false;
-    private formation;
-    private invaders;
-    private config;
-    private builder;
     private invaderGroups;
     private timeSinceLastTrigger = 0;
-    private completionCooldown = 0;
-    private coolDownPeriod = 1.2; // example value in milliseconds
     private _isComplete = false;
     private triggerDelay = 4.2; // time between triggers
 
@@ -40,6 +32,7 @@ export class GroupAttackPatternDirector implements PatternDirector {
 
 
     constructor(groupAttackSet: [string, number, number][]) {
+        super();
 
         // instructions from the stage-queue
         // about what kinds of group attack to perform
@@ -50,12 +43,8 @@ export class GroupAttackPatternDirector implements PatternDirector {
         this.numGroups = groupAttackSet.length;
     }
 
-    begin(ctx: DirectorContext): void {
-        this.running = true;
-        this.cancelled = false;
-        this.formation = ctx.formation;
-        this.invaders = ctx.invaders;
-        this.config = ctx.config ?? {};
+    public begin(ctx: DirectorContext): void {
+        this.captureCommon(ctx);
 
         const path = this.groupAttackSet[0][ATTACK_GROUP_PATH];
         this.builder = path == 0 ? new GroupAttackPattern1Builder() : new GroupAttackPattern2Builder();
@@ -75,7 +64,7 @@ export class GroupAttackPatternDirector implements PatternDirector {
 
     }
 
-    update(dt: number): void {
+    public update(dt: number): void {
 
         ////////////////////////////////////////////
         // First deal with timing:
@@ -85,13 +74,7 @@ export class GroupAttackPatternDirector implements PatternDirector {
         if (!this.running || this.cancelled) return;
 
         // return if in completion cooldown
-        if (this.completionCooldown > 0) {
-            this.completionCooldown -= dt;
-            if (this.completionCooldown <= 0) {
-                this._isComplete = true;
-            }
-            return;
-        }
+        if (this.tickCooldown(dt)) return;
 
         // // pause between invader triggers
         this.timeSinceLastTrigger += dt;
@@ -122,14 +105,7 @@ export class GroupAttackPatternDirector implements PatternDirector {
             //const slot = this.formation.getSlotByKey(invaderKey);
             const invader = this.invaders.getInvaderAtSlot(invaderKey);
             if (invader && invader.active) {
-
-
-                invader.startPattern({
-                    pattern,
-                    formation: this.formation,
-                    entry: this.config.orientation,
-                    attackOffset: invader.attackOffset,
-                });
+                this.applyPattern(invader, pattern, { attackOffset: invader.attackOffset });
             }
         });
 
@@ -158,6 +134,10 @@ export class GroupAttackPatternDirector implements PatternDirector {
 
             this.currentInvaderGroup = this.invaderGroups.pop();
         }
+    }
+
+    protected override onCooldownElapsed(): void {
+        this._isComplete = true;
     }
 
     setUpAGroupAttack(): void {
@@ -230,23 +210,7 @@ export class GroupAttackPatternDirector implements PatternDirector {
         return B;
     }
 
-    /*
-    // Cancel the director's operation
-    */
-    cancel(): void {
-        this.cancelled = true;
-        this.running = false;
-    }
-
-    isRunning(): boolean {
-        return this.running;
-    }
-
-    isCancelled(): boolean {
-        return this.cancelled;
-    }
-
-    isComplete(): boolean {
+    public override isComplete(): boolean {
         return this._isComplete;
     }
 }
