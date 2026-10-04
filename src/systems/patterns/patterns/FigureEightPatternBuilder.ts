@@ -2,12 +2,11 @@ import { Vector3 } from 'three';
 import { CubicBezierSegment } from '../segments/CubicBezierSegment';
 import { MultiSegmentPattern } from '../patterns/MultiSegmentPattern';
 import { mirrorCubicControlsX } from '../../path/cubicBezier';
-import type { CubicBezierControls } from '../../path/cubicBezier';
-import type { PatternBuilder } from '../interfaces';
+import type { IPatternBuilder, ICubicBezierControls } from '../../../config/interfaces/interfaces';
 
-export class FigureEightPatternBuilder implements PatternBuilder {
+export class FigureEightPatternBuilder implements IPatternBuilder {
     // Canonical RIGHT-side path; must be real Vector3 instances (mirror helpers need .clone()/.set()).
-    private static readonly SEGMENTS: CubicBezierControls[] = [
+    private static readonly SEGMENTS: ICubicBezierControls[] = [
         {
             p0: new Vector3(0, 0, 0),
             p1: new Vector3(19.83, 20, 69.57),

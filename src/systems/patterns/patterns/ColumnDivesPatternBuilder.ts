@@ -2,12 +2,11 @@ import { Vector3 } from 'three';
 import { CubicBezierSegment } from '../segments/CubicBezierSegment';
 import { MultiSegmentPattern } from '../patterns/MultiSegmentPattern';
 import { mirrorCubicControlsX } from '../../path/cubicBezier';
-import type { CubicBezierControls } from '../../path/cubicBezier';
-import type { PatternBuilder } from '../interfaces';
+import type { IPatternBuilder, ICubicBezierControls } from '../../../config/interfaces/interfaces';
 
-export class ColumnDivesPatternBuilder implements PatternBuilder {
+export class ColumnDivesPatternBuilder implements IPatternBuilder {
     // Canonical RIGHT-side path; must be real Vector3 instances (mirror helpers need .clone()/.set()).
-    private static readonly SEGMENTS: CubicBezierControls[] = [
+    private static readonly SEGMENTS: ICubicBezierControls[] = [
         { p0: new Vector3(0, 0, 0), p1: new Vector3(0.69, 20, 49.71), p2: new Vector3(-0.34, 20, 194.54), p3: new Vector3(40.25, 20, 179.06) },
         { p0: new Vector3(40.25, 20, 179.06), p1: new Vector3(77.06, 20, 162.2), p2: new Vector3(80.16, 20, 50.4), p3: new Vector3(80.16, 20, -0.17) },
         { p0: new Vector3(80.16, 20, -0.17), p1: new Vector3(79.12, 20, -40.08), p2: new Vector3(79.12, 20, -89.96), p3: new Vector3(45.41, 20, -89.62) },

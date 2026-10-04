@@ -1,6 +1,7 @@
 import { Time } from './Time';
+import type { EngineTick } from '../config/types/types';
 
-export type EngineTick = (time: Time) => void;
+
 
 /**
  * Owns the single animation loop. Call start() once after wiring tick.

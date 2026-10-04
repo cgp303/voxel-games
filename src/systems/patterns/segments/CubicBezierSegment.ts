@@ -2,15 +2,15 @@ import { Vector3 } from 'three';
 import {
     sampleCubic,
     sampleCubicDerivative,
-    type CubicBezierControls,
 } from '../../path/cubicBezier';
 import { BasePathSegment } from './BasePathSegment';
+import type { ICubicBezierControls } from '../../../config/interfaces/interfaces';
 
 export class CubicBezierSegment extends BasePathSegment {
-    public readonly controls: CubicBezierControls;
+    public readonly controls: ICubicBezierControls;
 
 
-    constructor(controls: CubicBezierControls, spinRate: number = 0, allowInversion: boolean = false, orientationSmoothing: number = 1) {
+    constructor(controls: ICubicBezierControls, spinRate: number = 0, allowInversion: boolean = false, orientationSmoothing: number = 1) {
         super(controls, spinRate, allowInversion, orientationSmoothing);
         this.controls = controls;
 

@@ -3,14 +3,16 @@
 import { Vector3 } from 'three';
 import { GroupAttackPattern1Builder } from '../patterns/GroupAttackPattern1Builder';
 import { GroupAttackPattern2Builder } from '../patterns/GroupAttackPattern2Builder';
-import type { DirectorContext } from '../interfaces';
-import { groupAttackSets as GroupAttackSets, GroupType, InvaderGroup } from '../config/GroupAttackSets';
+import type { IDirectorContext, IInvaderGroup } from '../../../config/interfaces/interfaces';
+import type { GroupType } from '../../../config/types/types';
+import { groupAttackSets as GroupAttackSets } from '../../../config/pattern-config/GroupAttackSets';
 import { InvaderRepathDirector } from './InvaderRepathDirector';
 
 
 const ATTACK_GROUP_TYPE = 0;
 const ATTACK_GROUP_ITERATIONS = 1;
 const ATTACK_GROUP_PATH = 2;
+
 export class GroupAttackPatternDirector extends InvaderRepathDirector {
 
     private invaderGroups;
@@ -24,7 +26,7 @@ export class GroupAttackPatternDirector extends InvaderRepathDirector {
     private maxSetIterations: number = 0;
     private numGroups: number;
     private groupAttackType: string = "";
-    private currentInvaderGroup: InvaderGroup | undefined;
+    private currentInvaderGroup: IInvaderGroup | undefined;
     private setIterations: number = 0;
 
     private centralPosition: Vector3 = new Vector3();
@@ -43,7 +45,7 @@ export class GroupAttackPatternDirector extends InvaderRepathDirector {
         this.numGroups = groupAttackSet.length;
     }
 
-    public begin(ctx: DirectorContext): void {
+    public begin(ctx: IDirectorContext): void {
         this.captureCommon(ctx);
 
         const path = this.groupAttackSet[0][ATTACK_GROUP_PATH];
@@ -197,7 +199,7 @@ export class GroupAttackPatternDirector extends InvaderRepathDirector {
     }
 
     // Fisher-Yates shuffle
-    shuffleArray(arrayA: InvaderGroup[]): InvaderGroup[] {
+    shuffleArray(arrayA: IInvaderGroup[]): IInvaderGroup[] {
         // 1. Fast shallow clone (A remains untouched)
         const B = [...arrayA];
 

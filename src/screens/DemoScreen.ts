@@ -1,23 +1,22 @@
-﻿import type { GameContext } from '../app/GameContext';
-import type { ScoreEntry } from '../app/types';
-import { DEMO } from '../data/constants';
+﻿import type { IScoreEntry, IGameContext, IScreen } from '../config/interfaces/interfaces';
+import type { DemoAttractPanel } from '../config/types/types';
+import { DEMO } from '../config/data/constants';
 import { PlaySession } from '../systems/PlaySession';
-import type { Screen } from './Screen';
 import type { PlayScreen } from './PlayScreen';
 import { createDemoStages } from '../systems/stages/stages-basic';
 
 /** Attract panels cycled on the demo screen */
-export type DemoAttractPanel = 'info' | 'highscores';
+
 
 /**
  * Attract / title mode over the shared PlayField.
  * Alternates info (controls + invader values) and high scores every few seconds.
  * Runs the same off-stage → formation invader intro as Play.
  */
-export class DemoScreen implements Screen {
+export class DemoScreen implements IScreen {
   public readonly id = 'demo';
 
-  private ctx: GameContext | null = null;
+  private ctx: IGameContext | null = null;
   private playScreen: PlayScreen | null = null;
   private session: PlaySession | null = null;
 
@@ -29,7 +28,7 @@ export class DemoScreen implements Screen {
     this.playScreen = play;
   }
 
-  public enter(ctx: GameContext): void {
+  public enter(ctx: IGameContext): void {
     this.ctx = ctx;
     ctx.game.mode = 'demo';
     // Default info; GameOver may call showHighScores() right after set()
@@ -148,7 +147,7 @@ export class DemoScreen implements Screen {
     ].join('');
   }
 
-  private buildHighScoresHtml(scores: ScoreEntry[]): string {
+  private buildHighScoresHtml(scores: IScoreEntry[]): string {
     const header = [
       '<div style="font-size:18px;letter-spacing:0.12em;margin-bottom:12px;color:#b8ffb8">HIGH SCORES</div>',
     ];

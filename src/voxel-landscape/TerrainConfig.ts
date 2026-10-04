@@ -1,41 +1,9 @@
-/**
- * Configuration for procedurally generated terrain
- * Can be serialized/stored and reused to generate consistent landscapes
- */
-export interface HeightColorBand {
-    height: number; // 0-1, normalized height threshold
-    color: { r: number; g: number; b: number };
-}
-
-export interface TerrainConfig {
-    // Dimensions
-    width: number; // X dimension (columns)
-    depth: number; // Z dimension (rows)
-    maxHeight: number; // Y dimension (max voxel height, e.g., 32)
-    tileSize: number; // Size of each terrain tile (for tiling noise)
-
-    // Noise parameters
-    noiseScale: number; // Frequency/zoom of noise (lower = more zoomed in, more variation)
-    noiseOctaves: number; // Complexity layers (1-8 recommended)
-    noisePersistence: number; // Amplitude falloff per octave (0.5 = half amplitude each time)
-    noiseLacunarity: number; // Frequency multiplier per octave (2.0 = double frequency)
-    noiseExponent: number; // Height curve (1.0 = linear, < 1.0 = flatter, > 1.0 = peaked)
-
-    // Color mapping
-    colorBands: HeightColorBand[];
-
-    // Seed for reproducibility
-    seed: number;
-
-    // Slope variation (adds color variation based on local slope)
-    enableSlopeVariation: boolean;
-    slopeColorShift: number; // How much slope affects color (0-0.3 recommended)
-}
+import type { ITerrainConfig } from '../config/interfaces/interfaces';
 
 /**
  * Default terrain configuration - balanced for a retro voxel landscape
  */
-export const DEFAULT_TERRAIN_CONFIG: TerrainConfig = {
+export const DEFAULT_TERRAIN_CONFIG: ITerrainConfig = {
     width: 256,
     depth: 512,
     maxHeight: 8,
@@ -117,7 +85,7 @@ export const DEFAULT_TERRAIN_CONFIG: TerrainConfig = {
     slopeColorShift: 0.1,
 };
 
-export const CRYSTAL_TERRAIN_CONFIG: TerrainConfig = {
+export const CRYSTAL_TERRAIN_CONFIG: ITerrainConfig = {
     ...DEFAULT_TERRAIN_CONFIG,
     noiseScale: 5,
     noiseOctaves: 7,
@@ -138,7 +106,7 @@ export const CRYSTAL_TERRAIN_CONFIG: TerrainConfig = {
 /**
  * Flatten terrain config - minimal height variation for testing
  */
-export const FLAT_TERRAIN_CONFIG: TerrainConfig = {
+export const FLAT_TERRAIN_CONFIG: ITerrainConfig = {
     ...DEFAULT_TERRAIN_CONFIG,
     noiseScale: 50, // Very zoomed out
     noiseOctaves: 4,
@@ -148,7 +116,7 @@ export const FLAT_TERRAIN_CONFIG: TerrainConfig = {
 /**
  * Mountainous terrain config - dramatic height variation
  */
-export const MOUNTAINOUS_TERRAIN_CONFIG: TerrainConfig = {
+export const MOUNTAINOUS_TERRAIN_CONFIG: ITerrainConfig = {
     ...DEFAULT_TERRAIN_CONFIG,
     noiseScale: 20, // Zoomed in, more peaks
     noiseOctaves: 6,
@@ -160,7 +128,7 @@ export const MOUNTAINOUS_TERRAIN_CONFIG: TerrainConfig = {
 /**
  * Island terrain config - peaked mountains surrounded by water
  */
-export const ISLAND_TERRAIN_CONFIG: TerrainConfig = {
+export const ISLAND_TERRAIN_CONFIG: ITerrainConfig = {
     ...DEFAULT_TERRAIN_CONFIG,
     noiseScale: 50,
     noiseOctaves: 4,

@@ -1,9 +1,9 @@
 // systems/patterns/directors/ColumnTriggerDirector.ts
 
-import type { DirectorContext, PatternBuilder } from '../interfaces';
+import type { IDirectorContext, IPatternBuilder } from '../../../config/interfaces/interfaces';
 import { InvaderRepathDirector } from './InvaderRepathDirector';
 
-export type ColumnSpawnType = 'LeftRightPairs' | 'Single' | 'Wave';
+import type { ColumnSpawnType } from '../../../config/types/types';
 
 /**
  * Walks a precomputed trigger order at a fixed cadence, re-pathing the
@@ -20,9 +20,9 @@ export abstract class ColumnTriggerDirector extends InvaderRepathDirector {
     protected abstract readonly msBetweenTriggers: number;
 
     /** Concrete director picks its own builder (ColumnDives/ColumnVertical/FigureEight pattern). */
-    protected abstract createBuilder(): PatternBuilder;
+    protected abstract createBuilder(): IPatternBuilder;
 
-    public begin(ctx: DirectorContext): void {
+    public begin(ctx: IDirectorContext): void {
         this.captureCommon(ctx);
         this.builder = this.createBuilder();
 

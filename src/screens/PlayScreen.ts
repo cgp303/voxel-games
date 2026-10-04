@@ -1,6 +1,5 @@
-import type { GameContext } from '../app/GameContext';
+import type { IGameContext, IScreen } from '../config/interfaces/interfaces';
 import { PlaySession } from '../systems/PlaySession';
-import type { Screen } from './Screen';
 import type { DemoScreen } from './DemoScreen';
 import type { GameOverScreen } from './GameOverScreen';
 import { createBasicStages } from '../systems/stages/stages-basic';
@@ -9,10 +8,10 @@ import { createBasicStages } from '../systems/stages/stages-basic';
  * Gameplay mode over the shared PlayField.
  * Restarts the invader entry intro on each enter; Esc returns to Demo (intro restarts there).
  */
-export class PlayScreen implements Screen {
+export class PlayScreen implements IScreen {
   public readonly id = 'play';
 
-  private ctx: GameContext | null = null;
+  private ctx: IGameContext | null = null;
   private demoScreen: DemoScreen | null = null;
   private gameOverScreen: GameOverScreen | null = null;
   private session: PlaySession | null = null;
@@ -23,7 +22,7 @@ export class PlayScreen implements Screen {
     this.gameOverScreen = gameOver;
   }
 
-  public enter(ctx: GameContext): void {
+  public enter(ctx: IGameContext): void {
     this.ctx = ctx;
     ctx.game.mode = 'play';
     ctx.game.resetRun();

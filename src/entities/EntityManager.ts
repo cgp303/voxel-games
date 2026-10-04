@@ -1,5 +1,5 @@
 import type { Entity } from './Entity';
-import type { FormationSlot } from '../app/types';
+import type { IFormationSlot } from '../config/interfaces/interfaces';
 import { Invader } from './Invader';
 import {
     Object3D,
@@ -74,7 +74,7 @@ export class EntityManager {
     }
 
     // Helpers for using the invadersBySlot map.
-    private slotKey(slot: FormationSlot): string {
+    private slotKey(slot: IFormationSlot): string {
         return `${slot.col},${slot.row}`;
     }
 

@@ -1,22 +1,8 @@
-export interface Voxel {
-    x: number;
-    y: number;
-    z: number;
-    colorIndex: number;
-}
-
-export interface VoxelBounds {
-    minX: number;
-    maxX: number;
-    minY: number;
-    maxY: number;
-    minZ: number;
-    maxZ: number;
-}
+import type { IVoxel, IVoxelBounds } from '../config/interfaces/interfaces';
 
 export class VoxelWorld {
-    private voxels: Map<string, Voxel> = new Map();
-    private bounds: VoxelBounds = {
+    private voxels: Map<string, IVoxel> = new Map();
+    private bounds: IVoxelBounds = {
         minX: 0,
         maxX: 0,
         minY: 0,
@@ -37,7 +23,7 @@ export class VoxelWorld {
         this.updateBounds(x, y, z);
     }
 
-    public getVoxel(x: number, y: number, z: number): Voxel | undefined {
+    public getVoxel(x: number, y: number, z: number): IVoxel | undefined {
         const key = this.getKey(x, y, z);
         return this.voxels.get(key);
     }
@@ -47,7 +33,7 @@ export class VoxelWorld {
         this.voxels.delete(key);
     }
 
-    public getAllVoxels(): Voxel[] {
+    public getAllVoxels(): IVoxel[] {
         return Array.from(this.voxels.values());
     }
 
@@ -63,7 +49,7 @@ export class VoxelWorld {
         };
     }
 
-    public getBounds(): VoxelBounds {
+    public getBounds(): IVoxelBounds {
         return this.bounds;
     }
 

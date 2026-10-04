@@ -1,13 +1,13 @@
 // systems/patterns/directors/FigureEightDirector.ts
 
 import { FigureEightPatternBuilder } from '../patterns/FigureEightPatternBuilder';
-import type { PatternBuilder } from '../interfaces';
+import type { IPatternBuilder } from '../../../config/interfaces/interfaces';
 import { ColumnTriggerDirector } from './ColumnTriggerDirector';
 
 export class FigureEightDirector extends ColumnTriggerDirector {
     protected readonly msBetweenTriggers = 0.25;
 
-    protected createBuilder(): PatternBuilder {
+    protected createBuilder(): IPatternBuilder {
         return new FigureEightPatternBuilder();
     }
 

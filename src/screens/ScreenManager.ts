@@ -1,24 +1,23 @@
-import type { GameContext } from '../app/GameContext';
-import type { Screen } from './Screen';
+import type { IGameContext, IScreen } from '../config/interfaces/interfaces';
 
 /**
  * Single active screen with exit → enter transitions.
  */
 export class ScreenManager {
-    private active: Screen | null = null;
-    private ctx: GameContext | null = null;
+    private active: IScreen | null = null;
+    private ctx: IGameContext | null = null;
     private transitioning = false;
 
     /** Bind shared context once App has built it */
-    public setContext(ctx: GameContext): void {
+    public setContext(ctx: IGameContext): void {
         this.ctx = ctx;
     }
 
-    public getActive(): Screen | null {
+    public getActive(): IScreen | null {
         return this.active;
     }
 
-    public async set(screen: Screen): Promise<void> {
+    public async set(screen: IScreen): Promise<void> {
         if (!this.ctx) {
             throw new Error('ScreenManager: setContext() before set()');
         }

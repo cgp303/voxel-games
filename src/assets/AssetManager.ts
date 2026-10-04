@@ -1,17 +1,19 @@
 ﻿import * as THREE from 'three';
-import { VoxParser, type ParsedVoxModel } from '../voxel/VoxParser';
+import type { IParsedVoxModel } from '../config/interfaces/interfaces';
 import { VoxelWorld } from '../voxel/VoxelWorld';
 import { VoxelGeometry } from '../voxel/VoxelGeometry';
 import { ASSET_PATHS, type AssetKey } from './manifests';
+import { VoxParser } from '../voxel/VoxParser';
+
 
 /**
  * Load and cache .vox models / mesh templates.
  */
 export class AssetManager {
-  private models = new Map<string, ParsedVoxModel>();
+  private models = new Map<string, IParsedVoxModel>();
   private meshTemplates = new Map<string, THREE.Object3D>();
 
-  public async loadVox(path: string, key?: string): Promise<ParsedVoxModel> {
+  public async loadVox(path: string, key?: string): Promise<IParsedVoxModel> {
     const cacheKey = key ?? path;
     const cached = this.models.get(cacheKey);
     if (cached) return cached;
@@ -21,7 +23,7 @@ export class AssetManager {
     return model;
   }
 
-  public async loadManifestAsset(key: AssetKey): Promise<ParsedVoxModel> {
+  public async loadManifestAsset(key: AssetKey): Promise<IParsedVoxModel> {
     return this.loadVox(ASSET_PATHS[key], key);
   }
 
@@ -59,7 +61,7 @@ export class AssetManager {
     return pivot;
   }
 
-  public getModel(key: string): ParsedVoxModel | undefined {
+  public getModel(key: string): IParsedVoxModel | undefined {
     return this.models.get(key);
   }
 

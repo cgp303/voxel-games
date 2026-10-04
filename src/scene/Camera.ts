@@ -1,7 +1,7 @@
 ﻿import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import type { GameRenderer } from './Renderer';
-import { VIEW } from '../data/constants';
+import { VIEW } from '../config/data/constants';
 
 export class GameCamera {
     public camera: THREE.PerspectiveCamera;

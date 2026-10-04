@@ -1,4 +1,5 @@
-import type { GameMode, ScoreEntry } from './types';
+import type { GameMode } from '../config/types/types';
+import type { IScoreEntry } from '../config/interfaces/interfaces';
 
 /**
  * High-level game facade: score, lives, mode.
@@ -8,7 +9,7 @@ export class Game {
     public mode: GameMode = 'demo';
     public score = 0;
     public lives = 3;
-    public highScores: ScoreEntry[] = [];
+    public highScores: IScoreEntry[] = [];
 
     public resetRun(): void {
         this.score = 0;

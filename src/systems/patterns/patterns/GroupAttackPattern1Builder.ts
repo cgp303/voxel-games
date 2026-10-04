@@ -2,12 +2,12 @@ import { Vector3 } from 'three';
 import { CubicBezierSegment } from '../segments/CubicBezierSegment';
 import { MultiSegmentPattern } from '../patterns/MultiSegmentPattern';
 import { mirrorCubicControlsX } from '../../path/cubicBezier';
-import type { CubicBezierControls } from '../../path/cubicBezier';
-import type { PatternBuilder } from '../interfaces';
+//import type { CubicBezierControls } from '../../path/cubicBezier';
+import type { IPatternBuilder, ICubicBezierControls } from '../../../config/interfaces/interfaces';
 
-export class GroupAttackPattern1Builder implements PatternBuilder {
+export class GroupAttackPattern1Builder implements IPatternBuilder {
     // Canonical RIGHT-side path; must be real Vector3 instances (mirror helpers need .clone()/.set()).
-    private static readonly SEGMENTS: CubicBezierControls[] = [
+    private static readonly SEGMENTS: ICubicBezierControls[] = [
         {
             p0: new Vector3(0, 0, 0),
             p1: new Vector3(50.69, 20, 190.84),
@@ -49,7 +49,7 @@ export class GroupAttackPattern1Builder implements PatternBuilder {
     build(origin: Vector3, side: number): MultiSegmentPattern {
         const start = origin.clone();
         const last = GroupAttackPattern1Builder.SEGMENTS.length - 1;
-        let prevControls: CubicBezierControls;
+        let prevControls: ICubicBezierControls;
 
 
         const segments = GroupAttackPattern1Builder.SEGMENTS.map((canonical, i) => {

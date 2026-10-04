@@ -2,11 +2,12 @@
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
+import { BloomPass } from 'three/examples/jsm/postprocessing/BloomPass.js';
 import { GameScene } from './Scene';
 import { GameCamera } from './Camera';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { FXAAShader } from 'three/examples/jsm/shaders/FXAAShader.js';
-import { VIEW } from '../data/constants';
+import { VIEW } from '../config/data/constants';
 import {
     applyFitRect,
     applyUiScale,
@@ -53,13 +54,25 @@ export class GameRenderer {
         );
         this.composer.addPass(renderPass);
 
-        const bloomPass = new UnrealBloomPass(
-            new THREE.Vector2(VIEW.internalWidth, VIEW.internalHeight),
-            0.2,
-            1.0,
-            0.2,
-        );
-        this.composer.addPass(bloomPass);
+        // expensive unreal bloom pass.
+        // const bloomPass = new UnrealBloomPass(
+        //     new THREE.Vector2(VIEW.internalWidth, VIEW.internalHeight),
+        //     0.2,
+        //     1.0,
+        //     0.2,
+        // );
+        // this.composer.addPass(bloomPass);
+
+        // // --- Cheap glow instead of UnrealBloomPass ---
+        // const bloomPass = new BloomPass(
+        //     1.2,   // strength (try 0.5 – 1.2)
+        //     15,    // kernel size (lower = cheaper, 15-25 is good)
+        //     0.25,   // sigma (blur amount)
+        //     256  // resolution (lower = much cheaper, try 128 or 256)
+        // );
+        // this.composer.addPass(bloomPass);
+
+
 
         this.fxaaPass = new ShaderPass(FXAAShader);
         this.fxaaPass.uniforms['resolution'].value.x = 1 / VIEW.internalWidth;

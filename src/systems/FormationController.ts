@@ -1,7 +1,7 @@
 import { Vector3 } from 'three';
-import { FORMATION } from '../data/constants';
-import type { FormationConfig, FormationSlot } from '../app/types';
-import { FormationDescriptor } from '../app/types';
+import { FORMATION } from '../config/data/constants';
+import type { IFormationSlot, IFormationConfig, IFormationDescriptor } from '../config/interfaces/interfaces';
+
 /**
  * Logical flock root + slot grid.
  * Invaders read live homes each frame (root may move). Scene meshes stay under
@@ -9,18 +9,18 @@ import { FormationDescriptor } from '../app/types';
  */
 export class FormationController {
 
-    private config: FormationConfig = { ...FORMATION };
+    private config: IFormationConfig = { ...FORMATION };
     private readonly rootPosition = new Vector3();
     private readonly rootVelocity = new Vector3();
     /** Hover Y baked at setup (absolute). */
     private hoverY = 0;
     private ready = false;
-    private descriptor: FormationDescriptor | null = null;
+    private descriptor: IFormationDescriptor | null = null;
     private _maxCol: number = 0;
     private _maxRow: number = 0;
 
 
-    public setup(terrainHeight: number, descriptor: FormationDescriptor): void {
+    public setup(terrainHeight: number, descriptor: IFormationDescriptor): void {
         this.descriptor = descriptor;
 
         // keep root motion config
@@ -58,7 +58,7 @@ export class FormationController {
         this.rootPosition.z += this.rootVelocity.z * dt;
     }
 
-    public getConfig(): Readonly<FormationConfig> {
+    public getConfig(): Readonly<IFormationConfig> {
         return this.config;
     }
 
@@ -100,7 +100,7 @@ export class FormationController {
         return out;
     }
 
-    public getWorldHomeSlot(slot: FormationSlot, out = new Vector3()): Vector3 {
+    public getWorldHomeSlot(slot: IFormationSlot, out = new Vector3()): Vector3 {
         return this.getWorldHome(slot.col, slot.row, out);
     }
 
@@ -108,7 +108,7 @@ export class FormationController {
         return this.descriptor!.spawnOrder;
     }
 
-    public getSpawnType(): FormationDescriptor["spawnType"] {
+    public getSpawnType(): IFormationDescriptor["spawnType"] {
         return this.descriptor!.spawnType;
     }
 

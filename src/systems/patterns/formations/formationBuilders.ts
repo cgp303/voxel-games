@@ -6,10 +6,10 @@
 // () => makeStaggeredFormation(10, 6, 12)
 // () => makeGridFormation(10, 6, 12)  
 
-import { FormationDescriptor } from '../../app/types';
+import { IFormationDescriptor } from '../../../config/interfaces/interfaces';
+import type { SlotMap } from '../../../config/types/types';
 
-export type SlotOffset = { x: number; z: number };
-export type SlotMap = Map<string, SlotOffset>;
+
 
 /**
  * Utility: make a "col,row" key
@@ -25,7 +25,7 @@ export function makeGridFormation(
     cols: number,
     rows: number,
     spacing: number
-): FormationDescriptor {
+): IFormationDescriptor {
 
     const midX = (cols - 1) / 2;
     const midZ = (rows - 1) / 2;
@@ -78,7 +78,7 @@ export function makeXFormation(
     rows: number,
     spacing: number,
     spreadFactor = spacing * 0.8
-): FormationDescriptor {
+): IFormationDescriptor {
 
     const midX = (cols - 1) / 2;
     const midZ = (rows - 1) / 2;
@@ -137,7 +137,7 @@ export function makeVFormation(
     rows: number,
     spacing: number,
     spreadFactor = spacing * 0.8
-): FormationDescriptor {
+): IFormationDescriptor {
     const midX = (cols - 1) / 2;
 
     const map: SlotMap = new Map();
@@ -182,7 +182,7 @@ export function makeVFormation(
 export function makeCircleFormation(
     count: number,
     radius: number
-): FormationDescriptor {
+): IFormationDescriptor {
 
     const map: SlotMap = new Map();
 
@@ -230,7 +230,7 @@ export function makeDiamondFormation(
     cols: number,
     rows: number,
     spacing: number
-): FormationDescriptor {
+): IFormationDescriptor {
 
     const midX = (cols - 1) / 2;
     const midZ = (rows - 1) / 2;
@@ -291,7 +291,7 @@ export function makeStaggeredFormation(
     rows: number,
     spacing: number,
     staggerAmount: number = spacing * 0.5
-): FormationDescriptor {
+): IFormationDescriptor {
 
     const midX = (cols - 1) / 2;
     const midZ = (rows - 1) / 2;
@@ -346,7 +346,7 @@ export function makeThreeRingCircleFormation(
     innerRadius: number,
     middleRadius: number,
     outerRadius: number
-): FormationDescriptor {
+): IFormationDescriptor {
 
     const map: SlotMap = new Map();
 
@@ -411,7 +411,7 @@ export function makeSpiralFormation(
     count: number,
     radiusStep: number,
     angleStep: number
-): FormationDescriptor {
+): IFormationDescriptor {
 
     const map: SlotMap = new Map();
 

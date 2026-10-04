@@ -11,12 +11,12 @@ import { DemoScreen } from '../screens/DemoScreen';
 import { PlayScreen } from '../screens/PlayScreen';
 import { GameOverScreen } from '../screens/GameOverScreen';
 import { Game } from './Game';
-import type { GameContext } from './GameContext';
-import { loadHighScores } from '../data/highscores';
+import type { IGameContext } from '../config/interfaces/interfaces';
+import { loadHighScores } from '../config/data/highscores';
 import { TerrainService } from '../world/TerrainService';
 import { PlayField } from '../world/PlayField';
 import { CRYSTAL_TERRAIN_CONFIG } from '../voxel-landscape/TerrainConfig';
-import { VIEW } from '../data/constants';
+import { VIEW } from '../config/data/constants';
 import { getUiRoot } from '../core/viewport';
 
 
@@ -56,7 +56,7 @@ export class App {
         this.playScreen.setTransitions(this.demoScreen, this.gameOverScreen);
         this.gameOverScreen.setTransitions(this.demoScreen);
 
-        const ctx: GameContext = {
+        const ctx: IGameContext = {
             scene: this.scene,
             camera: this.camera,
             renderer: this.renderer,

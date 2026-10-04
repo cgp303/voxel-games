@@ -1,13 +1,8 @@
 ﻿import { Vector3 } from 'three';
-import type { EntryConfig, EntrySide } from '../../app/types';
+import type { EntrySide } from '../../config/types/types'
+import type { IEntryConfig, IBuildEntryControlsArgs, ICubicBezierControls } from '../../config/interfaces/interfaces';
 
-/** Cubic Bezier control polygon in world space. */
-export interface CubicBezierControls {
-    p0: Vector3;
-    p1: Vector3;
-    p2: Vector3;
-    p3: Vector3;
-}
+
 
 function mix(a: number, b: number, t: number): number {
     return a + (b - a) * t;
@@ -88,10 +83,10 @@ export function mirrorPointX(
  * for convenience when baking a static snapshot.
  */
 export function mirrorCubicControlsX(
-    controls: CubicBezierControls,
+    controls: ICubicBezierControls,
     centerX: number,
-    out?: CubicBezierControls,
-): CubicBezierControls {
+    out?: ICubicBezierControls,
+): ICubicBezierControls {
     const target =
         out ??
         ({
@@ -99,7 +94,7 @@ export function mirrorCubicControlsX(
             p1: new Vector3(),
             p2: new Vector3(),
             p3: new Vector3(),
-        } satisfies CubicBezierControls);
+        } satisfies ICubicBezierControls);
 
     mirrorPointX(controls.p0, centerX, target.p0);
     mirrorPointX(controls.p1, centerX, target.p1);
@@ -108,17 +103,7 @@ export function mirrorCubicControlsX(
     return target;
 }
 
-export interface BuildEntryControlsArgs {
-    spawn: Vector3;
-    /** Usually live formation home; may be updated later by caller */
-    home: Vector3;
-    centerX: number;
-    /** Side the path starts from (determines center-approach sign) */
-    sideSign: 1 | -1;
-    bulgeDepth: number;
-    bulgeSignZ: number;
-    centerApproachX: number;
-}
+
 
 /**
  * Standard v1 entry Bezier (left or right via sideSign).
@@ -130,7 +115,7 @@ export interface BuildEntryControlsArgs {
  *
  * sideSign: -1 = left (spawn x < center), +1 = right
  */
-export function buildEntryControls(args: BuildEntryControlsArgs): CubicBezierControls {
+export function buildEntryControls(args: IBuildEntryControlsArgs): ICubicBezierControls {
     const {
         spawn,
         home,
@@ -172,8 +157,8 @@ export function buildEntryControlsFromConfig(
     centerX: number,
     // side: 'left' | 'right',
     side: EntrySide,
-    entry: Pick<EntryConfig, 'bulgeDepth' | 'bulgeSignZ' | 'centerApproachX'>,
-): CubicBezierControls {
+    entry: Pick<IEntryConfig, 'bulgeDepth' | 'bulgeSignZ' | 'centerApproachX'>,
+): ICubicBezierControls {
     const sideSign: 1 | -1 = side === 'left' ? -1 : 1;
     return buildEntryControls({
         spawn,
@@ -190,6 +175,6 @@ export function buildEntryControlsFromConfig(
  * Re-bind only the live end point (moving formation).
  * Prefer updating p3 in place each frame: controls.p3.copy(liveHome)
  */
-export function setLiveHome(controls: CubicBezierControls, home: Vector3): void {
+export function setLiveHome(controls: ICubicBezierControls, home: Vector3): void {
     controls.p3.copy(home);
 }

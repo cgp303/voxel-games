@@ -1,11 +1,13 @@
-import { VoxParser, ParsedVoxModel } from '../voxel/VoxParser';
+import { VoxParser } from '../voxel/VoxParser';
+import type { IParsedVoxModel } from '../config/interfaces/interfaces';
+
 
 export class FileLoader {
     private fileInput: HTMLInputElement;
     private statusElement: HTMLDivElement;
-    private onFileSelected: (parsedModel: ParsedVoxModel) => void;
+    private onFileSelected: (parsedModel: IParsedVoxModel) => void;
 
-    constructor(onFileSelected: (parsedModel: ParsedVoxModel) => void) {
+    constructor(onFileSelected: (parsedModel: IParsedVoxModel) => void) {
         this.onFileSelected = onFileSelected;
 
         // Create file input

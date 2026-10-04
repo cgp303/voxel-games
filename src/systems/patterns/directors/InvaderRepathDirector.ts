@@ -1,6 +1,6 @@
 // systems/patterns/directors/InvaderRepathDirector.ts
 
-import type { DirectorContext, PatternBuilder } from '../interfaces';
+import type { IDirectorContext, IPatternBuilder } from '../../../config/interfaces/interfaces';
 import type { MultiSegmentPattern } from '../patterns/MultiSegmentPattern';
 import type { Invader } from '../../../entities/Invader';
 import { BasePatternDirector } from './BasePatternDirector';
@@ -15,12 +15,12 @@ export abstract class InvaderRepathDirector extends BasePatternDirector {
     public queueRemaining = 0;
 
     protected config: Record<string, any> = {};
-    protected builder!: PatternBuilder;
+    protected builder!: IPatternBuilder;
 
     protected completionCooldown = 0;
     protected coolDownPeriod = 4;
 
-    protected override captureCommon(ctx: DirectorContext): void {
+    protected override captureCommon(ctx: IDirectorContext): void {
         super.captureCommon(ctx);
         this.config = ctx.config ?? {};
     }

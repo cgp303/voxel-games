@@ -1,13 +1,14 @@
-import { HeightColorBand } from './TerrainConfig';
+import type { IHeightColorBand } from '../config/interfaces/interfaces';
+
 
 /**
  * Maps normalized height (0-1) to colors with optional slope variation
  */
 export class ColorPalette {
-    private colorBands: HeightColorBand[];
+    private colorBands: IHeightColorBand[];
     private slopeColorShift: number;
 
-    constructor(colorBands: HeightColorBand[], slopeColorShift: number = 0.2) {
+    constructor(colorBands: IHeightColorBand[], slopeColorShift: number = 0.2) {
         // Sort bands by height for binary search
         this.colorBands = [...colorBands].sort((a, b) => a.height - b.height);
         this.slopeColorShift = slopeColorShift;

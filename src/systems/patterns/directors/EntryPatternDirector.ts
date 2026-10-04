@@ -1,6 +1,7 @@
 import { Object3D, Vector3 } from 'three';
-import type { EntryConfig, EntrySide, FormationSlot } from '../../../app/types';
-import { ENTRY } from '../../../data/constants';
+import type { EntrySide } from '../../../config/types/types';
+import type { IEntryConfig, IFormationSlot } from '../../../config/interfaces/interfaces';
+import { ENTRY } from '../../../config/data/constants';
 import { EntityManager } from '../../../entities/EntityManager';
 import { Invader } from '../../../entities/Invader';
 import type { PlayField } from '../../../world/PlayField';
@@ -8,24 +9,15 @@ import type { FormationController } from '../../FormationController';
 import { buildEntryControlsFromConfig } from '../../path/cubicBezier';
 import { BezierEntryPattern } from '../patterns/BezierEntryPattern';
 import { CubicBezierSegment } from '../segments/CubicBezierSegment';
-import { defaultOrientationConfig } from '../../patterns/config/defaultOrientationConfig';
-import type { DirectorContext } from '../interfaces';
+import { defaultOrientationConfig } from '../../../config/pattern-config/defaultOrientationConfig';
+import type { IDirectorContext } from '../../../config/interfaces/interfaces';
 import { BasePatternDirector } from './BasePatternDirector';
 
 
 type QueueJob =
-    | { kind: 'pair'; left: FormationSlot; right: FormationSlot }
-    | { kind: 'single'; slot: FormationSlot };
+    | { kind: 'pair'; left: IFormationSlot; right: IFormationSlot }
+    | { kind: 'single'; slot: IFormationSlot };
 
-
-export interface EntryDirectorBeginArgs {
-    formation: FormationController;
-    invaders: EntityManager;
-    playField: PlayField;
-    /** Shared mesh template from AssetManager (cloned per invader). */
-    template: Object3D;
-    entry?: Partial<EntryConfig>;
-}
 
 /**
  * Releases invaders off-stage in L/R pairs (plus alternating center column when odd),
@@ -37,7 +29,7 @@ export interface EntryDirectorBeginArgs {
 export class EntryPatternDirector extends BasePatternDirector {
     private playField: PlayField | null = null;
     private template: Object3D | null = null;
-    private entry: EntryConfig = { ...ENTRY };
+    private entry: IEntryConfig = { ...ENTRY };
 
     private queue: QueueJob[] = [];
     private timer = 0;
@@ -47,7 +39,7 @@ export class EntryPatternDirector extends BasePatternDirector {
     private readonly homeScratch = new Vector3();
     private readonly spawnScratch = new Vector3();
 
-    public begin(ctx: DirectorContext): void {
+    public begin(ctx: IDirectorContext): void {
         this.captureCommon(ctx);
         this.playField = ctx.playField;
         this.template = ctx.template;
@@ -144,7 +136,7 @@ export class EntryPatternDirector extends BasePatternDirector {
 
     }
 
-    private spawnOne(slot: FormationSlot, side: EntrySide): void {
+    private spawnOne(slot: IFormationSlot, side: EntrySide): void {
 
         const formation = this.formation!;
         const invaders = this.invaders!;
