@@ -1,95 +1,43 @@
-// systems/patterns/patterns/ColumnDivesPatternBuilder.ts
-
 import { Vector3 } from 'three';
 import { CubicBezierSegment } from '../segments/CubicBezierSegment';
 import { MultiSegmentPattern } from '../patterns/MultiSegmentPattern';
+import { mirrorCubicControlsX } from '../../path/cubicBezier';
+import type { IPatternBuilder, ICubicBezierControls } from '../../../config/interfaces/interfaces';
 
-export class ColumnDivesPatternBuilder {
+export class ColumnDivesPatternBuilder implements IPatternBuilder {
+    // Canonical RIGHT-side path; must be real Vector3 instances (mirror helpers need .clone()/.set()).
+    private static readonly SEGMENTS: ICubicBezierControls[] = [
+        { p0: new Vector3(0, 0, 0), p1: new Vector3(0.69, 20, 49.71), p2: new Vector3(-0.34, 20, 194.54), p3: new Vector3(40.25, 20, 179.06) },
+        { p0: new Vector3(40.25, 20, 179.06), p1: new Vector3(77.06, 20, 162.2), p2: new Vector3(80.16, 20, 50.4), p3: new Vector3(80.16, 20, -0.17) },
+        { p0: new Vector3(80.16, 20, -0.17), p1: new Vector3(79.12, 20, -40.08), p2: new Vector3(79.12, 20, -89.96), p3: new Vector3(45.41, 20, -89.62) },
+        { p0: new Vector3(45.41, 20, -89.62), p1: new Vector3(31.99, 20, -88.93), p2: new Vector3(10.32, 20, -82.39), p3: new Vector3(0, 0, 0) },
+    ];
+    private static readonly SPIN_RATES = [0, Math.PI, Math.PI, 0];
+    private static readonly RANGES = [
+        { start: 0, end: 0.27 }, { start: 0.27, end: 0.54 }, { start: 0.54, end: 0.8 }, { start: 0.8, end: 1 },
+    ];
 
-    private debugBezier;
+    build(origin: Vector3, side: number): MultiSegmentPattern {
+        const start = origin.clone();
+        const last = ColumnDivesPatternBuilder.SEGMENTS.length - 1;
 
-    constructor(scene) {
+        const segments = ColumnDivesPatternBuilder.SEGMENTS.map((canonical, i) => {
+            // side 1 = canonical (right); side 0 = mirrored across the formation centerline (x=0)
+            const controls = side === 1
+                ? {
+                    p0: canonical.p0.clone(),
+                    p1: canonical.p1.clone(),
+                    p2: canonical.p2.clone(),
+                    p3: canonical.p3.clone(),
+                }
+                : mirrorCubicControlsX(canonical, 0);
 
+            if (i === 0) controls.p0.copy(start);   // live spawn point, not a mirrored via-point
+            if (i === last) controls.p3.copy(start); // live dock point, not a mirrored via-point
+
+            return new CubicBezierSegment(controls, ColumnDivesPatternBuilder.SPIN_RATES[i], false);
+        });
+
+        return new MultiSegmentPattern(segments, ColumnDivesPatternBuilder.RANGES, 5);
     }
-
-    build(invader, side): MultiSegmentPattern {
-        const start = invader.position.clone();
-        const spinRate = Math.PI * 4;
-
-        const pAsegment1 = new CubicBezierSegment({
-            p0: { x: start.x, y: start.y, z: start.z },
-            p1: { x: 0.69, y: 20, z: 49.71 },
-            p2: { x: -0.34, y: 20, z: 194.54 },
-            p3: { x: 40.25, y: 20, z: 179.06 },
-        }, 0, false);
-
-
-        const pAsegment2 = new CubicBezierSegment({
-            p0: { x: 40.25, y: 20, z: 179.06 },
-            p1: { x: 77.06, y: 20, z: 162.2 },
-            p2: { x: 80.16, y: 20, z: 50.4 },
-            p3: { x: 80.16, y: 20, z: -0.17 },
-        }, spinRate, false);
-
-        const pAsegment3 = new CubicBezierSegment({
-            p0: { x: 80.16, y: 20, z: -0.17 },
-            p1: { x: 79.12, y: 20, z: -40.08 },
-            p2: { x: 79.12, y: 20, z: -89.96 },
-            p3: { x: 45.41, y: 20, z: -89.62 },
-        }, spinRate, false);
-
-
-        const pAsegment4 = new CubicBezierSegment({
-            p0: { x: 45.41, y: 20, z: -89.62 },
-            p1: { x: 31.99, y: 20, z: -88.93 },
-            p2: { x: 10.32, y: 20, z: -82.39 },
-            p3: { x: start.x, y: start.y, z: start.z },
-        }, 0, false);
-
-        ///////////////////////////////////////////////////
-
-        const pBsegment1 = new CubicBezierSegment({
-            p0: { x: start.x, y: start.y, z: start.z },
-            p1: { x: -0.69, y: 20, z: 49.71 },
-            p2: { x: 0.34, y: 20, z: 194.54 },
-            p3: { x: -40.25, y: 20, z: 179.06 },
-        }, 0, false);
-
-
-        const pBsegment2 = new CubicBezierSegment({
-            p0: { x: -40.25, y: 20, z: 179.06 },
-            p1: { x: -77.06, y: 20, z: 162.2 },
-            p2: { x: -80.16, y: 20, z: 50.4 },
-            p3: { x: -80.16, y: 20, z: -0.17 },
-        }, spinRate, false);
-
-        const pBsegment3 = new CubicBezierSegment({
-            p0: { x: -80.16, y: 20, z: -0.17 },
-            p1: { x: -79.12, y: 20, z: -40.08 },
-            p2: { x: -79.12, y: 20, z: -89.96 },
-            p3: { x: -45.41, y: 20, z: -89.62 },
-        }, spinRate, false);
-
-        const pBsegment4 = new CubicBezierSegment({
-            p0: { x: -45.41, y: 20, z: -89.62 },
-            p1: { x: -31.99, y: 20, z: -88.93 },
-            p2: { x: -10.32, y: 20, z: -82.39 },
-            p3: { x: start.x, y: start.y, z: start.z },
-        }, 0, false);
-
-        const patternA = new MultiSegmentPattern(
-            [pAsegment1, pAsegment2, pAsegment3, pAsegment4],
-            [{ start: 0, end: 0.27 }, { start: 0.27, end: 0.54 }, { start: 0.54, end: 0.8 }, { start: 0.8, end: 1 }],
-            5,
-        )
-
-        const patternB = new MultiSegmentPattern(
-            [pBsegment1, pBsegment2, pBsegment3, pBsegment4],
-            [{ start: 0, end: 0.27 }, { start: 0.27, end: 0.54 }, { start: 0.54, end: 0.8 }, { start: 0.8, end: 1 }],
-            5,
-        )
-
-        return (side === 0) ? patternB : patternA;
-    }
-
 }

@@ -1,14 +1,14 @@
 import { Vector3 } from 'three';
-import type { PathPattern, PathSegment } from '../interfaces';
+import type { IPathPattern, IPathSegment } from '../../../config/interfaces/interfaces';
 
-export class MultiSegmentPattern implements PathPattern {
+export class MultiSegmentPattern implements IPathPattern {
     public readonly duration: number;
     public readonly durationOverlap: number;
-    private readonly segments: PathSegment[];
+    private readonly segments: IPathSegment[];
     private readonly ranges: { start: number; end: number }[];
 
     constructor(
-        segments: PathSegment[],
+        segments: IPathSegment[],
         ranges: { start: number; end: number }[],
         duration: number,
         durationOverlap: number = 0

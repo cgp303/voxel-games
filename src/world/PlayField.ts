@@ -1,20 +1,7 @@
 ﻿import * as THREE from 'three';
 import type { GameCamera } from '../scene/Camera';
-import { CAMERA, GAME, TERRAIN } from '../data/constants';
-import type {
-    ScrollingTerrainBuildResult,
-    TerrainBuildResult,
-} from './TerrainService';
-
-export interface InvaderGridOptions {
-    cols?: number;
-    rows?: number;
-    /** World offset of grid center-ish origin used by legacy layout */
-    originX?: number;
-    originZ?: number;
-    /** Height above terrain max (y) */
-    hoverY?: number;
-}
+import { CAMERA, GAME, TERRAIN } from '../config/data/constants';
+import type { IInvaderGridOptions, ITerrainBuildResult, IScrollingTerrainBuildResult } from '../config/interfaces/interfaces';
 
 /**
  * Play area: terrain + formation under one root group.
@@ -71,7 +58,7 @@ export class PlayField {
      * Legacy: one static terrain mesh (no scroll pair).
      * Still supported so Step 2 can land before App wiring.
      */
-    public setTerrain(result: TerrainBuildResult): void {
+    public setTerrain(result: ITerrainBuildResult): void {
         this.clearTerrainOnly();
 
         this.terrainMesh = result.mesh;
@@ -84,7 +71,7 @@ export class PlayField {
      * Two Z-abutted tiles. Call updateScroll(dt) each frame to animate.
      * terrainRoot is shifted so the pair is centered on Z around 0 at start.
      */
-    public setScrollingTerrain(result: ScrollingTerrainBuildResult): void {
+    public setScrollingTerrain(result: IScrollingTerrainBuildResult): void {
         this.clearTerrainOnly();
 
         this.terrainMeshA = result.meshA;
@@ -159,7 +146,7 @@ export class PlayField {
      */
     public spawnInvaderGrid(
         template: THREE.Object3D,
-        options: InvaderGridOptions = {},
+        options: IInvaderGridOptions = {},
     ): void {
         this.clearInvaders();
 

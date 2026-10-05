@@ -2,17 +2,16 @@ import { Vector3, Line3 } from 'three';
 import {
     sampleCubic,
     sampleCubicDerivative,
-    type CubicBezierControls,
 } from '../../path/cubicBezier';
-import type { PathSegment } from '../interfaces';
+import type { IPathSegment, ICubicBezierControls } from '../../../config/interfaces/interfaces';
 
-export class BasePathSegment implements PathSegment {
-    public readonly controls: CubicBezierControls;
+export class BasePathSegment implements IPathSegment {
+    public readonly controls: ICubicBezierControls;
     private spinRate = 0;
     private _allowInversion = false;
     private orientationSmoothing = 1;
 
-    constructor(controls: Line3 | CubicBezierControls,
+    constructor(controls: Line3 | ICubicBezierControls,
         spinRate: number = 0,
         allowInversion: boolean = false,
         orientationSmoothing: number = 1

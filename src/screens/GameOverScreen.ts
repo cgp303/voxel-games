@@ -1,16 +1,15 @@
-﻿import type { GameContext } from '../app/GameContext';
-import { GAME_OVER } from '../data/constants';
+﻿import type { IGameContext, IScreen } from '../config/interfaces/interfaces';
+import { GAME_OVER } from '../config/data/constants';
 import type { DemoScreen } from './DemoScreen';
-import type { Screen } from './Screen';
 
 /**
  * Brief interstitial after a real game end.
  * Shows a GAME OVER card for a few seconds, then hands off to Demo high scores.
  */
-export class GameOverScreen implements Screen {
+export class GameOverScreen implements IScreen {
   public readonly id = 'game_over';
 
-  private ctx: GameContext | null = null;
+  private ctx: IGameContext | null = null;
   private demoScreen: DemoScreen | null = null;
   private elapsed = 0;
   private overlay: HTMLDivElement | null = null;
@@ -20,7 +19,7 @@ export class GameOverScreen implements Screen {
     this.demoScreen = demo;
   }
 
-  public enter(ctx: GameContext): void {
+  public enter(ctx: IGameContext): void {
     this.ctx = ctx;
     ctx.game.mode = 'game_over';
     this.elapsed = 0;

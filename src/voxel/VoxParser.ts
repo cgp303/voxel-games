@@ -1,17 +1,14 @@
 import { VoxelWorld } from './VoxelWorld';
 import { VOXLoader } from 'three/examples/jsm/loaders/VOXLoader.js';
+import type { IParsedVoxModel } from '../config/interfaces/interfaces';
 
-export interface ParsedVoxModel {
-    size: { x: number; y: number; z: number };
-    voxels: Array<{ x: number; y: number; z: number; colorIndex: number }>;
-    colors: Array<{ r: number; g: number; b: number; a: number }>;
-}
+
 
 export class VoxParser {
     /**
      * Parse a .vox file using Three.js VOXLoader
      */
-    public static async parseVoxFile(arrayBuffer: ArrayBuffer): Promise<ParsedVoxModel> {
+    public static async parseVoxFile(arrayBuffer: ArrayBuffer): Promise<IParsedVoxModel> {
         const loader = new VOXLoader();
         const model = loader.parse(arrayBuffer);
 
@@ -67,7 +64,7 @@ export class VoxParser {
     /**
      * Load .vox file from path and parse it
      */
-    public static async loadVoxFile(filePath: string): Promise<ParsedVoxModel> {
+    public static async loadVoxFile(filePath: string): Promise<IParsedVoxModel> {
         const response = await fetch(filePath);
         const arrayBuffer = await response.arrayBuffer();
         return this.parseVoxFile(arrayBuffer);
@@ -76,7 +73,7 @@ export class VoxParser {
     /**
      * Parse voxel data into a VoxelWorld
      */
-    public static populateWorld(world: VoxelWorld, parsedModel: ParsedVoxModel) {
+    public static populateWorld(world: VoxelWorld, parsedModel: IParsedVoxModel) {
         parsedModel.voxels.forEach((v) => {
             world.setVoxel(v.x, v.y, v.z, v.colorIndex);
         });

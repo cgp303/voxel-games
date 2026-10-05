@@ -1,11 +1,6 @@
-import { VIEW } from '../data/constants';
+import { VIEW } from '../config/data/constants';
+import type { FitRect } from '../config/types/types';
 
-export type FitRect = {
-    width: number;
-    height: number;
-    left: number;
-    top: number;
-};
 
 /** Design aspect width/height (e.g. 3/4). */
 export function viewAspect(): number {

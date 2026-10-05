@@ -1,11 +1,11 @@
 import { Vector3 } from 'three';
-import type { PathPattern } from '../interfaces';
-import type { PathSegment } from '../interfaces';
+import type { IPathPattern } from '../../../config/interfaces/interfaces';
+import type { IPathSegment } from '../../../config/interfaces/interfaces';
 import { CubicBezierSegment } from '../segments/CubicBezierSegment';
 
-export class BezierEntryPattern implements PathPattern {
+export class BezierEntryPattern implements IPathPattern {
     public readonly duration: number;
-    private readonly segment: PathSegment;
+    private readonly segment: IPathSegment;
 
     private readonly posScratch = new Vector3();
     private readonly tanScratch = new Vector3();

@@ -1,25 +1,15 @@
 ﻿import type { Object3D } from 'three';
-import type {
-    FormationConfig,
-    IntroStartedPayload,
-    StageCancelledPayload,
-} from '../app/types';
-import { GameEvents } from '../app/types';
-import type { GameContext } from '../app/GameContext';
+import type { IFormationConfig, IIntroStartedPayload, IStageCancelledPayload } from '../config/interfaces/interfaces';
+import { GameEvents } from '../config/types/types';
+import type { IGameContext } from '../config/interfaces/interfaces';
 import { EntityManager } from '../entities/EntityManager';
 import { EntryPatternDirector } from './patterns/directors/EntryPatternDirector';
 import { FormationController } from './FormationController';
-import type { PatternDirector } from './patterns/interfaces';
+import type { IPatternDirector, IPlaySessionStartOptions } from '../config/interfaces/interfaces';
 import { Stage } from './stages/Stage';
 import { StageQueue } from './stages/StageQueue';
 
-export interface PlaySessionStartOptions {
-    /** Asset key for invader mesh template (default: 'invader'). */
-    invaderAssetKey?: string;
-    formation?: Partial<FormationConfig>;
-    stageQueue?: StageQueue;
 
-}
 
 /**
  * Owns one intro/combat simulation slice: formation + entry director + entities.
@@ -40,21 +30,21 @@ export class PlaySession {
     public readonly invaders = new EntityManager();
     public readonly formation = new FormationController();
 
-    private ctx: GameContext | null = null;
+    private ctx: IGameContext | null = null;
     private template: Object3D | null = null;
     private invaderAssetKey = 'invader1';
-    private formationOverride: Partial<FormationConfig> = {};
+    private formationOverride: Partial<IFormationConfig> = {};
     private started = false;
 
     private stageQueue: StageQueue | null = null;
     private currentStage: Stage | null = null;
-    private director: PatternDirector | null = null;
+    private director: IPatternDirector | null = null;
 
 
     /**
      * Clear field, setup formation from terrain height, begin first stage
      */
-    public start(ctx: GameContext, options: PlaySessionStartOptions = {}): void {
+    public start(ctx: IGameContext, options: IPlaySessionStartOptions = {}): void {
         this.ctx = ctx;
 
         this.invaderAssetKey = options.invaderAssetKey ?? 'invader1';
@@ -116,7 +106,7 @@ export class PlaySession {
 
             this.ctx.events.emit(GameEvents.stageCancelled, {
                 reason: 'player_death',
-            } satisfies StageCancelledPayload);
+            } satisfies IStageCancelledPayload);
         }
 
         this.ctx.events.emit(GameEvents.playerDied, undefined);
@@ -168,7 +158,7 @@ export class PlaySession {
             if (hadPending) {
                 this.ctx?.events.emit(GameEvents.stageCancelled, {
                     reason: 'dispose',
-                } satisfies StageCancelledPayload);
+                } satisfies IStageCancelledPayload);
             }
         }
 
@@ -199,10 +189,11 @@ export class PlaySession {
             template: this.template,
             config: this.currentStage.directorConfig,
             scene: this.ctx.scene.scene,
+            assetKey: this.invaderAssetKey,
         });
     }
 
-    private bootIntro(reason: IntroStartedPayload['reason']): void {
+    private bootIntro(reason: IIntroStartedPayload['reason']): void {
         const ctx = this.ctx;
         const template = this.template;
         if (!ctx || !template) return;
@@ -213,7 +204,7 @@ export class PlaySession {
 
             ctx.events.emit(GameEvents.stageCancelled, {
                 reason: 'restart',
-            } satisfies StageCancelledPayload);
+            } satisfies IStageCancelledPayload);
         } else {
             this.director?.cancel();
         }
@@ -236,9 +227,10 @@ export class PlaySession {
             playField: ctx.playField,
             template: this.template,
             config: this.currentStage?.directorConfig ?? {},
+            assetKey: this.invaderAssetKey,
         });
 
 
-        ctx.events.emit(GameEvents.introStarted, { reason } satisfies IntroStartedPayload);
+        ctx.events.emit(GameEvents.introStarted, { reason } satisfies IIntroStartedPayload);
     }
 }

@@ -5,11 +5,11 @@ import { EntryPatternDirector } from '../patterns/directors/EntryPatternDirector
 import { FigureEightDirector } from '../patterns/directors/FigureEightDirector';
 import { ColumnDivesDirector } from '../patterns/directors/ColumnDivesDirector';
 import { ColumnVerticalDirector } from '../patterns/directors/ColumnVerticalDirector';
-import { makeGridFormation, makeVFormation, makeXFormation, makeDiamondFormation, makeCircleFormation, makeStaggeredFormation, makeThreeRingCircleFormation, makeSpiralFormation } from './formationBuilders';
+import { makeGridFormation, makeVFormation, makeXFormation, makeDiamondFormation, makeCircleFormation, makeStaggeredFormation, makeThreeRingCircleFormation, makeSpiralFormation } from '../patterns/formations/formationBuilders';
 import { GroupAttackPatternDirector } from '../patterns/directors/GroupAttackPatternDirector';
 
 export function createBasicStages(): StageQueue {
-    const formation = makeGridFormation(10, 6, 12);
+    const formation = makeXFormation(10, 6, 12);
     return new StageQueue(
         [
             new Stage(

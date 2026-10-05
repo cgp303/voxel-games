@@ -1,6 +1,7 @@
 import { Object3D, Vector3 } from 'three';
-import type { EntryConfig, EntrySide, FormationSlot } from '../../../app/types';
-import { ENTRY } from '../../../data/constants';
+import type { EntrySide } from '../../../config/types/types';
+import type { IEntryConfig, IFormationSlot } from '../../../config/interfaces/interfaces';
+import { ENTRY } from '../../../config/data/constants';
 import { EntityManager } from '../../../entities/EntityManager';
 import { Invader } from '../../../entities/Invader';
 import type { PlayField } from '../../../world/PlayField';
@@ -8,63 +9,53 @@ import type { FormationController } from '../../FormationController';
 import { buildEntryControlsFromConfig } from '../../path/cubicBezier';
 import { BezierEntryPattern } from '../patterns/BezierEntryPattern';
 import { CubicBezierSegment } from '../segments/CubicBezierSegment';
-import { defaultOrientationConfig } from '../../patterns/config/defaultOrientationConfig';
-import type { DirectorContext, PatternDirector } from '../interfaces';
+import { defaultOrientationConfig } from '../../../config/pattern-config/defaultOrientationConfig';
+import type { IDirectorContext } from '../../../config/interfaces/interfaces';
+import { BasePatternDirector } from './BasePatternDirector';
 
 
 type QueueJob =
-    | { kind: 'pair'; left: FormationSlot; right: FormationSlot }
-    | { kind: 'single'; slot: FormationSlot };
+    | { kind: 'pair'; left: IFormationSlot; right: IFormationSlot }
+    | { kind: 'single'; slot: IFormationSlot };
 
-
-export interface EntryDirectorBeginArgs {
-    formation: FormationController;
-    invaders: EntityManager;
-    playField: PlayField;
-    /** Shared mesh template from AssetManager (cloned per invader). */
-    template: Object3D;
-    entry?: Partial<EntryConfig>;
-}
 
 /**
  * Releases invaders off-stage in L/R pairs (plus alternating center column when odd),
  * builds mirrored entry paths, registers them with EntityManager.
  * Does not tick invaders — PlaySession runs formation → entry → invaders.
+ * Spawns brand-new invaders (unlike InvaderRepathDirector subclasses, which redirect
+ * already-spawned ones), so it extends BasePatternDirector directly.
  */
-export class EntryPatternDirector implements PatternDirector {
-    private formation: FormationController | null = null;
-    private invaders: EntityManager | null = null;
+export class EntryPatternDirector extends BasePatternDirector {
     private playField: PlayField | null = null;
     private template: Object3D | null = null;
-    private entry: EntryConfig = { ...ENTRY };
+    private entry: IEntryConfig = { ...ENTRY };
 
     private queue: QueueJob[] = [];
     private timer = 0;
     private pairIntervalSec = 1;
-    private running = false;
-    private cancelled = false;
+    private assetKey: string = 'invader1'; // default asset key for invaders
 
     private readonly homeScratch = new Vector3();
     private readonly spawnScratch = new Vector3();
 
-    public begin(ctx: DirectorContext): void {
-        this.formation = ctx.formation;
-        this.invaders = ctx.invaders;
+    public begin(ctx: IDirectorContext): void {
+        this.captureCommon(ctx);
         this.playField = ctx.playField;
         this.template = ctx.template;
         const entryConfig = ctx.config ?? {};
         this.entry = { ...ENTRY, ...entryConfig };
+        this.assetKey = ctx.assetKey ?? this.assetKey;
 
         const perSec = Math.max(0.01, this.entry.invadersPerSecond);
         // Two invaders per pair release.
         this.pairIntervalSec = 2 / perSec;
         this.timer = 0; // first pair on first eligible update (immediate)
-        this.cancelled = false;
-        this.running = true;
         this.queue.length = 0;
 
         const spawnOrder = this.formation.getSpawnOrder();
         const spawnType = this.formation.getSpawnType();
+
 
         switch (spawnType) {
             case "LeftRightPairs":
@@ -96,9 +87,7 @@ export class EntryPatternDirector implements PatternDirector {
 
     public update(dt: number): void {
         if (!this.running || this.cancelled) return;
-        if (!this.formation || !this.invaders || !this.playField || !this.template) {
-            return;
-        }
+        if (!this.playField || !this.template) return;
         if (this.queue.length === 0) return;
 
         this.timer -= dt;
@@ -109,19 +98,9 @@ export class EntryPatternDirector implements PatternDirector {
         }
     }
 
-    /** Stop scheduling new spawns (in-flight invaders keep flying). */
-    public cancel(): void {
-        this.cancelled = true;
+    /** Clear any pending releases; in-flight invaders keep flying. */
+    protected override onCancel(): void {
         this.queue.length = 0;
-        this.running = false;
-    }
-
-    public isCancelled(): boolean {
-        return this.cancelled;
-    }
-
-    public isRunning(): boolean {
-        return this.running && !this.cancelled;
     }
 
     public get queueRemaining(): number {
@@ -133,7 +112,6 @@ export class EntryPatternDirector implements PatternDirector {
      */
     public isComplete(): boolean {
         if (this.queue.length > 0) return false;
-        if (!this.invaders) return true;
         for (const e of this.invaders.getAll()) {
             if (e instanceof Invader && e.active && e.isEntering()) {
                 return false;
@@ -158,7 +136,7 @@ export class EntryPatternDirector implements PatternDirector {
 
     }
 
-    private spawnOne(slot: FormationSlot, side: EntrySide): void {
+    private spawnOne(slot: IFormationSlot, side: EntrySide): void {
 
         const formation = this.formation!;
         const invaders = this.invaders!;
@@ -189,17 +167,13 @@ export class EntryPatternDirector implements PatternDirector {
         const segment = new CubicBezierSegment(controls);
         const pattern = new BezierEntryPattern(segment, entry.pathDuration);
 
-        const mesh = template.clone(true);
-        mesh.traverse((child) => {
-            const m = child as { castShadow?: boolean; receiveShadow?: boolean; isMesh?: boolean };
-            if (m.isMesh) {
-                m.castShadow = true;
-                m.receiveShadow = true;
-            }
-        });
+        // 1. Decide assetKey (need to pass this through DirectorContext)
+        const assetKey = this.assetKey; // e.g., 'invader1'
 
-        const invader = new Invader(mesh);
-        invader.init({
+        // 2. Acquire (pool handles clone + shadow traversal on first call only)
+        const invader = this.invaders!.acquireInvader(assetKey, template);
+
+        invader.reset({
             slot,
             side,
             spawn: this.spawnScratch.clone(),
@@ -207,9 +181,10 @@ export class EntryPatternDirector implements PatternDirector {
             formation,
             pathDuration: entry.pathDuration,
             entry: defaultOrientationConfig,
+            poolAssetKey: this.assetKey,
         });
 
-        playField.attachInvader(mesh);
+        playField.attachInvader(invader.object3d);
         invaders.add(invader);
     }
 

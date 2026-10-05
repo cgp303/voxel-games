@@ -1,19 +1,18 @@
-import { TerrainConfig } from './TerrainConfig';
 import { NoiseGenerator } from './NoiseGenerator';
 import { ColorPalette } from './ColorPalette';
-import { ParsedVoxModel } from '../voxel/VoxParser';
+import type { IParsedVoxModel, ITerrainConfig } from '../config/interfaces/interfaces';
 
 /**
  * Generates procedural voxel terrain from a configuration
  * Creates a heightmap using simplex noise and colors based on height + slope
  */
 export class TerrainGenerator {
-    private config: TerrainConfig;
+    private config: ITerrainConfig;
     private noiseGenerator: NoiseGenerator;
     private colorPalette: ColorPalette;
     private heightmap: number[][] = []; // Normalized heights 0-1
 
-    constructor(config: TerrainConfig) {
+    constructor(config: ITerrainConfig) {
         this.config = config;
         this.noiseGenerator = NoiseGenerator.withSeed(config.seed);
         this.colorPalette = new ColorPalette(config.colorBands, config.slopeColorShift);
@@ -151,7 +150,7 @@ export class TerrainGenerator {
     /**
      * Generate the full terrain as a ParsedVoxModel
      */
-    public generate(): ParsedVoxModel {
+    public generate(): IParsedVoxModel {
         // Step 1: Generate heightmap
         this.generateHeightmap();
 
@@ -210,7 +209,7 @@ export class TerrainGenerator {
     /**
      * Serialize config for storage
      */
-    public getConfig(): TerrainConfig {
+    public getConfig(): ITerrainConfig {
         return this.config;
     }
 }

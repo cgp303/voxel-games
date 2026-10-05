@@ -7,41 +7,16 @@
     type Object3D as Object3DType,
 } from 'three';
 import type {
-    EntryConfig,
     EntrySide,
-    FormationSlot,
     InvaderMode,
     InvaderTypeId,
-} from '../app/types';
-import type { PathPattern } from '../systems/patterns/interfaces';
-import { ENTRY } from '../data/constants';
+} from '../config/types/types';
+import type { IPathPattern, IEntryConfig, IFormationSlot, IInvaderInitConfig, ICubicBezierControls } from '../config/interfaces/interfaces';
+import { ENTRY } from '../config/data/constants';
 import type { FormationController } from '../systems/FormationController';
-import {
-    sampleCubic,
-    sampleCubicDerivative,
-    setLiveHome,
-    type CubicBezierControls,
-} from '../systems/path/cubicBezier';
 import { Entity } from './Entity';
 
-export interface InvaderInitConfig {
-    typeId?: InvaderTypeId;
-    slot: FormationSlot;
-    side: EntrySide;
-    spawn: Vector3;
-    formation: FormationController;
-    /** Path duration seconds; defaults to ENTRY.pathDuration */
-    pathDuration?: number;
-    scoreValue?: number;
-    /** Bank / smoothing overrides */
-    entry?: Partial<
-        Pick<
-            EntryConfig,
-            'bankGain' | 'maxBankRad' | 'orientSmooth' | 'dockSmooth' | 'debugForwardArrow'
-        >
-    >;
-    pattern?: PathPattern;
-}
+
 
 /** Shared flag so only one debug arrow exists across invaders. */
 let debugArrowClaimed = false;
@@ -59,14 +34,15 @@ let debugArrowClaimed = false;
  */
 export class Invader extends Entity {
     public typeId: InvaderTypeId = 'grunt';
+    public poolAssetKey?: string | null = null;
     public scoreValue = 50;
     public mode: InvaderMode = 'inactive';
-    public slot: FormationSlot = { col: 0, row: 0 };
+    public slot: IFormationSlot = { col: 0, row: 0 };
     public side: EntrySide = 'left';
 
     private formation: FormationController | null = null;
-    private controls: CubicBezierControls | null = null;
-    private pathPattern: PathPattern | null = null;
+    private controls: ICubicBezierControls | null = null;
+    private pathPattern: IPathPattern | null = null;
     private pathDuration: number = ENTRY.pathDuration;
     private pathT = 0;
 
@@ -117,7 +93,7 @@ export class Invader extends Entity {
         this.displayQuat.copy(this.baseQuat);
     }
 
-    public init(cfg: InvaderInitConfig): void {
+    public init(cfg: IInvaderInitConfig): void {
         this.typeId = cfg.typeId ?? 'grunt';
         this.scoreValue = cfg.scoreValue ?? 50;
         this.slot = { ...cfg.slot };
@@ -126,6 +102,7 @@ export class Invader extends Entity {
         this.pathPattern = cfg.pattern ?? null;
         this.pathDuration = Math.max(0.05, cfg.pathDuration ?? ENTRY.pathDuration);
         this.pathT = 0;
+        this.poolAssetKey = cfg.poolAssetKey ?? null;
 
         const entry = cfg.entry;
         this.bankGain = entry?.bankGain ?? ENTRY.bankGain;
@@ -150,7 +127,7 @@ export class Invader extends Entity {
         this.syncTransform();
     }
 
-    public startPattern(cfg: { pattern: any; formation: any; entry: any; attackOffset?: Vector3 }): void {
+    public startPattern(cfg: { pattern: IPathPattern; formation: FormationController; entry: Partial<Pick<IEntryConfig, 'bankGain' | 'maxBankRad' | 'orientSmooth' | 'dockSmooth' | 'debugForwardArrow'>>; attackOffset?: Vector3 }): void {
         // Implementation for initialising the invader's pattern.
         const entry = cfg.entry;
         this.bankGain = entry?.bankGain ?? ENTRY.bankGain;
@@ -177,7 +154,7 @@ export class Invader extends Entity {
     /**
      * Re-arm for another entry without reallocating the mesh (pool-friendly).
      */
-    public reset(cfg: InvaderInitConfig): void {
+    public reset(cfg: IInvaderInitConfig): void {
         this.init(cfg);
     }
 
@@ -377,157 +354,6 @@ export class Invader extends Entity {
         this.flightQuat.slerp(this.targetFlightQuat, smooth);
         this.displayQuat.copy(this.flightQuat).multiply(this.baseQuat);
     }
-
-
-
-    // private applyFlightOrientation(forwardIn: Vector3, dt: number): void {
-    //     const forward = this.tangentScratch.copy(forwardIn);
-    //     if (forward.lengthSq() < 1e-10) return;
-    //     forward.normalize();
-
-    //     // ---------- 1. Decide whether we are allowed to stay inverted ----------
-    //     // You can drive this from the path pattern, a timer, or a boolean you set when the loop starts.
-    //     const allowInversion = this.pathPattern?.allowInversion?.(this.pathT) ?? false;
-    //     // or simply: const allowInversion = this.isDoingHalfLoop;
-
-    //     // ---------- 2. Build the base orientation ----------
-    //     this.lookDummy.position.set(0, 0, 0);
-
-    //     if (allowInversion) {
-    //         // Free mode: do NOT force worldUp.
-    //         // Use the previous up (or a stable reference) so the ship can go inverted.
-    //         // A simple and stable choice is to keep the previous up and only re-orthogonalise.
-    //         this.lookDummy.up.copy(this.prevUp);           // you need to store prevUp
-    //         this.lookDummy.lookAt(forward.x, forward.y, forward.z);
-
-    //         // Re-orthonormalise so up stays perpendicular to forward
-    //         const right = this.rightScratch.crossVectors(forward, this.lookDummy.up).normalize();
-    //         this.lookDummy.up.crossVectors(right, forward).normalize();
-    //     } else {
-    //         // Normal mode – keep the old upright behaviour
-    //         if (Math.abs(forward.dot(this.worldUp)) > 0.98) {
-    //             forward.x += 0.05;
-    //             forward.normalize();
-    //         }
-    //         this.lookDummy.up.copy(this.worldUp);
-    //         this.lookDummy.lookAt(forward.x, forward.y, forward.z);
-    //     }
-
-    //     // Store the up we just used so the next frame has a continuous reference
-    //     this.prevUp.copy(this.lookDummy.up);
-
-    //     this.targetFlightQuat.copy(this.lookDummy.quaternion);
-
-    //     // ---------- 3. Banking (optional – you can also suppress it during the loop) ----------
-    //     let targetRoll = 0;
-    //     // … keep your existing yaw-rate banking code here …
-    //     // You may want to zero targetRoll while allowInversion is true:
-    //     if (allowInversion) targetRoll = 0;
-
-    //     const smooth = 1 - Math.exp(-this.orientSmooth * dt);
-    //     this.roll += (targetRoll - this.roll) * smooth;
-
-    //     // ---------- 4. Controlled spin (this is what will actually invert them) ----------
-    //     if (this.pathPattern) {
-    //         const spinRate = this.pathPattern.sampleSpinRate(this.pathT);
-    //         this.spinAngle += spinRate * dt;
-    //     }
-
-    //     // Apply spin around the tangent
-    //     const localTangentAxis = forward.clone()
-    //         .applyQuaternion(this.lookDummy.quaternion.clone().invert());
-    //     this.spinQuat.setFromAxisAngle(localTangentAxis, this.spinAngle);
-
-    //     this.targetFlightQuat.multiply(this.spinQuat);
-
-    //     // Apply bank
-    //     this.bankQuat.setFromAxisAngle(this.localForward, this.roll);
-    //     this.targetFlightQuat.multiply(this.bankQuat);
-
-    //     // Smooth & apply
-    //     this.flightQuat.slerp(this.targetFlightQuat, smooth);
-    //     this.displayQuat.copy(this.flightQuat).multiply(this.baseQuat);
-    // }
-    /**
-     * Face along path tangent; bank (roll about local Z) from horizontal turn rate.
-     *
-     * Three.js Object3D.lookAt aims the local -Z axis toward the target.
-     * After lookAt, we bank about local +Z so the mesh rolls into the turn.
-     */
-    // private applyFlightOrientation(forwardIn: Vector3, dt: number): void {
-    //     const forward = this.tangentScratch.copy(forwardIn);
-    //     if (forward.lengthSq() < 1e-10) {
-    //         return;
-    //     }
-    //     forward.normalize();
-
-    //     // Avoid lookAt singularity when forward approx world up.
-    //     if (Math.abs(forward.dot(this.worldUp)) > 0.98) {
-    //         forward.x += 0.05;
-    //         forward.normalize();
-    //     }
-
-    //     const fx = forward.x;
-    //     const fz = forward.z;
-    //     const horizLen = Math.hypot(fx, fz);
-    //     let targetRoll = 0;
-    //     if (this.hasPrevForward && dt > 1e-6 && horizLen > 1e-5) {
-    //         const inv = 1 / horizLen;
-    //         const nx = fx * inv;
-    //         const nz = fz * inv;
-    //         const cross = this.prevForwardX * nz - this.prevForwardZ * nx;
-    //         const dot = this.prevForwardX * nx + this.prevForwardZ * nz;
-    //         const yawDelta = Math.atan2(cross, dot);
-    //         const yawRate = yawDelta / dt;
-    //         // Bank into the turn.
-    //         targetRoll = MathUtils.clamp(
-    //             -yawRate * this.bankGain,
-    //             -this.maxBankRad,
-    //             this.maxBankRad,
-    //         );
-    //         this.prevForwardX = nx;
-    //         this.prevForwardZ = nz;
-    //     } else if (horizLen > 1e-5) {
-    //         this.prevForwardX = fx / horizLen;
-    //         this.prevForwardZ = fz / horizLen;
-    //     }
-    //     this.hasPrevForward = true;
-
-    //     const smooth = 1 - Math.exp(-this.orientSmooth * dt);
-    //     this.roll += (targetRoll - this.roll) * smooth;
-    //     if (this.pathPattern) {
-    //         const spinRate = this.pathPattern.sampleSpinRate(this.pathT);
-    //         this.spinAngle += spinRate * dt;
-    //     }
-
-    //     // Path face: lookAt puts local -Z along +forward.
-    //     this.lookDummy.position.set(0, 0, 0);
-    //     this.lookDummy.up.copy(this.worldUp);
-    //     this.lookDummy.lookAt(forward.x, forward.y, forward.z);
-    //     this.targetFlightQuat.copy(this.lookDummy.quaternion);
-
-    //     // tangent axis in world space
-    //     const tangentAxis = forward.clone();
-
-    //     // convert tangent axis into local space AFTER lookAt
-    //     const localTangentAxis = tangentAxis.applyQuaternion(this.lookDummy.quaternion.clone().invert());
-
-    //     // spin around local tangent axis
-    //     this.spinQuat.setFromAxisAngle(localTangentAxis, this.spinAngle);
-
-    //     this.targetFlightQuat.copy(this.lookDummy.quaternion);
-
-    //     // spin first
-    //     this.targetFlightQuat.multiply(this.spinQuat);
-
-    //     // Bank about local Z after path face (mesh-local Z roll).
-    //     this.bankQuat.setFromAxisAngle(this.localForward, this.roll);
-    //     this.targetFlightQuat.multiply(this.bankQuat);
-
-    //     // Smooth flight orientation, then apply model rest correction.
-    //     this.flightQuat.slerp(this.targetFlightQuat, smooth);
-    //     this.displayQuat.copy(this.flightQuat).multiply(this.baseQuat);
-    // }
 
     public override syncTransform(): void {
         if (!this.object3d) return;

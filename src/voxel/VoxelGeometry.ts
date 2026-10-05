@@ -1,5 +1,7 @@
 import * as THREE from 'three';
-import { VoxelWorld, Voxel } from './VoxelWorld';
+import { VoxelWorld } from './VoxelWorld';
+import type { IVoxel } from '../config/interfaces/interfaces';
+
 
 export class VoxelGeometry {
     /**
@@ -49,7 +51,7 @@ export class VoxelGeometry {
         ];
 
         // For each voxel, check which faces are exposed
-        voxels.forEach((voxel: Voxel) => {
+        voxels.forEach((voxel: IVoxel) => {
             const colorIndex = voxel.colorIndex || 0;
             const color = colorPalette[colorIndex % colorPalette.length];
 

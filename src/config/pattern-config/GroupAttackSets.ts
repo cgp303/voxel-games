@@ -1,11 +1,9 @@
-type MovementPath = "left" | "right" | "center";
 
-export interface InvaderGroup {
-    group: string[];
-    path: MovementPath;
-}
 
-const groups2x2: InvaderGroup[] = [
+import type { IInvaderGroup } from '../../config/interfaces/interfaces';
+import type { GroupType } from '../types/types';
+
+const groups2x2: IInvaderGroup[] = [
     // Row block 0
     { group: ["0,0", "1,0", "0,1", "1,1"], path: "left" },
     { group: ["2,0", "3,0", "2,1", "3,1"], path: "left" },
@@ -28,7 +26,7 @@ const groups2x2: InvaderGroup[] = [
     { group: ["8,4", "9,4", "8,5", "9,5"], path: "right" }
 ];
 
-const groups3x3: InvaderGroup[] = [
+const groups3x3: IInvaderGroup[] = [
     // Row block 0
     {
         group: [
@@ -82,7 +80,7 @@ const groups3x3: InvaderGroup[] = [
     }
 ];
 
-const groupCrosses: InvaderGroup[] = [
+const groupCrosses: IInvaderGroup[] = [
     { group: ["1,0", "0,1", "1,1", "2,1", "1,2"], path: "left" },
     { group: ["4,0", "3,1", "4,1", "5,1", "4,2"], path: "center" }, // Dead center
     { group: ["7,0", "6,1", "7,1", "8,1", "7,2"], path: "right" },
@@ -92,7 +90,7 @@ const groupCrosses: InvaderGroup[] = [
     { group: ["7,3", "6,4", "7,4", "8,4", "7,5"], path: "right" }
 ];
 
-const groupXs: InvaderGroup[] = [
+const groupXs: IInvaderGroup[] = [
     { group: ["0,0", "2,0", "1,1", "0,2", "2,2"], path: "left" },
     { group: ["3,0", "5,0", "4,1", "3,2", "5,2"], path: "center" }, // Dead center
     { group: ["6,0", "8,0", "7,1", "6,2", "8,2"], path: "right" },
@@ -102,7 +100,7 @@ const groupXs: InvaderGroup[] = [
     { group: ["6,3", "8,3", "7,4", "6,5", "8,5"], path: "right" }
 ];
 
-const groupTs: InvaderGroup[] = [
+const groupTs: IInvaderGroup[] = [
     { group: ["0,0", "1,0", "2,0", "1,1", "1,2"], path: "left" },
     { group: ["3,0", "4,0", "5,0", "4,1", "4,2"], path: "center" }, // Dead center
     { group: ["6,0", "7,0", "8,0", "7,1", "7,2"], path: "right" },
@@ -112,7 +110,7 @@ const groupTs: InvaderGroup[] = [
     { group: ["6,3", "7,3", "8,3", "7,4", "7,5"], path: "right" }
 ];
 
-const groupDiamonds: InvaderGroup[] = [
+const groupDiamonds: IInvaderGroup[] = [
     { group: ["1,0", "0,1", "2,1", "1,2"], path: "left" },
     { group: ["4,0", "3,1", "5,1", "4,2"], path: "center" }, // Dead center
     { group: ["7,0", "6,1", "8,1", "7,2"], path: "right" },
@@ -123,16 +121,10 @@ const groupDiamonds: InvaderGroup[] = [
 ];
 
 
-export type GroupType =
-    | "groups2x2"
-    | "groups3x3"
-    | "groupCrosses"
-    | "groupXs"
-    | "groupTs"
-    | "groupDiamonds";
+
 
 // Change string[][] to InvaderGroup[]
-export const groupAttackSets = new Map<GroupType, InvaderGroup[]>([
+export const groupAttackSets = new Map<GroupType, IInvaderGroup[]>([
     ["groups2x2", groups2x2],
     ["groups3x3", groups3x3],
     ["groupCrosses", groupCrosses],
