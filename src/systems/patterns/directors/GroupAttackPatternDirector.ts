@@ -31,8 +31,6 @@ export class GroupAttackPatternDirector extends InvaderRepathDirector {
 
     private centralPosition: Vector3 = new Vector3();
 
-
-
     constructor(groupAttackSet: [string, number, number][]) {
         super();
 
@@ -55,15 +53,12 @@ export class GroupAttackPatternDirector extends InvaderRepathDirector {
 
         this.setUpAGroupAttack();
 
-
         this.setIterations = 0;
-
 
         this._isComplete = false
         this.timeSinceLastTrigger = 0;
         this.triggerDelay = 0; // no trigger delay on begin unless we want to have a pause between attack patterns.
         this.completionCooldown = 0; // reset completion cooldown on begin
-
     }
 
     public update(dt: number): void {
