@@ -1,10 +1,8 @@
 import type { Entity } from './Entity';
 import type { IFormationSlot } from '../config/interfaces/interfaces';
 import { Invader } from './Invader';
-import {
-    Object3D,
-    type Object3D as Object3DType,
-} from 'three';
+import type { AssetManager } from '../assets/AssetManager';
+
 
 /**
  * Spawn / despawn / tick entities for a screen (usually Play).
@@ -20,7 +18,14 @@ export class EntityManager {
     // Map of invaders by their formation slot for quick lookup.
     private invadersBySlot = new Map<string, Invader>();
 
+    private assets: AssetManager;
+
+    constructor(assets: AssetManager) {
+        this.assets = assets;
+    }
+
     public add(entity: Entity): void {
+        console.log('Adding entity:', entity);
         this.entities.push(entity);
         // only register invaders in the formation map
         if (entity instanceof Invader) this.registerInvaderInFormation(entity);
@@ -55,6 +60,11 @@ export class EntityManager {
                 this.entities.splice(i, 1);
             }
         }
+
+        // Mark InstancedMesh(es) as needing update
+        this.assets.markInstancedMeshesDirty();
+        const mesh = this.assets.getOrCreateInstancedMesh('invader1');
+        console.log('InstancedMesh count:', mesh.count);
     }
 
     public clear(): void {
@@ -92,28 +102,37 @@ export class EntityManager {
         return inv.mode === 'formation' ? inv : null;
     }
 
-    public acquireInvader(assetKey: string, template: Object3D): Invader {
+    public acquireInvader(assetKey: string): Invader {
         const pool = this.pools.get(assetKey);
-        const invader = pool?.pop();
-        if (invader) return invader;
+        let invader = pool?.pop();
 
-        const mesh = template.clone(true);
-        mesh.traverse((child) => {
-            const m = child as { castShadow?: boolean; receiveShadow?: boolean; isMesh?: boolean };
-            if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; }
-        });
-        return new Invader(mesh);
+        if (!invader) {
+            invader = new Invader();
+        }
+
+        // Get the shared InstancedMesh
+        const mesh = this.assets.getOrCreateInstancedMesh(assetKey);  // you’ll need access to assets here
+        invader.instanceId = mesh.count;
+        mesh.count += 1;
+
+        invader.assetKey = assetKey;
+        invader.setInstancedMesh(mesh);   // ← give it the reference
+        console.log('Acquiring invader, instanceId:', invader.instanceId, 'mesh.count:', mesh.count);
+        return invader;
     }
 
     private releaseToPool(entity: Entity, assetKey: string | null | undefined): void {
         if (!(entity instanceof Invader)) return;
-        if (!assetKey) {
-            entity.dispose();
-            return;  // No pool key; just dispose normally (shouldn't happen, but defensive)
-        }
-        entity.dispose(); // detach + hide, already pool-safe
+
+        // Invader.dispose() already hides the instance
+        entity.dispose();
+
+        if (!assetKey) return;
+
         const pool = this.pools.get(assetKey) ?? [];
-        if (pool.length < EntityManager.MAX_POOL_PER_TYPE) pool.push(entity);
+        if (pool.length < EntityManager.MAX_POOL_PER_TYPE) {
+            pool.push(entity);
+        }
         this.pools.set(assetKey, pool);
     }
 

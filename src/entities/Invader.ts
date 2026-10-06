@@ -6,6 +6,7 @@
     Vector3,
     type Object3D as Object3DType,
 } from 'three';
+import * as THREE from 'three';
 import type {
     EntrySide,
     InvaderMode,
@@ -20,6 +21,10 @@ import { Entity } from './Entity';
 
 /** Shared flag so only one debug arrow exists across invaders. */
 let debugArrowClaimed = false;
+
+// Put these outside the class or as static/private readonly
+const tempMatrix = new THREE.Matrix4();
+const tempScale = new THREE.Vector3(1, 1, 1);
 
 /**
  * Combat invader: enter along a Bezier, then hold a live formation slot.
@@ -39,6 +44,11 @@ export class Invader extends Entity {
     public mode: InvaderMode = 'inactive';
     public slot: IFormationSlot = { col: 0, row: 0 };
     public side: EntrySide = 'left';
+
+    // Instanced mesh identifiers for rendering.
+    public instanceId: number = -1;
+    public assetKey: string = 'invader1';
+    private instancedMesh: THREE.InstancedMesh | null = null;
 
     private formation: FormationController | null = null;
     private controls: ICubicBezierControls | null = null;
@@ -80,16 +90,15 @@ export class Invader extends Entity {
 
     private _attackOffset: Vector3 = new Vector3(0, 0, 0);
 
-    constructor(object3d: Object3DType) {
-        super(object3d);
+    constructor() {
+        super(null);                       // no private mesh any more
         this.integrateVelocity = false;
 
-        // Rest pose: pitch model so MagicaVoxel Z-up sits upright in Y-up world.
-        // Keep this on baseQuat only; flight multiplies on top.
-        object3d.rotation.set(0, 0, 0);
-        object3d.quaternion.identity();
-        // object3d.rotateX(Math.PI / 2);
-        this.baseQuat.copy(object3d.quaternion);
+        // Rest pose (voxel upright)
+        this.baseQuat.identity();          // or set whatever default rotation you need
+        // If you previously needed a rotateX(Math.PI / 2), do it here instead:
+        //this.baseQuat.setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2);
+
         this.displayQuat.copy(this.baseQuat);
     }
 
@@ -117,14 +126,18 @@ export class Invader extends Entity {
         this.roll = 0;
         this.hasPrevForward = false;
 
-        if (this.object3d) {
-            this.object3d.visible = true;
-        }
+        // if (this.object3d) {
+        //     this.object3d.visible = true;
+        // }
 
         this.displayQuat.copy(this.baseQuat);
-        const wantArrow = entry?.debugForwardArrow ?? ENTRY.debugForwardArrow;
-        this.setupDebugArrow(wantArrow);
+        // const wantArrow = entry?.debugForwardArrow ?? ENTRY.debugForwardArrow;
+        // this.setupDebugArrow(wantArrow);
         this.syncTransform();
+    }
+
+    public setInstancedMesh(mesh: THREE.InstancedMesh): void {
+        this.instancedMesh = mesh;
     }
 
     public startPattern(cfg: { pattern: IPathPattern; formation: FormationController; entry: Partial<Pick<IEntryConfig, 'bankGain' | 'maxBankRad' | 'orientSmooth' | 'dockSmooth' | 'debugForwardArrow'>>; attackOffset?: Vector3 }): void {
@@ -155,6 +168,7 @@ export class Invader extends Entity {
      * Re-arm for another entry without reallocating the mesh (pool-friendly).
      */
     public reset(cfg: IInvaderInitConfig): void {
+        console.log('Resetting invader with instanceId:', this.instanceId);
         this.init(cfg);
     }
 
@@ -356,9 +370,10 @@ export class Invader extends Entity {
     }
 
     public override syncTransform(): void {
-        if (!this.object3d) return;
-        this.object3d.position.copy(this.position);
-        this.object3d.quaternion.copy(this.displayQuat);
+        if (this.instanceId < 0 || !this.instancedMesh) return;
+        console.log('syncTransform', this.instanceId, this.position);
+        tempMatrix.compose(this.position, this.displayQuat, tempScale);
+        this.instancedMesh.setMatrixAt(this.instanceId, tempMatrix);
     }
 
     /** Stub — combat later. */
@@ -393,28 +408,32 @@ export class Invader extends Entity {
         this.mode = 'inactive';
         this.formation = null;
         this.controls = null;
-        if (this.object3d) {
-            this.object3d.removeFromParent();
-            this.object3d.visible = false;
+
+        // Hide the instance
+        if (this.instanceId >= 0 && this.instancedMesh) {
+            const zeroMatrix = new THREE.Matrix4().makeScale(0, 0, 0);
+            this.instancedMesh.setMatrixAt(this.instanceId, zeroMatrix);
+            this.instancedMesh.instanceMatrix.needsUpdate = true;
+            this.instanceId = -1;
         }
     }
 
-    private setupDebugArrow(enabled: boolean): void {
-        this.clearDebugArrow();
-        if (!enabled || !this.object3d || debugArrowClaimed) return;
+    // private setupDebugArrow(enabled: boolean): void {
+    //     this.clearDebugArrow();
+    //     if (!enabled || !this.object3d || debugArrowClaimed) return;
 
-        debugArrowClaimed = true;
-        this.debugArrow = new ArrowHelper(
-            new Vector3(0, 0, 1),
-            new Vector3(0, 0, 0),
-            6,
-            0xff3344,
-            1.5,
-            1,
-        );
-        this.debugArrow.name = 'InvaderDebugForward';
-        this.object3d.add(this.debugArrow);
-    }
+    //     debugArrowClaimed = true;
+    //     this.debugArrow = new ArrowHelper(
+    //         new Vector3(0, 0, 1),
+    //         new Vector3(0, 0, 0),
+    //         6,
+    //         0xff3344,
+    //         1.5,
+    //         1,
+    //     );
+    //     this.debugArrow.name = 'InvaderDebugForward';
+    //     this.object3d.add(this.debugArrow);
+    // }
 
     private updateDebugArrow(): void {
         if (!this.debugArrow) return;

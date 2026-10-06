@@ -42,7 +42,6 @@ export class EntryPatternDirector extends BasePatternDirector {
     public begin(ctx: IDirectorContext): void {
         this.captureCommon(ctx);
         this.playField = ctx.playField;
-        this.template = ctx.template;
         const entryConfig = ctx.config ?? {};
         this.entry = { ...ENTRY, ...entryConfig };
         this.assetKey = ctx.assetKey ?? this.assetKey;
@@ -87,9 +86,14 @@ export class EntryPatternDirector extends BasePatternDirector {
 
     public update(dt: number): void {
         if (!this.running || this.cancelled) return;
-        if (!this.playField || !this.template) return;
+        if (!this.playField) return;
         if (this.queue.length === 0) return;
-
+        console.log('[EntryPatternDirector] update', {
+            running: this.running,
+            cancelled: this.cancelled,
+            queueLength: this.queue.length,
+            timer: this.timer
+        });
         this.timer -= dt;
         // Allow catch-up if frame hitch; still one release per interval tick.
         while (this.timer <= 0 && this.queue.length > 0 && !this.cancelled) {
@@ -112,7 +116,7 @@ export class EntryPatternDirector extends BasePatternDirector {
      */
     public isComplete(): boolean {
         if (this.queue.length > 0) return false;
-        for (const e of this.invaders.getAll()) {
+        for (const e of this.invaders?.getAll() ?? []) {
             if (e instanceof Invader && e.active && e.isEntering()) {
                 return false;
             }
@@ -171,7 +175,7 @@ export class EntryPatternDirector extends BasePatternDirector {
         const assetKey = this.assetKey; // e.g., 'invader1'
 
         // 2. Acquire (pool handles clone + shadow traversal on first call only)
-        const invader = this.invaders!.acquireInvader(assetKey, template);
+        const invader = this.invaders!.acquireInvader(assetKey);
 
         invader.reset({
             slot,
@@ -184,7 +188,7 @@ export class EntryPatternDirector extends BasePatternDirector {
             poolAssetKey: this.assetKey,
         });
 
-        playField.attachInvader(invader.object3d);
+        // playField.attachInvader(invader.object3d);
         invaders.add(invader);
     }
 

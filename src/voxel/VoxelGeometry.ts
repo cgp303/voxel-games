@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { VoxelWorld } from './VoxelWorld';
 import type { IVoxel } from '../config/interfaces/interfaces';
+import { INVADER_MESH_MATERIAL } from '../config/data/constants';
 
 
 export class VoxelGeometry {
@@ -11,6 +12,7 @@ export class VoxelGeometry {
     public static generateGeometry(
         world: VoxelWorld,
         colorPalette: Array<{ r: number; g: number; b: number; a: number }>,
+        centerGeometry: boolean = true,
     ): THREE.BufferGeometry {
         const positions: number[] = [];
         const colors: number[] = [];
@@ -102,7 +104,31 @@ export class VoxelGeometry {
         geometry.setIndex(new THREE.BufferAttribute(new Uint32Array(indices), 1));
         geometry.computeVertexNormals();
 
+        // Only center when requested (for invaders, not terrain)
+        if (centerGeometry) {
+            geometry.computeBoundingBox();
+            if (geometry.boundingBox) {
+                const center = new THREE.Vector3();
+                geometry.boundingBox.getCenter(center);
+                geometry.translate(-center.x, -center.y, -center.z);
+            }
+        }
+
         return geometry;
+    }
+
+    public static createGeometry(
+        world: VoxelWorld,
+        colorPalette: Array<{ r: number; g: number; b: number; a: number }>,
+        centerGeometry: boolean = false,
+    ): THREE.BufferGeometry {
+        return this.generateGeometry(world, colorPalette, centerGeometry);
+    }
+
+    public static createMaterial(
+        colorPalette: Array<{ r: number; g: number; b: number; a: number }>,
+    ): THREE.Material {
+        return INVADER_MESH_MATERIAL;
     }
 
     /**
@@ -111,8 +137,9 @@ export class VoxelGeometry {
     public static createMesh(
         world: VoxelWorld,
         colorPalette: Array<{ r: number; g: number; b: number; a: number }>,
+        centerGeometry: boolean = false,
     ): THREE.Mesh {
-        const geometry = this.generateGeometry(world, colorPalette);
+        const geometry = this.generateGeometry(world, colorPalette, centerGeometry);
 
         const material = new THREE.MeshStandardMaterial({
             side: THREE.DoubleSide,
