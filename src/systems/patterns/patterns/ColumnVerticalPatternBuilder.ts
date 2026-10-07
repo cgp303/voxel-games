@@ -80,7 +80,7 @@ export class ColumnVerticalPatternBuilder implements IPatternBuilder {
             );
         });
 
-        return new MultiSegmentPattern(segments, ColumnVerticalPatternBuilder.RANGES, 5, 1);
+        return new MultiSegmentPattern(segments, ColumnVerticalPatternBuilder.RANGES, 4, 1);
     }
 
     updateXValue(controls, start) {

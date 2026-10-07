@@ -13,6 +13,8 @@ export class AssetManager {
   private models = new Map<string, IParsedVoxModel>();
   private meshTemplates = new Map<string, THREE.Object3D>();
   private instancedMeshes = new Map<string, THREE.InstancedMesh>();
+  // Track available instanceIds for recycling (application-scoped); maps assetKey → free slot indices
+  private freeSlots: Map<string, number[]> = new Map();
 
   public async loadVox(path: string, key?: string): Promise<IParsedVoxModel> {
     const cacheKey = key ?? path;
@@ -103,6 +105,36 @@ export class AssetManager {
         mesh.instanceMatrix.needsUpdate = true;
       }
     }
+  }
+
+  /**
+   * Get the free-slot list for an asset key (for recycling disposed instances).
+   * Returns the array reference, so callers can pop/push to it.
+   */
+  public getFreeSlots(assetKey: string): number[] {
+    const slots = this.freeSlots.get(assetKey);
+    if (slots) return slots;
+    
+    const newSlots: number[] = [];
+    this.freeSlots.set(assetKey, newSlots);
+    return newSlots;
+  }
+
+  /**
+   * Reset the InstancedMesh count and free-slot list for a given asset.
+   * Call this when starting a new session to ensure all slots are available.
+   */
+  public resetInstancedMeshCount(assetKey: string): void {
+    const mesh = this.instancedMeshes.get(assetKey);
+    if (mesh) {
+      mesh.count = 0;
+      mesh.instanceMatrix.needsUpdate = true;
+      console.log('Reset InstancedMesh count for asset:', assetKey);
+    }
+    
+    // Clear the free-slot list for this asset
+    this.freeSlots.delete(assetKey);
+    console.log('Cleared free-slots for asset:', assetKey);
   }
 
   public getModel(key: string): IParsedVoxModel | undefined {

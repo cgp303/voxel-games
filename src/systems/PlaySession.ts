@@ -212,6 +212,8 @@ export class PlaySession {
         this.invaders?.clear();
         ctx.playField.clearInvaders();
 
+        // Reset the InstancedMesh count and free-slots for a fresh session
+        ctx.assets.resetInstancedMeshCount(this.invaderAssetKey);
 
         const formationDescription = this.stageQueue?.getFormationDescription();
         if (!formationDescription) {

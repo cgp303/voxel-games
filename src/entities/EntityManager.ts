@@ -111,20 +111,33 @@ export class EntityManager {
         }
 
         // Get the shared InstancedMesh
-        const mesh = this.assets.getOrCreateInstancedMesh(assetKey);  // you’ll need access to assets here
-        invader.instanceId = mesh.count;
-        mesh.count += 1;
-
+        const mesh = this.assets.getOrCreateInstancedMesh(assetKey);
+        
+        // Try to recycle a freed slot from AssetManager; otherwise allocate a new one
+        const freeSlots = this.assets.getFreeSlots(assetKey);
+        let instanceId: number;
+        
+        if (freeSlots.length > 0) {
+            instanceId = freeSlots.pop()!;
+        } else {
+            instanceId = mesh.count;
+            mesh.count += 1;
+        }
+        
+        invader.instanceId = instanceId;
         invader.assetKey = assetKey;
-        invader.setInstancedMesh(mesh);   // ← give it the reference
-        console.log('Acquiring invader, instanceId:', invader.instanceId, 'mesh.count:', mesh.count);
+        invader.setInstancedMesh(mesh);
+        console.log('Acquiring invader, instanceId:', invader.instanceId, 'mesh.count:', mesh.count, 'freeSlots:', freeSlots.length);
         return invader;
     }
 
     private releaseToPool(entity: Entity, assetKey: string | null | undefined): void {
         if (!(entity instanceof Invader)) return;
 
-        // Invader.dispose() already hides the instance
+        // Capture the instanceId BEFORE calling dispose (which sets it to -1)
+        const instanceId = entity.instanceId;
+
+        // Invader.dispose() already hides the instance and sets instanceId = -1
         entity.dispose();
 
         if (!assetKey) return;
@@ -132,6 +145,13 @@ export class EntityManager {
         const pool = this.pools.get(assetKey) ?? [];
         if (pool.length < EntityManager.MAX_POOL_PER_TYPE) {
             pool.push(entity);
+            
+            // Return the slot to AssetManager's free-list for recycling
+            const freeSlots = this.assets.getFreeSlots(assetKey);
+            if (instanceId >= 0) {
+                freeSlots.push(instanceId);
+                console.log('Releasing invader to pool, instanceId:', instanceId, 'now available for reuse');
+            }
         }
         this.pools.set(assetKey, pool);
     }
