@@ -27,11 +27,11 @@ import { StageQueue } from './stages/StageQueue';
  * - Demo/Play screen enter creates a fresh session (Esc→Demo restarts intro that way)
  */
 export class PlaySession {
-    public readonly invaders = new EntityManager();
+    public invaders: EntityManager | null = null;
     public readonly formation = new FormationController();
 
     private ctx: IGameContext | null = null;
-    private template: Object3D | null = null;
+    // private template: Object3D | null = null;
     private invaderAssetKey = 'invader1';
     private formationOverride: Partial<IFormationConfig> = {};
     private started = false;
@@ -47,10 +47,13 @@ export class PlaySession {
     public start(ctx: IGameContext, options: IPlaySessionStartOptions = {}): void {
         this.ctx = ctx;
 
+        this.invaders = new EntityManager(ctx.assets);
+
         this.invaderAssetKey = options.invaderAssetKey ?? 'invader1';
         this.formationOverride = options.formation ?? {};
 
-        this.template = ctx.assets.getOrCreateMeshTemplate(this.invaderAssetKey);
+        //this.template = ctx.assets.getOrCreateMeshTemplate(this.invaderAssetKey);
+        ctx.assets.getOrCreateInstancedMesh(this.invaderAssetKey, 80);
 
         this.stageQueue = options.stageQueue ?? null;
 
@@ -72,7 +75,7 @@ export class PlaySession {
      * Demo/Play transitions typically dispose + new PlaySession instead.
      */
     public restartIntro(): void {
-        if (!this.ctx || !this.template) {
+        if (!this.ctx) {
             throw new Error('PlaySession.restartIntro: call start(ctx) first');
         }
         this.bootIntro('restart');
@@ -118,7 +121,7 @@ export class PlaySession {
      * restarting entry (board wipe after death, etc.).
      */
     public clearCombatants(): void {
-        this.invaders.clear();
+        this.invaders?.clear();
         this.ctx?.playField.clearInvaders();
     }
 
@@ -128,7 +131,7 @@ export class PlaySession {
         this.formation.update(dt);
         this.director?.update(dt);
 
-        this.invaders.update(dt);
+        this.invaders?.update(dt);
 
         if (this.director?.isComplete()) {
             this.advanceStage();
@@ -162,10 +165,9 @@ export class PlaySession {
             }
         }
 
-        this.invaders.clear();
+        this.invaders?.clear();
         this.ctx?.playField.clearInvaders();
         this.ctx = null;
-        this.template = null;
         this.started = false;
     }
 
@@ -174,7 +176,7 @@ export class PlaySession {
     }
 
     private advanceStage(): void {
-        if (!this.stageQueue || !this.ctx || !this.template) return;
+        if (!this.stageQueue || !this.ctx) return;
         if (this.onlyEntryStage()) {
             return;
         }
@@ -186,7 +188,6 @@ export class PlaySession {
             formation: this.formation,
             invaders: this.invaders,
             playField: this.ctx.playField,
-            template: this.template,
             config: this.currentStage.directorConfig,
             scene: this.ctx.scene.scene,
             assetKey: this.invaderAssetKey,
@@ -195,8 +196,7 @@ export class PlaySession {
 
     private bootIntro(reason: IIntroStartedPayload['reason']): void {
         const ctx = this.ctx;
-        const template = this.template;
-        if (!ctx || !template) return;
+        if (!ctx) return;
 
         // Full reset: stop any prior queue, drop actors, rebuild formation + queue.
         if (this.director?.isRunning()) {
@@ -209,9 +209,11 @@ export class PlaySession {
             this.director?.cancel();
         }
 
-        this.invaders.clear();
+        this.invaders?.clear();
         ctx.playField.clearInvaders();
 
+        // Reset the InstancedMesh count and free-slots for a fresh session
+        ctx.assets.resetInstancedMeshCount(this.invaderAssetKey);
 
         const formationDescription = this.stageQueue?.getFormationDescription();
         if (!formationDescription) {
@@ -225,7 +227,6 @@ export class PlaySession {
             formation: this.formation,
             invaders: this.invaders,
             playField: ctx.playField,
-            template: this.template,
             config: this.currentStage?.directorConfig ?? {},
             assetKey: this.invaderAssetKey,
         });

@@ -1,4 +1,6 @@
-﻿/** Shared gameplay / layout constants (expand in later phases) */
+﻿import * as THREE from 'three';
+
+/** Shared gameplay / layout constants (expand in later phases) */
 export const GAME = {
     defaultLives: 3,
     /** @deprecated Prefer FORMATION.cols — kept for legacy spawnInvaderGrid */
@@ -14,6 +16,23 @@ export const GAME = {
     /** @deprecated Prefer FORMATION.hoverY */
     invaderHoverY: null as number | null, // if set, use absolute Y; else height + padding
 } as const;
+
+// Instanced asset configuration for the App.ts: a list of assets that should use instanced meshes.
+export const INSTANCED_ASSETS: { key: string; maxCount: number }[] = [
+    { key: 'invader1', maxCount: 80 },
+    // Later you just add more entries:
+    // { key: 'invader2', maxCount: 40 },
+    // { key: 'boss1',    maxCount: 4  },
+];
+
+export const INVADER_MESH_MATERIAL = new THREE.MeshStandardMaterial({
+    side: THREE.DoubleSide,
+    vertexColors: true,
+    flatShading: false,  // ensure this is false
+    roughness: 0.5,      // reduce from 0.7 (smoother)
+    metalness: 0.0,      // reduce from 0.2
+    normalScale: new THREE.Vector2(0.5, 0.5),  // add softer normals
+});
 
 /**
  * Square (or rectangular) invader grid — slot homes relative to a moving formation root.
@@ -112,10 +131,6 @@ export const CAMERA = {
     distanceFactor: 0.3,
 } as const;
 
-// export const CAMERA = {
-//     isoAngleDeg: 10,
-//     distanceFactor: 0.27,
-// } as const;
 
 /** Demo attract mode: info panel ↔ high scores */
 export const DEMO = {
@@ -134,3 +149,6 @@ export const TERRAIN = {
     /** When false, PlayField.updateScroll is a no-op */
     scrollEnabledDefault: true,
 } as const;
+
+
+

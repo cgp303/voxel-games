@@ -11,7 +11,7 @@ import type { EntityManager } from '../../../entities/EntityManager';
  */
 export abstract class BasePatternDirector implements IPatternDirector {
     protected formation!: FormationController;
-    protected invaders!: EntityManager;
+    protected invaders!: EntityManager | null;
     protected running = false;
     protected cancelled = false;
 

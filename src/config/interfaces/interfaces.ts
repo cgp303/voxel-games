@@ -23,9 +23,8 @@ import { StageQueue } from '../../systems/stages/StageQueue';
  */
 export interface IDirectorContext {
     formation: FormationController;
-    invaders: EntityManager;
+    invaders: EntityManager | null;
     playField: PlayField;
-    template: Object3D;
 
     /** Director-specific config (EntryConfig, WaveConfig, BossConfig, etc.) */
     config?: any;

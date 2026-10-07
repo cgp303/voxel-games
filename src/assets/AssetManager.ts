@@ -12,6 +12,9 @@ import { VoxParser } from '../voxel/VoxParser';
 export class AssetManager {
   private models = new Map<string, IParsedVoxModel>();
   private meshTemplates = new Map<string, THREE.Object3D>();
+  private instancedMeshes = new Map<string, THREE.InstancedMesh>();
+  // Track available instanceIds for recycling (application-scoped); maps assetKey → free slot indices
+  private freeSlots: Map<string, number[]> = new Map();
 
   public async loadVox(path: string, key?: string): Promise<IParsedVoxModel> {
     const cacheKey = key ?? path;
@@ -59,6 +62,79 @@ export class AssetManager {
 
     this.meshTemplates.set(key, pivot);
     return pivot;
+  }
+
+
+  /**
+   * creates instanced mesh templates from cached models.
+   * Returns a shared InstancedMesh for the given asset key.
+   * Creates it on first request.
+   */
+  public getOrCreateInstancedMesh(assetKey: string, maxCount = 80): THREE.InstancedMesh {
+    let mesh = this.instancedMeshes.get(assetKey);
+    if (mesh) return mesh;
+
+    // Ensure the model is loaded before creating the instanced mesh
+    const model = this.models.get(assetKey);
+    if (!model) {
+      throw new Error(`AssetManager: no model loaded for key "${assetKey}"`);
+    }
+    const world = new VoxelWorld();
+    VoxParser.populateWorld(world, model);
+
+    // Reuse the same geometry + material that the old template used
+    // const template = this.getOrCreateMeshTemplate(assetKey);
+    const geometry = VoxelGeometry.createGeometry(world, model.colors, true);
+    const material = VoxelGeometry.createMaterial(model.colors);
+
+    mesh = new THREE.InstancedMesh(geometry, material, maxCount);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    mesh.count = 0;
+    mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    mesh.name = `Instanced_${assetKey}`;
+
+    this.instancedMeshes.set(assetKey, mesh);
+    return mesh;
+  }
+
+  public markInstancedMeshesDirty(): void {
+    for (const mesh of this.instancedMeshes.values()) {
+      if (mesh.count > 0) {
+        console.log('Marking instanced mesh as dirty:', mesh.name);
+        mesh.instanceMatrix.needsUpdate = true;
+      }
+    }
+  }
+
+  /**
+   * Get the free-slot list for an asset key (for recycling disposed instances).
+   * Returns the array reference, so callers can pop/push to it.
+   */
+  public getFreeSlots(assetKey: string): number[] {
+    const slots = this.freeSlots.get(assetKey);
+    if (slots) return slots;
+    
+    const newSlots: number[] = [];
+    this.freeSlots.set(assetKey, newSlots);
+    return newSlots;
+  }
+
+  /**
+   * Reset the InstancedMesh count and free-slot list for a given asset.
+   * Call this when starting a new session to ensure all slots are available.
+   */
+  public resetInstancedMeshCount(assetKey: string): void {
+    const mesh = this.instancedMeshes.get(assetKey);
+    if (mesh) {
+      mesh.count = 0;
+      mesh.instanceMatrix.needsUpdate = true;
+      console.log('Reset InstancedMesh count for asset:', assetKey);
+    }
+    
+    // Clear the free-slot list for this asset
+    this.freeSlots.delete(assetKey);
+    console.log('Cleared free-slots for asset:', assetKey);
   }
 
   public getModel(key: string): IParsedVoxModel | undefined {

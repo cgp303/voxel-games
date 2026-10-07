@@ -40,7 +40,7 @@ export abstract class InvaderRepathDirector extends BasePatternDirector {
 
     /** Look up the invader at a slot, build it a fresh path from its own position, and set it flying. */
     protected buildAndApply(slotKey: string, side: number): void {
-        const invader = this.invaders.getInvaderAtSlot(slotKey);
+        const invader = this.invaders?.getInvaderAtSlot(slotKey);
         if (invader && invader.active) {
             this.applyPattern(invader, this.builder.build(invader.position, side));
         }

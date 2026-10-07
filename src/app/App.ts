@@ -16,7 +16,7 @@ import { loadHighScores } from '../config/data/highscores';
 import { TerrainService } from '../world/TerrainService';
 import { PlayField } from '../world/PlayField';
 import { CRYSTAL_TERRAIN_CONFIG } from '../voxel-landscape/TerrainConfig';
-import { VIEW } from '../config/data/constants';
+import { VIEW, INSTANCED_ASSETS } from '../config/data/constants';
 import { getUiRoot } from '../core/viewport';
 
 
@@ -125,7 +125,15 @@ export class App {
         await this.assets.loadManifestAsset('invader1');
         // Cache mesh template for EntryDirector / PlaySession (Phase 5+).
         // Combat invaders are not pre-placed; Demo/Play intro spawns them off-stage.
-        this.assets.getOrCreateMeshTemplate('invader1');
+
+
+        // this.assets.getOrCreateMeshTemplate('invader1');
+
+        // Pre-create instanced meshes for configured assets
+        for (const { key, maxCount } of INSTANCED_ASSETS) {
+            const mesh = this.assets.getOrCreateInstancedMesh(key, maxCount);
+            this.scene.scene.add(mesh);
+        }
 
         this.playField.attachTo(this.scene.scene);
         this.playField.frameCamera(this.camera);

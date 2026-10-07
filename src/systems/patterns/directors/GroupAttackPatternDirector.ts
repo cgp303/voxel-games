@@ -100,7 +100,7 @@ export class GroupAttackPatternDirector extends InvaderRepathDirector {
 
         attackGroup?.forEach((invaderKey) => {
             //const slot = this.formation.getSlotByKey(invaderKey);
-            const invader = this.invaders.getInvaderAtSlot(invaderKey);
+            const invader = this.invaders?.getInvaderAtSlot(invaderKey);
             if (invader && invader.active) {
                 this.applyPattern(invader, pattern, { attackOffset: invader.attackOffset });
             }
@@ -168,7 +168,7 @@ export class GroupAttackPatternDirector extends InvaderRepathDirector {
 
         this.centralPosition = this.getCentralPosition(attackGroup ?? []);
         attackGroup?.forEach(invaderKey => {
-            const invader = this.invaders.getInvaderAtSlot(invaderKey);
+            const invader = this.invaders?.getInvaderAtSlot(invaderKey);
             if (invader) {
                 invader.attackOffset = {
                     x: invader.position.x - this.centralPosition.x,
@@ -182,7 +182,7 @@ export class GroupAttackPatternDirector extends InvaderRepathDirector {
     getCentralPosition(attackGroup: string[]): Vector3 {
         let sumX = 0, sumY = 0, sumZ = 0;
         attackGroup.forEach(invaderKey => {
-            const invader = this.invaders.getInvaderAtSlot(invaderKey);
+            const invader = this.invaders?.getInvaderAtSlot(invaderKey);
             if (invader) {
                 sumX += invader.position.x;
                 sumY += invader.position.y;
