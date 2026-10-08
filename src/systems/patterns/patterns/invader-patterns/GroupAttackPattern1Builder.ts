@@ -1,9 +1,9 @@
 import { Vector3 } from 'three';
-import { CubicBezierSegment } from '../segments/CubicBezierSegment';
-import { MultiSegmentPattern } from '../patterns/MultiSegmentPattern';
-import { mirrorCubicControlsX } from '../../path/cubicBezier';
+import { CubicBezierSegment } from '../../segments/CubicBezierSegment';
+import { MultiSegmentPattern } from '../../patterns/MultiSegmentPattern';
+import { mirrorCubicControlsX } from '../../../path/cubicBezier';
 //import type { CubicBezierControls } from '../../path/cubicBezier';
-import type { IPatternBuilder, ICubicBezierControls } from '../../../config/interfaces/interfaces';
+import type { IPatternBuilder, ICubicBezierControls } from '../../../../config/interfaces/interfaces';
 
 export class GroupAttackPattern1Builder implements IPatternBuilder {
     // Canonical RIGHT-side path; must be real Vector3 instances (mirror helpers need .clone()/.set()).
@@ -45,8 +45,13 @@ export class GroupAttackPattern1Builder implements IPatternBuilder {
     ];
     private static readonly ALLOW_INVERSION = [false, false, false, false, false];
     private static readonly ORIENTATION_SMOOTHING = [1, 1, 1, 1, 1];
+    private static readonly DURATION = 9.5; // example duration in seconds
 
-    build(origin: Vector3, side: number): MultiSegmentPattern {
+    duration(): number {
+        return GroupAttackPattern1Builder.DURATION;
+    }
+
+    build(origin: Vector3, side: number, endPosition: Vector3): MultiSegmentPattern {
         const start = origin.clone();
         const last = GroupAttackPattern1Builder.SEGMENTS.length - 1;
         let prevControls: ICubicBezierControls;
@@ -65,7 +70,7 @@ export class GroupAttackPattern1Builder implements IPatternBuilder {
 
             if (i === 0) controls.p0.copy(start);   // live spawn point, not a mirrored via-point
             if (i > 0) controls.p1.copy(this.smoothSegmentJoins(prevControls));
-            if (i === last) controls.p3.copy(start); // live dock point, not a mirrored via-point
+            if (i === last) controls.p3.copy(endPosition); // live dock point, not a mirrored via-point
 
             prevControls = controls;
 
@@ -77,7 +82,7 @@ export class GroupAttackPattern1Builder implements IPatternBuilder {
             );
         });
 
-        return new MultiSegmentPattern(segments, GroupAttackPattern1Builder.RANGES, 9.5);
+        return new MultiSegmentPattern(segments, GroupAttackPattern1Builder.RANGES, GroupAttackPattern1Builder.DURATION);
     }
 
     smoothSegmentJoins(prevSegment) {

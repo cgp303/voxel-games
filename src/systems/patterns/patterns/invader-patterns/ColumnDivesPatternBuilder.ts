@@ -1,8 +1,8 @@
 import { Vector3 } from 'three';
-import { CubicBezierSegment } from '../segments/CubicBezierSegment';
-import { MultiSegmentPattern } from '../patterns/MultiSegmentPattern';
-import { mirrorCubicControlsX } from '../../path/cubicBezier';
-import type { IPatternBuilder, ICubicBezierControls } from '../../../config/interfaces/interfaces';
+import { CubicBezierSegment } from '../../segments/CubicBezierSegment';
+import { MultiSegmentPattern } from '../../patterns/MultiSegmentPattern';
+import { mirrorCubicControlsX } from '../../../path/cubicBezier';
+import type { IPatternBuilder, ICubicBezierControls } from '../../../../config/interfaces/interfaces';
 
 export class ColumnDivesPatternBuilder implements IPatternBuilder {
     // Canonical RIGHT-side path; must be real Vector3 instances (mirror helpers need .clone()/.set()).
@@ -16,8 +16,13 @@ export class ColumnDivesPatternBuilder implements IPatternBuilder {
     private static readonly RANGES = [
         { start: 0, end: 0.27 }, { start: 0.27, end: 0.54 }, { start: 0.54, end: 0.8 }, { start: 0.8, end: 1 },
     ];
+    private static readonly DURATION = 5; // example duration in seconds
 
-    build(origin: Vector3, side: number): MultiSegmentPattern {
+    duration(): number {
+        return ColumnDivesPatternBuilder.DURATION;
+    }
+
+    build(origin: Vector3, side: number, endPosition: Vector3): MultiSegmentPattern {
         const start = origin.clone();
         const last = ColumnDivesPatternBuilder.SEGMENTS.length - 1;
 
@@ -32,12 +37,12 @@ export class ColumnDivesPatternBuilder implements IPatternBuilder {
                 }
                 : mirrorCubicControlsX(canonical, 0);
 
-            if (i === 0) controls.p0.copy(start);   // live spawn point, not a mirrored via-point
-            if (i === last) controls.p3.copy(start); // live dock point, not a mirrored via-point
+            if (i === 0) controls.p0.copy(start);       // live spawn point, not a mirrored via-point
+            if (i === last) controls.p3.copy(endPosition); // live dock point, not a mirrored via-point
 
             return new CubicBezierSegment(controls, ColumnDivesPatternBuilder.SPIN_RATES[i], false);
         });
 
-        return new MultiSegmentPattern(segments, ColumnDivesPatternBuilder.RANGES, 5);
+        return new MultiSegmentPattern(segments, ColumnDivesPatternBuilder.RANGES, ColumnDivesPatternBuilder.DURATION);
     }
 }

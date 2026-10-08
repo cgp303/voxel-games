@@ -1,6 +1,6 @@
 // systems/patterns/directors/ColumnDivesDirector.ts
 
-import { ColumnDivesPatternBuilder } from '../patterns/ColumnDivesPatternBuilder';
+import { ColumnDivesPatternBuilder } from '../patterns/invader-patterns/ColumnDivesPatternBuilder';
 import type { IPatternBuilder } from '../../../config/interfaces/interfaces';
 import { ColumnTriggerDirector } from './ColumnTriggerDirector';
 

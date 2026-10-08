@@ -1,7 +1,7 @@
 import { Vector3 } from 'three';
-import { CubicBezierSegment } from '../segments/CubicBezierSegment';
-import { MultiSegmentPattern } from '../patterns/MultiSegmentPattern';
-import type { IPatternBuilder, ICubicBezierControls } from '../../../config/interfaces/interfaces';
+import { CubicBezierSegment } from '../../segments/CubicBezierSegment';
+import { MultiSegmentPattern } from '../../patterns/MultiSegmentPattern';
+import type { IPatternBuilder, ICubicBezierControls } from '../../../../config/interfaces/interfaces';
 
 export class ColumnVerticalPatternBuilder implements IPatternBuilder {
     // Canonical RIGHT-side path; must be real Vector3 instances (mirror helpers need .clone()/.set()).
@@ -39,8 +39,13 @@ export class ColumnVerticalPatternBuilder implements IPatternBuilder {
         true, true, false, false,
     ];
     private static readonly ORIENTATION_SMOOTHING = [1, 1, 0.4, 1,];
+    private static readonly DURATION = 4; // example duration in seconds
 
-    build(origin: Vector3, side: number): MultiSegmentPattern {
+    duration(): number {
+        return ColumnVerticalPatternBuilder.DURATION;
+    }
+
+    build(origin: Vector3, side: number, endPosition: Vector3): MultiSegmentPattern {
 
         const start = origin.clone();
         const last = ColumnVerticalPatternBuilder.SEGMENTS.length - 1;
@@ -64,12 +69,12 @@ export class ColumnVerticalPatternBuilder implements IPatternBuilder {
                     p0: new Vector3(start.x, canonical.p0.y, canonical.p0.z),
                     p1: this.smoothSegmentJoins(prevControls),
                     p2: new Vector3(side === 0 ? -140 : 140, canonical.p2.y, canonical.p2.z),
-                    p3: start.clone(),
+                    p3: endPosition.clone(),
                 };
             }
 
             if (i === 0) controls.p0.copy(start);   // live spawn point, not a mirrored via-point
-            if (i === last) controls.p3.copy(start); // live dock point, not a mirrored via-point
+            if (i === last) controls.p3.copy(endPosition); // live dock point, not a mirrored via-point
 
             prevControls = controls;
 
@@ -80,7 +85,7 @@ export class ColumnVerticalPatternBuilder implements IPatternBuilder {
             );
         });
 
-        return new MultiSegmentPattern(segments, ColumnVerticalPatternBuilder.RANGES, 4, 1);
+        return new MultiSegmentPattern(segments, ColumnVerticalPatternBuilder.RANGES, ColumnVerticalPatternBuilder.DURATION, 1);
     }
 
     updateXValue(controls, start) {

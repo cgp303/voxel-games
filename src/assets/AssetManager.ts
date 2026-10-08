@@ -101,7 +101,6 @@ export class AssetManager {
   public markInstancedMeshesDirty(): void {
     for (const mesh of this.instancedMeshes.values()) {
       if (mesh.count > 0) {
-        console.log('Marking instanced mesh as dirty:', mesh.name);
         mesh.instanceMatrix.needsUpdate = true;
       }
     }
@@ -114,7 +113,7 @@ export class AssetManager {
   public getFreeSlots(assetKey: string): number[] {
     const slots = this.freeSlots.get(assetKey);
     if (slots) return slots;
-    
+
     const newSlots: number[] = [];
     this.freeSlots.set(assetKey, newSlots);
     return newSlots;
@@ -129,12 +128,12 @@ export class AssetManager {
     if (mesh) {
       mesh.count = 0;
       mesh.instanceMatrix.needsUpdate = true;
-      console.log('Reset InstancedMesh count for asset:', assetKey);
+
     }
-    
+
     // Clear the free-slot list for this asset
     this.freeSlots.delete(assetKey);
-    console.log('Cleared free-slots for asset:', assetKey);
+
   }
 
   public getModel(key: string): IParsedVoxModel | undefined {

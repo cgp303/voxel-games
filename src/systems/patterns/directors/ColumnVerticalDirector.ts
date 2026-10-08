@@ -1,6 +1,6 @@
 // systems/patterns/directors/ColumnVerticalDirector.ts
 
-import { ColumnVerticalPatternBuilder } from '../patterns/ColumnVerticalPatternBuilder';
+import { ColumnVerticalPatternBuilder } from '../patterns/invader-patterns/ColumnVerticalPatternBuilder';
 import type { IPatternBuilder } from '../../../config/interfaces/interfaces';
 import { ColumnTriggerDirector } from './ColumnTriggerDirector';
 

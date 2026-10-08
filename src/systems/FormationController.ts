@@ -1,6 +1,6 @@
 import { Vector3 } from 'three';
 import { FORMATION } from '../config/data/constants';
-import type { IFormationSlot, IFormationConfig, IFormationDescriptor } from '../config/interfaces/interfaces';
+import type { IFormationSlot, IFormationConfig, IFormationDescriptor, IPathPattern } from '../config/interfaces/interfaces';
 
 /**
  * Logical flock root + slot grid.
@@ -18,6 +18,11 @@ export class FormationController {
     private descriptor: IFormationDescriptor | null = null;
     private _maxCol: number = 0;
     private _maxRow: number = 0;
+
+    private pattern: IPathPattern | null = null;
+    private patternT = 0;
+
+    private tempVec3 = new Vector3();
 
 
     public setup(terrainHeight: number, descriptor: IFormationDescriptor): void {
@@ -53,9 +58,56 @@ export class FormationController {
 
     public update(dt: number): void {
         if (!this.ready || dt === 0) return;
-        this.rootPosition.x += this.rootVelocity.x * dt;
-        this.rootPosition.y += this.rootVelocity.y * dt;
-        this.rootPosition.z += this.rootVelocity.z * dt;
+
+        if (this.pattern) {
+            this.patternT += dt / this.pattern.duration;
+            this.pattern.samplePosition(this.patternT, this.rootPosition);
+            if (this.patternT >= 1) {
+                this.patternT -= 1;  // or use modulo: this.patternT %= 1
+            }
+        } else {
+            // Linear velocity as fallback
+            this.rootPosition.x += this.rootVelocity.x * dt;
+            this.rootPosition.y += this.rootVelocity.y * dt;
+            this.rootPosition.z += this.rootVelocity.z * dt;
+        }
+    }
+
+    public setPattern(pattern: IPathPattern): void {
+        this.pattern = pattern;
+        this.patternT = 0;
+    }
+
+    // Predicts the world position of a slot at the time of docking based on the current pattern and dive duration.
+    public getPredictedEndPosition(col: number, row: number, diveDuration: number, out = new Vector3()): Vector3 {
+        if (!this.pattern) {
+            return this.getWorldHomeSlot({ col, row }, out);
+        }
+
+        const patternDuration = this.pattern.duration;
+        const tLanding = (this.patternT + diveDuration / patternDuration) % 1;
+        const centerAtLanding = this.pattern.samplePosition(tLanding, this.tempVec3);
+        const offset = this.slotOffset(col, row);
+        return out.copy(centerAtLanding).add(offset);
+    }
+
+    public getAdjustedPositionForGroupReturn(groupCenterPosition: Vector3, attackDuration: number, out = new Vector3()): Vector3 {
+        if (!this.pattern) {
+            return out.copy(groupCenterPosition);
+        }
+
+        // Store current formation center
+        const currentFormationCenter = new Vector3().copy(this.rootPosition);
+
+        // Predict where formation center will be after attackDuration
+        const tLanding = (this.patternT + attackDuration / this.pattern.duration) % 1;
+        const futureFormationCenter = this.pattern.samplePosition(tLanding, new Vector3());
+
+        // Calculate how far formation moved
+        const offset = futureFormationCenter.sub(currentFormationCenter);
+
+        // Apply offset to group center position
+        return out.copy(groupCenterPosition).add(offset);
     }
 
     public getConfig(): Readonly<IFormationConfig> {
@@ -83,6 +135,7 @@ export class FormationController {
         return this.ready;
     }
 
+    //
     public slotOffset(col: number, row: number, out = new Vector3()): Vector3 {
         const key = `${col},${row}`;
         const s = this.descriptor!.map.get(key);

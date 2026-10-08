@@ -1,8 +1,8 @@
 import { Vector3 } from 'three';
-import { CubicBezierSegment } from '../segments/CubicBezierSegment';
-import { MultiSegmentPattern } from '../patterns/MultiSegmentPattern';
-import { mirrorCubicControlsX } from '../../path/cubicBezier';
-import type { IPatternBuilder, ICubicBezierControls } from '../../../config/interfaces/interfaces';
+import { CubicBezierSegment } from '../../segments/CubicBezierSegment';
+import { MultiSegmentPattern } from '../../patterns/MultiSegmentPattern';
+import { mirrorCubicControlsX } from '../../../path/cubicBezier';
+import type { IPatternBuilder, ICubicBezierControls } from '../../../../config/interfaces/interfaces';
 
 export class FigureEightPatternBuilder implements IPatternBuilder {
     // Canonical RIGHT-side path; must be real Vector3 instances (mirror helpers need .clone()/.set()).
@@ -37,7 +37,11 @@ export class FigureEightPatternBuilder implements IPatternBuilder {
     private static readonly DURATION = 4;
     private static readonly DURATION_OVERLAP = 1;
 
-    build(origin: Vector3, side: number): MultiSegmentPattern {
+    duration(): number {
+        return FigureEightPatternBuilder.DURATION;
+    }
+
+    build(origin: Vector3, side: number, endPosition: Vector3): MultiSegmentPattern {
         const start = origin.clone();
         const last = FigureEightPatternBuilder.SEGMENTS.length - 1;
 
@@ -53,7 +57,7 @@ export class FigureEightPatternBuilder implements IPatternBuilder {
                 : mirrorCubicControlsX(canonical, 0);
 
             if (i === 0) controls.p0.copy(start);   // live spawn point, not a mirrored via-point
-            if (i === last) controls.p3.copy(start); // live dock point, not a mirrored via-point
+            if (i === last) controls.p3.copy(endPosition); // live dock point, not a mirrored via-point
 
             return new CubicBezierSegment(controls,
                 FigureEightPatternBuilder.SPIN_RATES[i],

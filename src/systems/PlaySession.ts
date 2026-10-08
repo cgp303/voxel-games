@@ -1,4 +1,4 @@
-﻿import type { Object3D } from 'three';
+﻿import { Vector3 } from 'three';
 import type { IFormationConfig, IIntroStartedPayload, IStageCancelledPayload } from '../config/interfaces/interfaces';
 import { GameEvents } from '../config/types/types';
 import type { IGameContext } from '../config/interfaces/interfaces';
@@ -8,6 +8,7 @@ import { FormationController } from './FormationController';
 import type { IPatternDirector, IPlaySessionStartOptions } from '../config/interfaces/interfaces';
 import { Stage } from './stages/Stage';
 import { StageQueue } from './stages/StageQueue';
+import { SimpleLoopFormationPatternBuilder } from './patterns/patterns/formation-patterns/SimpleLoopFormationPatternBuilder';
 
 
 
@@ -219,6 +220,10 @@ export class PlaySession {
         if (!formationDescription) {
             throw new Error("StageQueue has no formation descriptor");
         }
+
+        const patternBuilder = new SimpleLoopFormationPatternBuilder();
+        const pattern = patternBuilder.build(new Vector3(0, 20, 0), 1);
+        this.formation.setPattern(pattern);
 
         this.formation.setup(ctx.playField.bounds.height, formationDescription);
 

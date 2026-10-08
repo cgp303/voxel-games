@@ -1,6 +1,6 @@
 // systems/patterns/directors/FigureEightDirector.ts
 
-import { FigureEightPatternBuilder } from '../patterns/FigureEightPatternBuilder';
+import { FigureEightPatternBuilder } from '../patterns/invader-patterns/FigureEightPatternBuilder';
 import type { IPatternBuilder } from '../../../config/interfaces/interfaces';
 import { ColumnTriggerDirector } from './ColumnTriggerDirector';
 

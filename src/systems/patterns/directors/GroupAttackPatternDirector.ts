@@ -1,8 +1,8 @@
 // systems/patterns/directors/GroupAttackPatternDirector.ts
 
 import { Vector3 } from 'three';
-import { GroupAttackPattern1Builder } from '../patterns/GroupAttackPattern1Builder';
-import { GroupAttackPattern2Builder } from '../patterns/GroupAttackPattern2Builder';
+import { GroupAttackPattern1Builder } from '../patterns/invader-patterns/GroupAttackPattern1Builder';
+import { GroupAttackPattern2Builder } from '../patterns/invader-patterns/GroupAttackPattern2Builder';
 import type { IDirectorContext, IInvaderGroup } from '../../../config/interfaces/interfaces';
 import type { GroupType } from '../../../config/types/types';
 import { groupAttackSets as GroupAttackSets } from '../../../config/pattern-config/GroupAttackSets';
@@ -93,7 +93,11 @@ export class GroupAttackPatternDirector extends InvaderRepathDirector {
         // if an attack offset is not set, the invaders offsets will be {0,0,0}
         this.setAttackOffsets(attackGroup ?? []);
 
-        const pattern = this.builder.build(this.centralPosition, side);
+        const duration = this.builder.duration();
+
+        const predictedEndPosition = this.formation.getAdjustedPositionForGroupReturn(this.centralPosition, duration);
+
+        const pattern = this.builder.build(this.centralPosition, side, predictedEndPosition);
         // update trigger delay for this pattern.
         this.triggerDelay = pattern.duration - pattern.durationOverlap;
         this.coolDownPeriod = pattern.duration;

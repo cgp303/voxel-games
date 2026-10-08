@@ -168,7 +168,6 @@ export class Invader extends Entity {
      * Re-arm for another entry without reallocating the mesh (pool-friendly).
      */
     public reset(cfg: IInvaderInitConfig): void {
-        console.log('Resetting invader with instanceId:', this.instanceId);
         this.init(cfg);
     }
 
@@ -371,7 +370,6 @@ export class Invader extends Entity {
 
     public override syncTransform(): void {
         if (this.instanceId < 0 || !this.instancedMesh) return;
-        console.log('syncTransform', this.instanceId, this.position);
         tempMatrix.compose(this.position, this.displayQuat, tempScale);
         this.instancedMesh.setMatrixAt(this.instanceId, tempMatrix);
     }

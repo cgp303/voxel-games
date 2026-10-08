@@ -25,7 +25,7 @@ export class EntityManager {
     }
 
     public add(entity: Entity): void {
-        console.log('Adding entity:', entity);
+
         this.entities.push(entity);
         // only register invaders in the formation map
         if (entity instanceof Invader) this.registerInvaderInFormation(entity);
@@ -64,7 +64,7 @@ export class EntityManager {
         // Mark InstancedMesh(es) as needing update
         this.assets.markInstancedMeshesDirty();
         const mesh = this.assets.getOrCreateInstancedMesh('invader1');
-        console.log('InstancedMesh count:', mesh.count);
+
     }
 
     public clear(): void {
@@ -112,22 +112,22 @@ export class EntityManager {
 
         // Get the shared InstancedMesh
         const mesh = this.assets.getOrCreateInstancedMesh(assetKey);
-        
+
         // Try to recycle a freed slot from AssetManager; otherwise allocate a new one
         const freeSlots = this.assets.getFreeSlots(assetKey);
         let instanceId: number;
-        
+
         if (freeSlots.length > 0) {
             instanceId = freeSlots.pop()!;
         } else {
             instanceId = mesh.count;
             mesh.count += 1;
         }
-        
+
         invader.instanceId = instanceId;
         invader.assetKey = assetKey;
         invader.setInstancedMesh(mesh);
-        console.log('Acquiring invader, instanceId:', invader.instanceId, 'mesh.count:', mesh.count, 'freeSlots:', freeSlots.length);
+
         return invader;
     }
 
@@ -145,12 +145,12 @@ export class EntityManager {
         const pool = this.pools.get(assetKey) ?? [];
         if (pool.length < EntityManager.MAX_POOL_PER_TYPE) {
             pool.push(entity);
-            
+
             // Return the slot to AssetManager's free-list for recycling
             const freeSlots = this.assets.getFreeSlots(assetKey);
             if (instanceId >= 0) {
                 freeSlots.push(instanceId);
-                console.log('Releasing invader to pool, instanceId:', instanceId, 'now available for reuse');
+
             }
         }
         this.pools.set(assetKey, pool);

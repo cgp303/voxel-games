@@ -62,7 +62,8 @@ export interface IPathPattern {
  * Shared contract for every pattern builder used by InvaderRepathDirector subclasses.
  */
 export interface IPatternBuilder {
-    build(origin: THREE.Vector3, side: number): MultiSegmentPattern;
+    build(origin: THREE.Vector3, side: number, duration: Vector3): MultiSegmentPattern;
+    duration(): number;
 }
 
 /**

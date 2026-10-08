@@ -1,9 +1,9 @@
 import { Vector3 } from 'three';
-import { CubicBezierSegment } from '../segments/CubicBezierSegment';
-import { MultiSegmentPattern } from '../patterns/MultiSegmentPattern';
-import { mirrorCubicControlsX } from '../../path/cubicBezier';
+import { CubicBezierSegment } from '../../segments/CubicBezierSegment';
+import { MultiSegmentPattern } from '../../patterns/MultiSegmentPattern';
+import { mirrorCubicControlsX } from '../../../path/cubicBezier';
 //import type { CubicBezierControls } from '../../path/cubicBezier';
-import type { IPatternBuilder, ICubicBezierControls } from '../../../config/interfaces/interfaces';
+import type { IPatternBuilder, ICubicBezierControls } from '../../../../config/interfaces/interfaces';
 
 export class GroupAttackPattern2Builder implements IPatternBuilder {
     // Canonical RIGHT-side path; must be real Vector3 instances (mirror helpers need .clone()/.set()).
@@ -27,8 +27,13 @@ export class GroupAttackPattern2Builder implements IPatternBuilder {
     ];
     private static readonly ALLOW_INVERSION = [false, false];
     private static readonly ORIENTATION_SMOOTHING = [1, 1];
+    private static readonly DURATION = 6; // example duration in seconds
 
-    build(origin: Vector3, side: number): MultiSegmentPattern {
+    duration(): number {
+        return GroupAttackPattern2Builder.DURATION;
+    }
+
+    build(origin: Vector3, side: number, endPosition: Vector3): MultiSegmentPattern {
         const start = origin.clone();
         const last = GroupAttackPattern2Builder.SEGMENTS.length - 1;
 
@@ -44,7 +49,7 @@ export class GroupAttackPattern2Builder implements IPatternBuilder {
                 : mirrorCubicControlsX(canonical, 0);
 
             if (i === 0) controls.p0.copy(start);   // live spawn point, not a mirrored via-point
-            if (i === last) controls.p3.copy(start); // live dock point, not a mirrored via-point
+            if (i === last) controls.p3.copy(endPosition); // live dock point, not a mirrored via-point
 
             return new CubicBezierSegment(
                 controls,
@@ -54,7 +59,7 @@ export class GroupAttackPattern2Builder implements IPatternBuilder {
             );
         });
 
-        return new MultiSegmentPattern(segments, GroupAttackPattern2Builder.RANGES, 6, 0);
+        return new MultiSegmentPattern(segments, GroupAttackPattern2Builder.RANGES, GroupAttackPattern2Builder.DURATION, 0);
     }
 
 }

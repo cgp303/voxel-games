@@ -7,7 +7,7 @@ import { Invader } from '../../../entities/Invader';
 import type { PlayField } from '../../../world/PlayField';
 import type { FormationController } from '../../FormationController';
 import { buildEntryControlsFromConfig } from '../../path/cubicBezier';
-import { BezierEntryPattern } from '../patterns/BezierEntryPattern';
+import { BezierEntryPattern } from '../patterns/invader-patterns/BezierEntryPattern';
 import { CubicBezierSegment } from '../segments/CubicBezierSegment';
 import { defaultOrientationConfig } from '../../../config/pattern-config/defaultOrientationConfig';
 import type { IDirectorContext } from '../../../config/interfaces/interfaces';
@@ -88,12 +88,7 @@ export class EntryPatternDirector extends BasePatternDirector {
         if (!this.running || this.cancelled) return;
         if (!this.playField) return;
         if (this.queue.length === 0) return;
-        console.log('[EntryPatternDirector] update', {
-            running: this.running,
-            cancelled: this.cancelled,
-            queueLength: this.queue.length,
-            timer: this.timer
-        });
+
         this.timer -= dt;
         // Allow catch-up if frame hitch; still one release per interval tick.
         while (this.timer <= 0 && this.queue.length > 0 && !this.cancelled) {
@@ -149,6 +144,7 @@ export class EntryPatternDirector extends BasePatternDirector {
         const entry = this.entry;
 
         formation.getWorldHomeSlot(slot, this.homeScratch);
+        const predictedEndPosition = formation.getAdjustedPositionForGroupReturn(this.homeScratch, entry.pathDuration);
 
         const centerX = formation.getCenterX();
         const halfExtent = this.resolveHalfExtentX(playField);
@@ -162,7 +158,7 @@ export class EntryPatternDirector extends BasePatternDirector {
 
         const controls = buildEntryControlsFromConfig(
             this.spawnScratch,
-            this.homeScratch,
+            predictedEndPosition,
             centerX,
             side,
             entry,

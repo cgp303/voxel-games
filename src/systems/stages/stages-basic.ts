@@ -22,7 +22,7 @@ export function createBasicStages(): StageQueue {
 
             new Stage(
                 "Group Attack",
-                new GroupAttackPatternDirector([["groups2x2", 3, 1]]),
+                new GroupAttackPatternDirector([["groups2x2", 2, 1]]),
                 { orientation: "front" },
                 1.4,
                 1.6
@@ -38,7 +38,7 @@ export function createBasicStages(): StageQueue {
 
             new Stage(
                 "Group Attack",
-                new GroupAttackPatternDirector([["groupXs", 3, 0]]),
+                new GroupAttackPatternDirector([["groupXs", 2, 0]]),
                 { orientation: "front" },
                 1.4,
                 1.6
@@ -54,7 +54,7 @@ export function createBasicStages(): StageQueue {
 
             new Stage(
                 "Group Attack",
-                new GroupAttackPatternDirector([["groupDiamonds", 3, 1]]),
+                new GroupAttackPatternDirector([["groupDiamonds", 2, 1]]),
                 { orientation: "front" },
                 1.4,
                 1.6
@@ -70,19 +70,19 @@ export function createBasicStages(): StageQueue {
 
             new Stage(
                 "Group Attack",
-                new GroupAttackPatternDirector([["groupCrosses", 3, 0]]),
+                new GroupAttackPatternDirector([["groupCrosses", 2, 0]]),
                 { orientation: "front" },
                 1.4,
                 1.6
             ),
 
-            new Stage(
-                "Column Vertical",
-                new ColumnVerticalDirector(),
-                { orientation: "front" },
-                1.0,
-                1.2
-            ),
+            // new Stage(
+            //     "Column Vertical",
+            //     new ColumnVerticalDirector(),
+            //     { orientation: "front" },
+            //     1.0,
+            //     1.2
+            // ),
         ],
         1, // loopStartIndex
         formation
