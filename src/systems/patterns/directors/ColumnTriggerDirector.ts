@@ -47,8 +47,13 @@ export abstract class ColumnTriggerDirector extends InvaderRepathDirector {
         if (this.triggerTime < this.msBetweenTriggers) return;
         this.triggerTime = 0;
 
-        this.trigger();
-        this.currentIndex++;
+        // Triggers whose slots hold no available invader are skipped immediately,
+        // so they don't cost any cadence time.
+        let launched = false;
+        while (!launched && this.currentIndex < this.triggerOrder.length) {
+            launched = this.trigger();
+            this.currentIndex++;
+        }
 
         // If done, start the completion cooldown
         if (this.currentIndex >= this.triggerOrder.length) {
@@ -71,25 +76,29 @@ export abstract class ColumnTriggerDirector extends InvaderRepathDirector {
         return order;
     }
 
-    private trigger(): void {
+    /** Re-paths whichever invaders in the current trigger group are available. Returns true if any launched. */
+    private trigger(): boolean {
         const group = this.triggerOrder[this.currentIndex];
 
         switch (this.spawnType) {
             case 'LeftRightPairs': {
                 const [leftKey, rightKey] = group;
-                this.buildAndApply(leftKey, 0);
-                this.buildAndApply(rightKey, 1);
-                return;
+                const leftLaunched = this.buildAndApply(leftKey, 0);
+                const rightLaunched = this.buildAndApply(rightKey, 1);
+                return leftLaunched || rightLaunched;
             }
             case 'Single':
-                this.buildAndApply(group[0], 0);
-                return;
-            case 'Wave':
-                for (const key of group) this.buildAndApply(key, 0);
-                return;
+                return this.buildAndApply(group[0], 0);
+            case 'Wave': {
+                let anyLaunched = false;
+                for (const key of group) {
+                    anyLaunched = this.buildAndApply(key, 0) || anyLaunched;
+                }
+                return anyLaunched;
+            }
             default:
                 // Unknown spawn type — do nothing
-                return;
+                return false;
         }
     }
 }

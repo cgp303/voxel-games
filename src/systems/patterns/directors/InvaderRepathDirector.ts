@@ -40,8 +40,14 @@ export abstract class InvaderRepathDirector extends BasePatternDirector {
         this.queueRemaining = 0;
     }
 
-    /** Look up the invader at a slot, build it a fresh path from its own position, and set it flying. */
-    protected buildAndApply(slotKey: string, side: number): void {
+    /**
+     * Look up the invader at a slot, build it a fresh path from its own position, and set it flying.
+     * Returns false (and does nothing) when the slot has no available invader — missing slots,
+     * destroyed invaders and invaders already mid-attack are normal, not errors.
+     */
+    protected buildAndApply(slotKey: string, side: number): boolean {
+        const invader = this.invaders?.getInvaderAtSlot(slotKey);
+        if (!invader || !invader.active) return false;
 
         // Parse the column and row from the slot key. ANNOYING!
         const [col, row] = slotKey.split(",").map(Number);
@@ -50,13 +56,11 @@ export abstract class InvaderRepathDirector extends BasePatternDirector {
         const duration = this.builder.duration();
 
         // Predict the end position of the invader based on the formation and the new pattern duration.
+        // Safe: an invader registered at this slot implies the slot exists in the formation.
         const predictedEndPosition = this.formation?.getPredictedEndPosition(col, row, duration);
 
-
-        const invader = this.invaders?.getInvaderAtSlot(slotKey);
-        if (invader && invader.active) {
-            this.applyPattern(invader, this.builder.build(invader.position, side, predictedEndPosition));
-        }
+        this.applyPattern(invader, this.builder.build(invader.position, side, predictedEndPosition));
+        return true;
     }
 
     /** Hand a (possibly shared) pattern to one invader. */

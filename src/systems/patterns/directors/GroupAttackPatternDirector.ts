@@ -80,9 +80,27 @@ export class GroupAttackPatternDirector extends InvaderRepathDirector {
         // reset time since last trigger
         this.timeSinceLastTrigger = 0;
 
+        // Pick the group to launch: the current one if any of its invaders are still available,
+        // otherwise the next shuffled group that has some. Missing/destroyed slots are simply left out.
+        let group = this.currentInvaderGroup;
+        let availableKeys = group ? this.getAvailableKeys(group.group) : [];
+        while (availableKeys.length === 0) {
+            group = this.invaderGroups.pop();
+            if (!group) break;
+            availableKeys = this.getAvailableKeys(group.group);
+        }
+
+        if (!group) {
+            // No usable group left in this set: move straight on to the next set (or finish).
+            this.currentInvaderGroup = undefined;
+            this.triggerDelay = 0;
+            this.endCurrentSet();
+            return;
+        }
+        this.currentInvaderGroup = group;
+
         // release group of invaders
-        const attackGroup = this.currentInvaderGroup?.group;
-        const path = this.currentInvaderGroup?.path;
+        const path = group.path;
         const side = path === "left" ? 0 : path === "right" ? 1 : Math.random() < 0.5 ? 0 : 1;
 
 
@@ -91,7 +109,7 @@ export class GroupAttackPatternDirector extends InvaderRepathDirector {
         // central position, to maintain formation. And we need to set each invaders
         // offset relative to that central position.
         // if an attack offset is not set, the invaders offsets will be {0,0,0}
-        this.setAttackOffsets(attackGroup ?? []);
+        this.setAttackOffsets(availableKeys);
 
         const duration = this.builder.duration();
 
@@ -102,39 +120,40 @@ export class GroupAttackPatternDirector extends InvaderRepathDirector {
         this.triggerDelay = pattern.duration - pattern.durationOverlap;
         this.coolDownPeriod = pattern.duration;
 
-        attackGroup?.forEach((invaderKey) => {
-            //const slot = this.formation.getSlotByKey(invaderKey);
+        for (const invaderKey of availableKeys) {
             const invader = this.invaders?.getInvaderAtSlot(invaderKey);
             if (invader && invader.active) {
                 this.applyPattern(invader, pattern, { attackOffset: invader.attackOffset });
             }
-        });
+        }
 
         // prepare for the next set iteration
         this.setIterations++;
         if (this.setIterations >= this.maxSetIterations) {
-            this.currentGroupSetIndex++;
-
-            if (this.currentGroupSetIndex >= this.numGroups) {
-                // end stage here:
-                this.completionCooldown = this.coolDownPeriod;
-
-                //
-                return;
-
-            }
-
-            // new group attack
-            this.setUpAGroupAttack();
-
-            // prepare for a new set
-            this.setIterations = 0;
-
-            return;
+            this.endCurrentSet();
         } else {
-
             this.currentInvaderGroup = this.invaderGroups.pop();
         }
+    }
+
+    /** Slot keys from a group that currently hold an active formation invader. */
+    private getAvailableKeys(group: string[]): string[] {
+        return group.filter((key) => this.invaders?.getInvaderAtSlot(key)?.active);
+    }
+
+    /** Current set is finished: start the next set, or begin the stage's completion cooldown. */
+    private endCurrentSet(): void {
+        this.currentGroupSetIndex++;
+
+        if (this.currentGroupSetIndex >= this.numGroups) {
+            // end stage here:
+            this.completionCooldown = this.coolDownPeriod;
+            return;
+        }
+
+        // new group attack
+        this.setUpAGroupAttack();
+        this.setIterations = 0;
     }
 
     protected override onCooldownElapsed(): void {
@@ -185,15 +204,18 @@ export class GroupAttackPatternDirector extends InvaderRepathDirector {
 
     getCentralPosition(attackGroup: string[]): Vector3 {
         let sumX = 0, sumY = 0, sumZ = 0;
+        let count = 0;
         attackGroup.forEach(invaderKey => {
             const invader = this.invaders?.getInvaderAtSlot(invaderKey);
             if (invader) {
                 sumX += invader.position.x;
                 sumY += invader.position.y;
                 sumZ += invader.position.z;
+                count++;
             }
         });
-        const count = attackGroup.length;
+        // Average over the invaders actually found, not the group size.
+        if (count === 0) return new Vector3();
         return new Vector3(sumX / count, sumY / count, sumZ / count);
     }
 
