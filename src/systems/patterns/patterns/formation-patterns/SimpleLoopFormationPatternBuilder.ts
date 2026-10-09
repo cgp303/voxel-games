@@ -15,7 +15,7 @@ export class SimpleLoopFormationPatternBuilder implements IPatternBuilder {
         {
             p0: new Vector3(0, 20, 78),
             p1: new Vector3(-20, 20, 118),
-            p2: new Vector3(-20, 20, 38),
+            p2: new Vector3(-20, 20, -38),
             p3: new Vector3(0, 20, 78),
         },
     ];

@@ -10,8 +10,8 @@ export class GroupAttackPattern1Builder implements IPatternBuilder {
     private static readonly SEGMENTS: ICubicBezierControls[] = [
         {
             p0: new Vector3(0, 0, 0),
-            p1: new Vector3(50.69, 20, 190.84),
-            p2: new Vector3(90.01, 20, 190.02),
+            p1: new Vector3(50.69, 30, 190.84),
+            p2: new Vector3(90.01, 30, 190.02),
             p3: new Vector3(150.85, 20, 50),
         },
         {
@@ -30,10 +30,10 @@ export class GroupAttackPattern1Builder implements IPatternBuilder {
             p0: new Vector3(150.85, 20, -50),
             p1: new Vector3(0, 0, 0),
             p2: new Vector3(0, 20, -70),
-            p3: new Vector3(-150, 20, -90),
+            p3: new Vector3(-150, 20, 0),
         },
         {
-            p0: new Vector3(-150, 20, -90),
+            p0: new Vector3(-150, 20, 0),
             p1: new Vector3(0, 0, 0),
             p2: new Vector3(0, 20, 0),
             p3: new Vector3(0, 0, 0),
