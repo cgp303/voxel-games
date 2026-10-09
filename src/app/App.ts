@@ -6,6 +6,7 @@ import { Engine } from '../core/Engine';
 import { Input } from '../core/Input';
 import { EventBus } from '../core/EventBus';
 import { AssetManager } from '../assets/AssetManager';
+import type { AssetKey } from '../assets/manifests';
 import { ScreenManager } from '../screens/ScreenManager';
 import { DemoScreen } from '../screens/DemoScreen';
 import { PlayScreen } from '../screens/PlayScreen';
@@ -121,8 +122,10 @@ export class App {
         });
         this.scene.createLights();
 
-        console.log('[App] loading invader asset…');
-        await this.assets.loadManifestAsset('invader1');
+        console.log('[App] loading invader assets…');
+        for (const { key } of INSTANCED_ASSETS) {
+            await this.assets.loadManifestAsset(key as AssetKey);
+        }
         // Cache mesh template for EntryDirector / PlaySession (Phase 5+).
         // Combat invaders are not pre-placed; Demo/Play intro spawns them off-stage.
 

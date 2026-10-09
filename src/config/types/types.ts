@@ -27,8 +27,14 @@ export type InvaderMode =
     | 'hit'
     | 'dying';
 
-/** Invader archetype key (mesh / score tables later) */
-export type InvaderTypeId = 'grunt' | 'elite' | 'boss';
+/** Invader archetype key (mesh / score tables live in INVADER_TYPES) */
+export type InvaderTypeId = 'scout' | 'fighter' | 'elite' | 'tie';
+
+/**
+ * Invader type per formation row; index = row number in the formation.
+ * The highest row is furthest from the player (top of screen).
+ */
+export type InvaderRowRoster = InvaderTypeId[];
 
 
 
@@ -47,6 +53,14 @@ export const GameEvents = {
     invaderKilled: 'invader:killed',
     /** Future: player lost a life / died. */
     playerDied: 'player:died',
+    /** A wave (StageQueue) began; payload is ILevelProgress. */
+    waveStarted: 'wave:started',
+    /** A wave was left (skipped or finished); payload is IWaveClearedPayload. */
+    waveCleared: 'wave:cleared',
+    /** A level began (its first wave is about to start); payload is ILevelProgress. */
+    levelStarted: 'level:started',
+    /** Last wave of a level ended; payload is ILevelCompletedPayload. */
+    levelCompleted: 'level:completed',
 } as const;
 
 export type GameEventName = (typeof GameEvents)[keyof typeof GameEvents];

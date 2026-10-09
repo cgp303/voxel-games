@@ -1,8 +1,9 @@
-import type { IGameContext, IScreen } from '../config/interfaces/interfaces';
+import type { IGameContext, IScreen, ILevelProgress } from '../config/interfaces/interfaces';
 import { PlaySession } from '../systems/PlaySession';
 import type { DemoScreen } from './DemoScreen';
 import type { GameOverScreen } from './GameOverScreen';
-import { createBasicStages } from '../systems/stages/stages-basic';
+import { createBasicLevels } from '../systems/stages/levels-basic';
+import { DEBUG } from '../config/data/constants';
 
 /**
  * Gameplay mode over the shared PlayField.
@@ -16,6 +17,14 @@ export class PlayScreen implements IScreen {
   private gameOverScreen: GameOverScreen | null = null;
   private session: PlaySession | null = null;
   private hud: HTMLDivElement | null = null;
+
+  // Last values written to the HUD; refreshHud() skips the DOM write when unchanged.
+  private hudScore = NaN;
+  private hudLives = NaN;
+  private hudStageState = -1;
+  private hudLevelIndex = -2;
+  private hudWaveIndex = -2;
+  private readonly progressScratch: ILevelProgress = { levelIndex: 0, levelName: '', waveIndex: 0, waveCount: 0 };
 
   public setTransitions(demo: DemoScreen, gameOver: GameOverScreen): void {
     this.demoScreen = demo;
@@ -34,7 +43,7 @@ export class PlayScreen implements IScreen {
     this.session?.dispose();
     this.session = new PlaySession();
     this.session.start(ctx, {
-      stageQueue: createBasicStages()
+      levels: createBasicLevels()
     });
 
 
@@ -65,6 +74,11 @@ export class PlayScreen implements IScreen {
     if (ctx.input.wasPressed('Escape')) {
       void ctx.screens.set(this.demoScreen);
       return;
+    }
+
+    // Test hook: dispose all invaders and jump to the next wave / level
+    if (DEBUG.enableWaveSkip && ctx.input.wasPressed(DEBUG.skipWaveKey)) {
+      this.session?.advanceWave();
     }
 
     // Placeholder player-death / game-over path
@@ -98,20 +112,47 @@ export class PlayScreen implements IScreen {
   private destroyHud(): void {
     this.hud?.remove();
     this.hud = null;
+    this.hudScore = NaN; // force a rewrite when the HUD is next created
   }
 
+  /** Rewrites the DOM only when a displayed value changed (avoids per-frame text/DOM churn). */
   private refreshHud(): void {
     if (!this.hud || !this.ctx) return;
     const g = this.ctx.game;
 
-    const entryNote = this.session?.isStageCancelled()
-      ? '  STAGE:cancelled'
+    const stageState = this.session?.isStageCancelled()
+      ? 1
       : this.session?.isStageComplete()
-        ? '  STAGE:ok'
-        : '';
+        ? 2
+        : 0;
+
+    const progress = this.session?.getProgress(this.progressScratch) ?? null;
+    const levelIndex = progress ? progress.levelIndex : -1;
+    const waveIndex = progress ? progress.waveIndex : -1;
+
+    if (
+      g.score === this.hudScore &&
+      g.lives === this.hudLives &&
+      stageState === this.hudStageState &&
+      levelIndex === this.hudLevelIndex &&
+      waveIndex === this.hudWaveIndex
+    ) {
+      return;
+    }
+    this.hudScore = g.score;
+    this.hudLives = g.lives;
+    this.hudStageState = stageState;
+    this.hudLevelIndex = levelIndex;
+    this.hudWaveIndex = waveIndex;
+
+    const entryNote = stageState === 1 ? '  STAGE:cancelled' : stageState === 2 ? '  STAGE:ok' : '';
+    const waveNote = progress
+      ? `  ${progress.levelName} W${progress.waveIndex + 1}/${progress.waveCount}`
+      : '';
+    const skipNote = DEBUG.enableWaveSkip ? '  SPACE=NextWave' : '';
 
     this.hud.textContent =
-      'SCORE ' + g.score + '   LIVES ' + g.lives + '   ESC=Demo  G=Die' + entryNote;
+      'SCORE ' + g.score + '   LIVES ' + g.lives + '   ESC=Demo  G=Die' + skipNote + waveNote + entryNote;
   }
 
 }

@@ -1,5 +1,6 @@
 ﻿import * as THREE from 'three';
-
+import type { InvaderTypeId } from '../types/types';
+import type { IInvaderTypeDefinition } from '../interfaces/interfaces';
 /** Shared gameplay / layout constants (expand in later phases) */
 export const GAME = {
     defaultLives: 3,
@@ -17,13 +18,38 @@ export const GAME = {
     invaderHoverY: null as number | null, // if set, use absolute Y; else height + padding
 } as const;
 
+/** Slot lookups use the numeric key col * SLOT_KEY_STRIDE + row (avoids per-frame string keys). Must exceed any formation's row count. */
+export const SLOT_KEY_STRIDE = 1024;
+
 // Instanced asset configuration for the App.ts: a list of assets that should use instanced meshes.
+// Every assetKey referenced by INVADER_TYPES must appear here (and in ASSET_PATHS).
 export const INSTANCED_ASSETS: { key: string; maxCount: number }[] = [
     { key: 'invader1', maxCount: 80 },
-    // Later you just add more entries:
-    // { key: 'invader2', maxCount: 40 },
-    // { key: 'boss1',    maxCount: 4  },
+    { key: 'invader2', maxCount: 80 },
+    { key: 'invader3', maxCount: 80 },
+    { key: 'invader', maxCount: 80 },
 ];
+
+/** Per-type invader data: instanced mesh key, score value and hit points. */
+export const INVADER_TYPES: Record<InvaderTypeId, IInvaderTypeDefinition> = {
+    scout: { assetKey: 'invader1', scoreValue: 50, hitPoints: 1 },
+    fighter: { assetKey: 'invader2', scoreValue: 100, hitPoints: 1 },
+    elite: { assetKey: 'invader3', scoreValue: 200, hitPoints: 2 },
+    tie: { assetKey: 'invader', scoreValue: 800, hitPoints: 4 },
+};
+
+/** Level progression. After the last level the session wraps to levels[loopFromIndex]. */
+export const LEVEL = {
+    loopFromIndex: 0,
+} as const;
+
+/** Dev/test helpers. Disable (or remove) before shipping. */
+export const DEBUG = {
+    /** Skip to the next wave by disposing all active invaders. */
+    enableWaveSkip: true,
+    /** KeyboardEvent.key that triggers the wave skip (Space = ' '). */
+    skipWaveKey: ' ',
+} as const;
 
 export const INVADER_MESH_MATERIAL = new THREE.MeshStandardMaterial({
     side: THREE.DoubleSide,

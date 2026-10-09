@@ -234,6 +234,19 @@ export class PlayField {
     }
 }
 
+function disposeMaterial(material: THREE.Material): void {
+    // Free any textures the material references (map, normalMap, ...), then the material itself.
+    for (const value of Object.values(material as unknown as Record<string, unknown>)) {
+        const texture = value as THREE.Texture | null;
+        if (texture?.isTexture) texture.dispose();
+    }
+    material.dispose();
+}
+
+/**
+ * Free GPU resources of an object tree (geometry, materials, their textures, instance buffers).
+ * Do not call on objects that share geometry/materials with others still in use.
+ */
 export function disposeObject3D(object: THREE.Object3D): void {
     object.traverse((child) => {
         const mesh = child as THREE.Mesh;
@@ -241,9 +254,12 @@ export function disposeObject3D(object: THREE.Object3D): void {
             mesh.geometry?.dispose();
             const material = mesh.material;
             if (Array.isArray(material)) {
-                material.forEach((m) => m.dispose());
-            } else {
-                material?.dispose();
+                material.forEach(disposeMaterial);
+            } else if (material) {
+                disposeMaterial(material);
+            }
+            if ((mesh as THREE.InstancedMesh).isInstancedMesh) {
+                (mesh as THREE.InstancedMesh).dispose();
             }
         }
     });

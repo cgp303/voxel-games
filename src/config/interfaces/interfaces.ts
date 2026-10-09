@@ -29,7 +29,38 @@ export interface IDirectorContext {
     /** Director-specific config (EntryConfig, WaveConfig, BossConfig, etc.) */
     config?: any;
     scene?: THREE.Scene;
-    assetKey?: string;
+    /** Invader type for a formation slot (comes from the current StageQueue's row roster). */
+    getInvaderTypeForSlot: (col: number, row: number) => InvaderTypeId;
+}
+
+/** Per-type invader data: which instanced mesh to use, score and durability. */
+export interface IInvaderTypeDefinition {
+    assetKey: string;
+    scoreValue: number;
+    hitPoints: number;
+}
+
+/** A level: an ordered list of waves; each factory builds a fresh StageQueue. */
+export interface ILevelDescriptor {
+    name: string;
+    waves: Array<() => StageQueue>;
+}
+
+/** Where the session currently is in the level sequence (indices are 0-based). */
+export interface ILevelProgress {
+    levelIndex: number;
+    levelName: string;
+    waveIndex: number;
+    waveCount: number;
+}
+
+export interface IWaveClearedPayload extends ILevelProgress {
+    reason: 'skipped' | 'finished';
+}
+
+export interface ILevelCompletedPayload {
+    levelIndex: number;
+    levelName: string;
 }
 
 /**
@@ -244,10 +275,11 @@ export interface IScreen {
 
 //for play session start options
 export interface IPlaySessionStartOptions {
-    /** Asset key for invader mesh template (default: 'invader'). */
-    invaderAssetKey?: string;
     formation?: Partial<IFormationConfig>;
+    /** Single wave (Demo). Ignored when `levels` is provided. */
     stageQueue?: StageQueue;
+    /** Ordered levels (Play); the session loops back to the first after the last. */
+    levels?: ILevelDescriptor[];
 }
 
 // for cubicBezier.ts

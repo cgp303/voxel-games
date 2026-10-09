@@ -4,6 +4,7 @@ import { VoxelWorld } from '../voxel/VoxelWorld';
 import { VoxelGeometry } from '../voxel/VoxelGeometry';
 import { ASSET_PATHS, type AssetKey } from './manifests';
 import { VoxParser } from '../voxel/VoxParser';
+import { disposeObject3D } from '../world/PlayField';
 
 
 /**
@@ -148,7 +149,18 @@ export class AssetManager {
     this.meshTemplates.set(key, template);
   }
 
+  /** Dispose every cached GPU resource (instanced meshes, templates) and forget all models. */
   public clear(): void {
+    for (const mesh of this.instancedMeshes.values()) {
+      mesh.removeFromParent();
+      disposeObject3D(mesh);
+    }
+    for (const template of this.meshTemplates.values()) {
+      template.removeFromParent();
+      disposeObject3D(template);
+    }
+    this.instancedMeshes.clear();
+    this.freeSlots.clear();
     this.models.clear();
     this.meshTemplates.clear();
   }
