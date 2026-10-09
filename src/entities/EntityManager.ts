@@ -63,8 +63,6 @@ export class EntityManager {
 
         // Mark InstancedMesh(es) as needing update
         this.assets.markInstancedMeshesDirty();
-        const mesh = this.assets.getOrCreateInstancedMesh('invader1');
-
     }
 
     public clear(): void {

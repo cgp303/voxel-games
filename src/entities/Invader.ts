@@ -25,6 +25,8 @@ let debugArrowClaimed = false;
 // Put these outside the class or as static/private readonly
 const tempMatrix = new THREE.Matrix4();
 const tempScale = new THREE.Vector3(1, 1, 1);
+// Zero-scale matrix used to hide a released instance.
+const hiddenMatrix = new THREE.Matrix4().makeScale(0, 0, 0);
 
 /**
  * Combat invader: enter along a Bezier, then hold a live formation slot.
@@ -38,7 +40,7 @@ const tempScale = new THREE.Vector3(1, 1, 1);
  * - dock: slerp displayQuat -> baseQuat
  */
 export class Invader extends Entity {
-    public typeId: InvaderTypeId = 'grunt';
+    public typeId: InvaderTypeId = 'scout';
     public poolAssetKey?: string | null = null;
     public scoreValue = 50;
     public mode: InvaderMode = 'inactive';
@@ -68,6 +70,8 @@ export class Invader extends Entity {
     private readonly flightQuat = new Quaternion();
     private readonly bankQuat = new Quaternion();
     private readonly spinQuat = new Quaternion();
+    private readonly inverseLookQuat = new Quaternion();
+    private readonly spinAxisScratch = new Vector3();
 
     private readonly targetFlightQuat = new Quaternion();
 
@@ -103,7 +107,7 @@ export class Invader extends Entity {
     }
 
     public init(cfg: IInvaderInitConfig): void {
-        this.typeId = cfg.typeId ?? 'grunt';
+        this.typeId = cfg.typeId ?? 'scout';
         this.scoreValue = cfg.scoreValue ?? 50;
         this.slot = { ...cfg.slot };
         this.side = cfg.side;
@@ -124,9 +128,10 @@ export class Invader extends Entity {
         this.mode = 'entering';
         this.active = true;
         this.roll = 0;
+        this.spinAngle = 0;
         this.hasPrevForward = false;
-
-        // if (this.object3d) {
+        this.flightQuat.identity();
+        this.prevUp.set(0, 1, 0);
         //     this.object3d.visible = true;
         // }
 
@@ -308,6 +313,8 @@ export class Invader extends Entity {
         const fz = forward.z;
         const horizLen = Math.hypot(fx, fz);
         let targetRoll = 0;
+        // First oriented frame of a path: snap to the path direction instead of turning from the rest pose.
+        const isFirstFrame = !this.hasPrevForward;
 
         if (!allowInversion && this.hasPrevForward && dt > 1e-6 && horizLen > 1e-5) {
             const inv = 1 / horizLen;
@@ -350,9 +357,9 @@ export class Invader extends Entity {
         // }
 
         // Spin around the path tangent
-        const localTangentAxis = forward
-            .clone()
-            .applyQuaternion(this.lookDummy.quaternion.clone().invert());
+        const localTangentAxis = this.spinAxisScratch
+            .copy(forward)
+            .applyQuaternion(this.inverseLookQuat.copy(this.lookDummy.quaternion).invert());
         this.spinQuat.setFromAxisAngle(localTangentAxis, this.spinAngle);
 
         this.targetFlightQuat.multiply(this.spinQuat);
@@ -364,7 +371,11 @@ export class Invader extends Entity {
         // ------------------------------------------------------------------
         // 5. Smooth and apply
         // ------------------------------------------------------------------
-        this.flightQuat.slerp(this.targetFlightQuat, smooth);
+        if (isFirstFrame) {
+            this.flightQuat.copy(this.targetFlightQuat);
+        } else {
+            this.flightQuat.slerp(this.targetFlightQuat, smooth);
+        }
         this.displayQuat.copy(this.flightQuat).multiply(this.baseQuat);
     }
 
@@ -409,8 +420,7 @@ export class Invader extends Entity {
 
         // Hide the instance
         if (this.instanceId >= 0 && this.instancedMesh) {
-            const zeroMatrix = new THREE.Matrix4().makeScale(0, 0, 0);
-            this.instancedMesh.setMatrixAt(this.instanceId, zeroMatrix);
+            this.instancedMesh.setMatrixAt(this.instanceId, hiddenMatrix);
             this.instancedMesh.instanceMatrix.needsUpdate = true;
             this.instanceId = -1;
         }

@@ -1,7 +1,7 @@
 import { Object3D, Vector3 } from 'three';
 import type { EntrySide } from '../../../config/types/types';
 import type { IEntryConfig, IFormationSlot } from '../../../config/interfaces/interfaces';
-import { ENTRY } from '../../../config/data/constants';
+import { ENTRY, INVADER_TYPES } from '../../../config/data/constants';
 import { EntityManager } from '../../../entities/EntityManager';
 import { Invader } from '../../../entities/Invader';
 import type { PlayField } from '../../../world/PlayField';
@@ -34,7 +34,7 @@ export class EntryPatternDirector extends BasePatternDirector {
     private queue: QueueJob[] = [];
     private timer = 0;
     private pairIntervalSec = 1;
-    private assetKey: string = 'invader1'; // default asset key for invaders
+    private getInvaderTypeForSlot: IDirectorContext['getInvaderTypeForSlot'] = () => 'scout';
 
     private readonly homeScratch = new Vector3();
     private readonly spawnScratch = new Vector3();
@@ -44,7 +44,7 @@ export class EntryPatternDirector extends BasePatternDirector {
         this.playField = ctx.playField;
         const entryConfig = ctx.config ?? {};
         this.entry = { ...ENTRY, ...entryConfig };
-        this.assetKey = ctx.assetKey ?? this.assetKey;
+        this.getInvaderTypeForSlot = ctx.getInvaderTypeForSlot;
 
         const perSec = Math.max(0.01, this.entry.invadersPerSecond);
         // Two invaders per pair release.
@@ -167,13 +167,16 @@ export class EntryPatternDirector extends BasePatternDirector {
         const segment = new CubicBezierSegment(controls);
         const pattern = new BezierEntryPattern(segment, entry.pathDuration);
 
-        // 1. Decide assetKey (need to pass this through DirectorContext)
-        const assetKey = this.assetKey; // e.g., 'invader1'
+        // Pick the invader type for this slot and use its instanced mesh.
+        const typeId = this.getInvaderTypeForSlot(slot.col, slot.row);
+        const typeDef = INVADER_TYPES[typeId];
 
-        // 2. Acquire (pool handles clone + shadow traversal on first call only)
-        const invader = this.invaders!.acquireInvader(assetKey);
+        // Acquire (pool handles clone + shadow traversal on first call only)
+        const invader = this.invaders!.acquireInvader(typeDef.assetKey);
 
         invader.reset({
+            typeId,
+            scoreValue: typeDef.scoreValue,
             slot,
             side,
             spawn: this.spawnScratch.clone(),
@@ -181,7 +184,7 @@ export class EntryPatternDirector extends BasePatternDirector {
             formation,
             pathDuration: entry.pathDuration,
             entry: defaultOrientationConfig,
-            poolAssetKey: this.assetKey,
+            poolAssetKey: typeDef.assetKey,
         });
 
         // playField.attachInvader(invader.object3d);

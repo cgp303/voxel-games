@@ -1,5 +1,6 @@
 import { Vector3 } from 'three';
-import { FORMATION } from '../config/data/constants';
+import { FORMATION, SLOT_KEY_STRIDE } from '../config/data/constants';
+import type { SlotOffset } from '../config/types/types';
 import type { IFormationSlot, IFormationConfig, IFormationDescriptor, IPathPattern } from '../config/interfaces/interfaces';
 
 /**
@@ -24,9 +25,18 @@ export class FormationController {
 
     private tempVec3 = new Vector3();
 
+    /** Numeric-keyed copy of descriptor.map, built in setup(). */
+    private readonly slotLookup = new Map<number, SlotOffset>();
+
 
     public setup(terrainHeight: number, descriptor: IFormationDescriptor): void {
         this.descriptor = descriptor;
+
+        this.slotLookup.clear();
+        for (const [key, offset] of descriptor.map) {
+            const [col, row] = key.split(',').map(Number);
+            this.slotLookup.set(col * SLOT_KEY_STRIDE + row, offset);
+        }
 
         // keep root motion config
         this.hoverY = terrainHeight + this.config.hoverPadding;
@@ -61,10 +71,10 @@ export class FormationController {
 
         if (this.pattern) {
             this.patternT += dt / this.pattern.duration;
-            this.pattern.samplePosition(this.patternT, this.rootPosition);
             if (this.patternT >= 1) {
-                this.patternT -= 1;  // or use modulo: this.patternT %= 1
+                this.patternT -= 1;  // wrap before sampling so t never exceeds the path end
             }
+            this.pattern.samplePosition(this.patternT, this.rootPosition);
         } else {
             // Linear velocity as fallback
             this.rootPosition.x += this.rootVelocity.x * dt;
@@ -137,10 +147,9 @@ export class FormationController {
 
     //
     public slotOffset(col: number, row: number, out = new Vector3()): Vector3 {
-        const key = `${col},${row}`;
-        const s = this.descriptor!.map.get(key);
+        const s = this.slotLookup.get(col * SLOT_KEY_STRIDE + row);
         if (!s) {
-            throw new Error(`FormationController: missing slot offset for key ${key}`);
+            throw new Error(`FormationController: missing slot offset for key ${col},${row}`);
         }
         return out.set(s.x, 0, s.z);
     }

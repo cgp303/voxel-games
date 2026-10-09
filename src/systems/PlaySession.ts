@@ -1,6 +1,16 @@
 ﻿import { Vector3 } from 'three';
-import type { IFormationConfig, IIntroStartedPayload, IStageCancelledPayload } from '../config/interfaces/interfaces';
+import type {
+    IFormationConfig,
+    IIntroStartedPayload,
+    IStageCancelledPayload,
+    ILevelDescriptor,
+    ILevelProgress,
+    IWaveClearedPayload,
+    ILevelCompletedPayload,
+} from '../config/interfaces/interfaces';
 import { GameEvents } from '../config/types/types';
+import type { InvaderTypeId } from '../config/types/types';
+import { INSTANCED_ASSETS, LEVEL } from '../config/data/constants';
 import type { IGameContext } from '../config/interfaces/interfaces';
 import { EntityManager } from '../entities/EntityManager';
 import { EntryPatternDirector } from './patterns/directors/EntryPatternDirector';
@@ -8,6 +18,7 @@ import { FormationController } from './FormationController';
 import type { IPatternDirector, IPlaySessionStartOptions } from '../config/interfaces/interfaces';
 import { Stage } from './stages/Stage';
 import { StageQueue } from './stages/StageQueue';
+import { Level } from './stages/Level';
 import { SimpleLoopFormationPatternBuilder } from './patterns/patterns/formation-patterns/SimpleLoopFormationPatternBuilder';
 
 
@@ -32,8 +43,6 @@ export class PlaySession {
     public readonly formation = new FormationController();
 
     private ctx: IGameContext | null = null;
-    // private template: Object3D | null = null;
-    private invaderAssetKey = 'invader1';
     private formationOverride: Partial<IFormationConfig> = {};
     private started = false;
 
@@ -41,6 +50,13 @@ export class PlaySession {
     private currentStage: Stage | null = null;
     private director: IPatternDirector | null = null;
 
+    // Level sequence (null in single-wave mode, e.g. Demo).
+    private levels: ILevelDescriptor[] | null = null;
+    private levelIndex = 0;
+    private level: Level | null = null;
+
+    private readonly getInvaderTypeForSlot = (col: number, row: number): InvaderTypeId =>
+        this.stageQueue?.getTypeForSlot(col, row) ?? 'scout';
 
     /**
      * Clear field, setup formation from terrain height, begin first stage
@@ -50,13 +66,20 @@ export class PlaySession {
 
         this.invaders = new EntityManager(ctx.assets);
 
-        this.invaderAssetKey = options.invaderAssetKey ?? 'invader1';
         this.formationOverride = options.formation ?? {};
 
-        //this.template = ctx.assets.getOrCreateMeshTemplate(this.invaderAssetKey);
-        ctx.assets.getOrCreateInstancedMesh(this.invaderAssetKey, 80);
+        for (const { key, maxCount } of INSTANCED_ASSETS) {
+            ctx.assets.getOrCreateInstancedMesh(key, maxCount);
+        }
 
-        this.stageQueue = options.stageQueue ?? null;
+        if (options.levels && options.levels.length > 0) {
+            this.levels = options.levels;
+            this.levelIndex = 0;
+            this.level = new Level(this.levels[0]);
+            this.stageQueue = this.level.nextWave();
+        } else {
+            this.stageQueue = options.stageQueue ?? null;
+        }
 
         if (this.stageQueue) {
             this.currentStage = this.stageQueue.next();
@@ -68,6 +91,62 @@ export class PlaySession {
 
         this.bootIntro('start');
         this.started = true;
+
+        if (this.level) {
+            this.ctx.events.emit(GameEvents.levelStarted, this.getProgress()!);
+            this.ctx.events.emit(GameEvents.waveStarted, this.getProgress()!);
+        }
+    }
+
+    /** Current level / wave position, or null when not running a level sequence. Pass `out` to avoid allocating. */
+    public getProgress(out: ILevelProgress = { levelIndex: 0, levelName: '', waveIndex: 0, waveCount: 0 }): ILevelProgress | null {
+        if (!this.level) return null;
+        out.levelIndex = this.levelIndex;
+        out.levelName = this.level.name;
+        out.waveIndex = this.level.currentWaveIndex;
+        out.waveCount = this.level.waveCount;
+        return out;
+    }
+
+    /**
+     * Dispose every active invader and start the next wave of the level.
+     * After the last wave the next level begins; after the last level the
+     * sequence loops back to LEVEL.loopFromIndex. No-op outside a level sequence.
+     */
+    public advanceWave(): void {
+        const ctx = this.ctx;
+        const level = this.level;
+        const levels = this.levels;
+        if (!this.started || !ctx || !level || !levels) return;
+
+        const leaving = this.getProgress()!;
+        ctx.events.emit(GameEvents.waveCleared, { ...leaving, reason: 'skipped' } satisfies IWaveClearedPayload);
+
+        this.clearActiveInvaders('manual');
+
+        let nextQueue = level.nextWave();
+        let startedNewLevel = false;
+        if (!nextQueue) {
+            ctx.events.emit(GameEvents.levelCompleted, {
+                levelIndex: this.levelIndex,
+                levelName: level.name,
+            } satisfies ILevelCompletedPayload);
+
+            this.levelIndex = this.levelIndex + 1 >= levels.length ? LEVEL.loopFromIndex : this.levelIndex + 1;
+            this.level = new Level(levels[this.levelIndex]);
+            nextQueue = this.level.nextWave()!;
+            startedNewLevel = true;
+        }
+
+        this.stageQueue = nextQueue;
+        this.currentStage = nextQueue.next();
+        this.director = this.currentStage.director;
+        this.beginCurrentWave('start');
+
+        if (startedNewLevel) {
+            ctx.events.emit(GameEvents.levelStarted, this.getProgress()!);
+        }
+        ctx.events.emit(GameEvents.waveStarted, this.getProgress()!);
     }
 
     /**
@@ -191,21 +270,19 @@ export class PlaySession {
             playField: this.ctx.playField,
             config: this.currentStage.directorConfig,
             scene: this.ctx.scene.scene,
-            assetKey: this.invaderAssetKey,
+            getInvaderTypeForSlot: this.getInvaderTypeForSlot,
         });
     }
 
-    private bootIntro(reason: IIntroStartedPayload['reason']): void {
+    /** Stop the running director and remove every invader (meshes, entities, instance slots). */
+    private clearActiveInvaders(reason: IStageCancelledPayload['reason']): void {
         const ctx = this.ctx;
         if (!ctx) return;
 
-        // Full reset: stop any prior queue, drop actors, rebuild formation + queue.
         if (this.director?.isRunning()) {
-            this.director?.cancel();
+            this.director.cancel();
 
-            ctx.events.emit(GameEvents.stageCancelled, {
-                reason: 'restart',
-            } satisfies IStageCancelledPayload);
+            ctx.events.emit(GameEvents.stageCancelled, { reason } satisfies IStageCancelledPayload);
         } else {
             this.director?.cancel();
         }
@@ -213,8 +290,22 @@ export class PlaySession {
         this.invaders?.clear();
         ctx.playField.clearInvaders();
 
-        // Reset the InstancedMesh count and free-slots for a fresh session
-        ctx.assets.resetInstancedMeshCount(this.invaderAssetKey);
+        // Reset the InstancedMesh count and free-slots for every invader mesh
+        for (const { key } of INSTANCED_ASSETS) {
+            ctx.assets.resetInstancedMeshCount(key);
+        }
+    }
+
+    private bootIntro(reason: IIntroStartedPayload['reason']): void {
+        // Full reset: stop any prior queue, drop actors, rebuild formation + queue.
+        this.clearActiveInvaders('restart');
+        this.beginCurrentWave(reason);
+    }
+
+    /** Set up the formation for the current stageQueue and begin the current stage's director. */
+    private beginCurrentWave(reason: IIntroStartedPayload['reason']): void {
+        const ctx = this.ctx;
+        if (!ctx) return;
 
         const formationDescription = this.stageQueue?.getFormationDescription();
         if (!formationDescription) {
@@ -233,7 +324,7 @@ export class PlaySession {
             invaders: this.invaders,
             playField: ctx.playField,
             config: this.currentStage?.directorConfig ?? {},
-            assetKey: this.invaderAssetKey,
+            getInvaderTypeForSlot: this.getInvaderTypeForSlot,
         });
 
 

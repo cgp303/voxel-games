@@ -23,7 +23,7 @@ export class SimpleLoopFormationPatternBuilder implements IPatternBuilder {
     private static readonly RANGES = [
         { start: 0, end: 0.5 }, { start: 0.5, end: 1 },
     ];
-    private static readonly DURATION = 10; // example duration in seconds
+    private static readonly DURATION = 30; // example duration in seconds
 
     duration(): number {
         return SimpleLoopFormationPatternBuilder.DURATION;

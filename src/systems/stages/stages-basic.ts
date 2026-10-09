@@ -7,9 +7,16 @@ import { ColumnDivesDirector } from '../patterns/directors/ColumnDivesDirector';
 import { ColumnVerticalDirector } from '../patterns/directors/ColumnVerticalDirector';
 import { makeGridFormation, makeVFormation, makeXFormation, makeDiamondFormation, makeCircleFormation, makeStaggeredFormation, makeThreeRingCircleFormation, makeSpiralFormation } from '../patterns/formations/formationBuilders';
 import { GroupAttackPatternDirector } from '../patterns/directors/GroupAttackPatternDirector';
+import type { IFormationDescriptor } from '../../config/interfaces/interfaces';
+import type { InvaderRowRoster } from '../../config/types/types';
 
-export function createBasicStages(): StageQueue {
-    const formation = makeGridFormation(10, 6, 12);
+/** Default roster for a 6-row formation (row 0 = nearest the player). */
+const DEFAULT_ROW_ROSTER: InvaderRowRoster = ['scout', 'scout', 'fighter', 'fighter', 'elite', 'elite'];
+
+export function createBasicStages(
+    formation: IFormationDescriptor = makeGridFormation(10, 6, 12),
+    rowRoster: InvaderRowRoster = DEFAULT_ROW_ROSTER
+): StageQueue {
     return new StageQueue(
         [
             new Stage(
@@ -85,7 +92,8 @@ export function createBasicStages(): StageQueue {
             // ),
         ],
         1, // loopStartIndex
-        formation
+        formation,
+        rowRoster
     );
 }
 
@@ -102,6 +110,7 @@ export function createDemoStages(): StageQueue {
             ),
         ],
         1, // loopStartIndex
-        formation
+        formation,
+        DEFAULT_ROW_ROSTER
     );
 }
