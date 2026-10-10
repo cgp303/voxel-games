@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Group Attack Set Tool</title>
+</head>
+
+<body>
+    <div class="tool">
+        <aside class="panel panel--left">
+            <h1>Formation</h1>
+            <label class="field">
+                <span class="field-label">Formation type</span>
+                <select id="formation-kind"></select>
+            </label>
+            <div id="field-inputs"></div>
+            <p id="formation-error" class="error"></p>
+            <button id="new-formation-button" type="button">New formation</button>
+
+            <h2>Sets</h2>
+            <label class="field">
+                <span class="field-label">Id (list name)</span>
+                <input id="list-name" type="text" spellcheck="false" />
+            </label>
+            <p id="selection-info" class="info"></p>
+            <div class="button-row">
+                <button id="add-set-button" type="button">Add set</button>
+                <button id="delete-set-button" type="button">Delete set</button>
+            </div>
+            <p id="status" class="status" role="status"></p>
+
+            <h2>Legend</h2>
+            <ul class="legend">
+                <li><span class="swatch swatch--left"></span>left</li>
+                <li><span class="swatch swatch--center"></span>center</li>
+                <li><span class="swatch swatch--right"></span>right</li>
+                <li><span class="swatch swatch--pending"></span>selected (not yet a set)</li>
+                <li><span class="swatch swatch--free"></span>free</li>
+            </ul>
+        </aside>
+
+        <main class="panel panel--grid">
+            <div id="grid-wrap">
+                <div id="formation-grid"></div>
+            </div>
+        </main>
+
+        <aside class="panel panel--right">
+            <h2>Set list</h2>
+            <ul id="set-list"></ul>
+            <div class="button-row">
+                <button id="export-button" type="button">Export</button>
+                <button id="copy-button" type="button">Copy</button>
+            </div>
+            <p id="export-message" class="info"></p>
+            <textarea id="export-output" readonly spellcheck="false"></textarea>
+        </aside>
+    </div>
+    <script type="module" src="/group-attack-set-tool/main.ts"></script>
+</body>
+
+</html>

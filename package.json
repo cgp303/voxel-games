@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "editor": "vite --open /bezier-editor.html",
+    "group-tool": "vite --open /group-attack-set-tool/index.html",
     "build": "tsc && vite build",
     "preview": "vite preview"
   },

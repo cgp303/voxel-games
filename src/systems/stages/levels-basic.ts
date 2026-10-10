@@ -19,16 +19,16 @@ export function createBasicLevels(): ILevelDescriptor[] {
         {
             name: 'Level 1',
             waves: [
-                () => createBasicStages(makeGridFormation(10, 6, 12), CLASSIC_ROSTER),
-                () => createBasicStages(makeVFormation(10, 6, 12), CLASSIC_ROSTER),
-                () => createBasicStages(makeDiamondFormation(10, 6, 12), CLASSIC_ROSTER),
+                () => createBasicStages(makeGridFormation(10, 6, 12), CLASSIC_ROSTER, "Grid"),
+                () => createBasicStages(makeVFormation(10, 6, 12), CLASSIC_ROSTER, "V"),
+                () => createBasicStages(makeDiamondFormation(10, 6, 12), CLASSIC_ROSTER, "Diamond"),
             ],
         },
         {
             name: 'Level 2',
             waves: [
-                () => createBasicStages(makeDiamondFormation(10, 6, 12), ELITE_HEAVY_ROSTER),
-                () => createBasicStages(makeXFormation(10, 6, 12), ELITE_HEAVY_ROSTER),
+                () => createBasicStages(makeDiamondFormation(10, 6, 12), ELITE_HEAVY_ROSTER, "Diamond"),
+                () => createBasicStages(makeXFormation(10, 6, 12), ELITE_HEAVY_ROSTER, "X"),
             ],
         },
     ];

@@ -67,12 +67,35 @@ export type GameEventName = (typeof GameEvents)[keyof typeof GameEvents];
 
 // invader group formation types.
 export type GroupType =
-    | "groups2x2"
-    | "groups3x3"
-    | "groupCrosses"
-    | "groupXs"
-    | "groupTs"
-    | "groupDiamonds";
+    // Grid formations
+    | "group2x2Grid"
+    | "group3x3Grid"
+    | "groupCrossesGrid"
+    | "groupXsGrid"
+    | "groupTsGrid"
+    | "groupDiamondsGrid"
+    // V formations
+    | "group2x2V"
+    | "group3x3V"
+    | "groupCrossesV"
+    | "groupXsV"
+    | "groupTsV"
+    | "groupDiamondsV"
+    // Diamond formations
+    | "group2x2Diamond"
+    | "group3x3Diamond"
+    | "groupCrossesDiamond"
+    | "groupDiamond"
+    | "groupTsDiamond"
+    | "groupDiamondsDiamond"
+    // X formations
+    | "group2x2X"
+    | "group3x3X"
+    | "groupCrossesX"
+    | "groupXsX"
+    | "groupTsX"
+    | "groupDiamondsX"
+    ;
 
 // for formationBuilders.ts
 export type SlotOffset = { x: number; z: number };
@@ -91,3 +114,5 @@ export type FitRect = {
 
 // demoscreen 
 export type DemoAttractPanel = 'info' | 'highscores';
+
+export type PatternType = "Grid" | "V" | "X" | "Diamond";

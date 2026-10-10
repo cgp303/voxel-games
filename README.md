@@ -399,6 +399,12 @@ npm run build
 npm run preview
 ```
 
+Group attack set tool (authoring helper for `src/config/pattern-config/GroupAttackSets.ts`, lives in `group-attack-set-tool/`):
+
+```bash
+npm run group-tool
+```
+
 ---
 
 ## 19. Milestone status
