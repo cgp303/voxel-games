@@ -63,6 +63,15 @@ export class PlaySession {
     private debris: DebrisSystem | null = null;
     private readonly debrisVelocity = new Vector3();
     private frameDt = 0;
+    /** Seconds until a destroyed player respawns (the length of their explosion). */
+    private respawnCountdown = 0;
+    /** True when the destroyed player had no lives left: the game ends once the explosion has finished. */
+    private gameOverPending = false;
+
+    /** True once the current wave's entry stage has finished spawning, so an empty field means the wave is cleared. */
+    private entryFinished = false;
+    /** Seconds left in the "next wave" pause after a wave is cleared (0 when not paused). */
+    private waveClearRemaining = 0;
 
     private ctx: IGameContext | null = null;
     private formationOverride: Partial<IFormationConfig> = {};
@@ -139,15 +148,25 @@ export class PlaySession {
      * sequence loops back to LEVEL.loopFromIndex. No-op outside a level sequence.
      */
     public advanceWave(): void {
+        this.startNextWave('skipped');
+    }
+
+    /** True while the "next wave" pause is showing after every invader of a wave has been destroyed. */
+    public get isBetweenWaves(): boolean {
+        return this.waveClearRemaining > 0;
+    }
+
+    private startNextWave(reason: IWaveClearedPayload['reason']): void {
         const ctx = this.ctx;
         const level = this.level;
         const levels = this.levels;
         if (!this.started || !ctx || !level || !levels) return;
 
         const leaving = this.getProgress()!;
-        ctx.events.emit(GameEvents.waveCleared, { ...leaving, reason: 'skipped' } satisfies IWaveClearedPayload);
+        ctx.events.emit(GameEvents.waveCleared, { ...leaving, reason } satisfies IWaveClearedPayload);
 
-        this.clearActiveInvaders('manual');
+        // A skip cancels a running stage; a finished wave has nothing left to cancel, so stay quiet.
+        this.clearActiveInvaders('manual', reason === 'skipped');
 
         let nextQueue = level.nextWave();
         let startedNewLevel = false;
@@ -235,8 +254,11 @@ export class PlaySession {
     public update(dt: number): void {
         if (!this.started) return;
 
-        this.formation.update(dt);
-        this.director?.update(dt);
+        const betweenWaves = this.isBetweenWaves;
+        if (!betweenWaves) {
+            this.formation.update(dt);
+            this.director?.update(dt);
+        }
 
         // Player first: invaders.update() flags all instanced meshes dirty once, at the end.
         this.updatePlayer(dt);
@@ -246,10 +268,28 @@ export class PlaySession {
         this.debris?.update(dt);
         this.updateCollisions();
 
+        if (betweenWaves) {
+            this.waveClearRemaining -= dt;
+            if (this.waveClearRemaining <= 0) this.startNextWave('finished');
+            return;
+        }
+
         if (this.director?.isComplete()) {
             this.advanceStage();
         }
+        this.checkWaveCleared();
+    }
 
+    /** Once every invader of the wave has been spawned and destroyed, pause briefly and then go to the next wave. */
+    private checkWaveCleared(): void {
+        if (!this.level || !this.entryFinished || this.gameOverPending || this.gameOver) return;
+        if (!this.invaders || this.invaders.count > 0) return;
+
+        if (LEVEL.waveClearDelaySec > 0) {
+            this.waveClearRemaining = LEVEL.waveClearDelaySec;
+        } else {
+            this.startNextWave('finished');
+        }
     }
 
     public isStarted(): boolean {
@@ -374,19 +414,16 @@ export class PlaySession {
         this.invaders?.remove(invader);
     }
 
-    /** Loses a life, then either respawns the ship (flashing, protected) or ends the game. */
+    /** Loses a life. The ship stays out of play until its explosion has finished, then respawns or the game ends. */
     private onPlayerHit(player: Player): void {
         const ctx = this.ctx;
         if (DEBUG.invinciblePlayer || !ctx) return;
 
-        this.explodePlayer(player);
+        const explosionSec = this.explodePlayer(player);
         ctx.events.emit(GameEvents.playerDied, undefined);
-        if (ctx.game.loseLife()) {
-            this.removePlayer();
-            this.gameOver = true;
-        } else {
-            player.respawn();
-        }
+        player.down();
+        this.respawnCountdown = explosionSec;
+        this.gameOverPending = ctx.game.loseLife();
     }
 
     private explodeInvader(invader: Invader): void {
@@ -401,20 +438,22 @@ export class PlaySession {
         this.explode('invader', invader.assetKey, invader.position, invader.orientation, this.debrisVelocity);
     }
 
-    private explodePlayer(player: Player): void {
-        this.explode('player', PLAYER.assetKey, player.position, player.orientation, player.velocity);
+    /** Returns how long (s) the player's explosion takes to finish. */
+    private explodePlayer(player: Player): number {
+        return this.explode('player', PLAYER.assetKey, player.position, player.orientation, player.velocity);
     }
 
+    /** Spawns the debris for a destroyed ship and returns the longest particle lifetime (0 if there is no debris system). */
     private explode(
         kind: ExplosionKind,
         assetKey: string,
         position: Vector3,
         orientation: Quaternion,
         velocity: Vector3,
-    ): void {
+    ): number {
         const ctx = this.ctx;
-        if (!this.debris || !ctx) return;
-        this.debris.explode(kind, ctx.assets.getVoxelCloud(assetKey), position, orientation, velocity);
+        if (!this.debris || !ctx) return 0;
+        return this.debris.explode(kind, ctx.assets.getVoxelCloud(assetKey), position, orientation, velocity);
     }
 
     /** Shots already in flight keep travelling; they are only cleared on dispose. */
@@ -430,13 +469,27 @@ export class PlaySession {
         if (!player || !input) return;
 
         const anyDown = (keys: readonly string[]): number => (keys.some((k) => input.isDown(k)) ? 1 : 0);
+
+        // A destroyed ship stays out of play until its explosion has finished.
+        if (player.isDown) {
+            this.respawnCountdown -= dt;
+            if (this.respawnCountdown > 0) return;
+            if (this.gameOverPending) {
+                this.removePlayer();
+                this.gameOver = true;
+                return;
+            }
+            // Respawns flashing and protected.
+            player.respawn();
+        }
+
         const axisX = anyDown(PLAYER.keys.right) - anyDown(PLAYER.keys.left);
         const axisZ = anyDown(PLAYER.keys.forward) - anyDown(PLAYER.keys.back);
         player.setInput(axisX, axisZ);
         player.update(dt);
 
         this.playerWeapon?.update(dt);
-        if (anyDown(PLAYER.keys.fire) && !player.isRespawning) {
+        if (anyDown(PLAYER.keys.fire) && player.canFire) {
             this.playerWeapon?.tryFire(player.position);
         }
     }
@@ -447,6 +500,8 @@ export class PlaySession {
 
     private advanceStage(): void {
         if (!this.stageQueue || !this.ctx) return;
+        // The entry stage is the only one that spawns invaders, so once it completes the whole wave is on the field.
+        this.entryFinished = true;
         if (this.onlyEntryStage()) {
             return;
         }
@@ -465,14 +520,16 @@ export class PlaySession {
     }
 
     /** Stop the running director and remove every invader (meshes, entities, instance slots). */
-    private clearActiveInvaders(reason: IStageCancelledPayload['reason']): void {
+    private clearActiveInvaders(reason: IStageCancelledPayload['reason'], announce = true): void {
         const ctx = this.ctx;
         if (!ctx) return;
 
         if (this.director?.isRunning()) {
             this.director.cancel();
 
-            ctx.events.emit(GameEvents.stageCancelled, { reason } satisfies IStageCancelledPayload);
+            if (announce) {
+                ctx.events.emit(GameEvents.stageCancelled, { reason } satisfies IStageCancelledPayload);
+            }
         } else {
             this.director?.cancel();
         }
@@ -496,6 +553,9 @@ export class PlaySession {
     private beginCurrentWave(reason: IIntroStartedPayload['reason']): void {
         const ctx = this.ctx;
         if (!ctx) return;
+
+        this.entryFinished = false;
+        this.waveClearRemaining = 0;
 
         const formationDescription = this.stageQueue?.getFormationDescription();
         if (!formationDescription) {

@@ -8,14 +8,14 @@ export class SimpleLoopFormationPatternBuilder implements IPatternBuilder {
     private static readonly SEGMENTS: ICubicBezierControls[] = [
         {
             p0: new Vector3(0, 20, 78),
-            p1: new Vector3(20, 20, 38),
-            p2: new Vector3(20, 20, 118),
+            p1: new Vector3(60, 20, 78),
+            p2: new Vector3(60, 20, 118),
             p3: new Vector3(0, 20, 78),
         },
         {
             p0: new Vector3(0, 20, 78),
-            p1: new Vector3(-20, 20, 118),
-            p2: new Vector3(-20, 20, -38),
+            p1: new Vector3(-60, 20, 118),
+            p2: new Vector3(-60, 20, -148),
             p3: new Vector3(0, 20, 78),
         },
     ];
@@ -23,7 +23,7 @@ export class SimpleLoopFormationPatternBuilder implements IPatternBuilder {
     private static readonly RANGES = [
         { start: 0, end: 0.5 }, { start: 0.5, end: 1 },
     ];
-    private static readonly DURATION = 30; // example duration in seconds
+    private static readonly DURATION = 10; // example duration in seconds
 
     duration(): number {
         return SimpleLoopFormationPatternBuilder.DURATION;

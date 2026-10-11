@@ -17,6 +17,8 @@ export class PlayScreen implements IScreen {
   private gameOverScreen: GameOverScreen | null = null;
   private session: PlaySession | null = null;
   private hud: HTMLDivElement | null = null;
+  private banner: HTMLDivElement | null = null;
+  private bannerShown = false;
 
   // Last values written to the HUD; refreshHud() skips the DOM write when unchanged.
   private hudScore = NaN;
@@ -49,6 +51,7 @@ export class PlayScreen implements IScreen {
 
 
     this.ensureHud();
+    this.ensureBanner();
     this.refreshHud();
     console.log('[PlayScreen] enter — entry intro; Esc=Demo, G=GameOver');
   }
@@ -57,6 +60,7 @@ export class PlayScreen implements IScreen {
     this.session?.dispose();
     this.session = null;
     this.destroyHud();
+    this.destroyBanner();
     if (this.ctx) {
       this.ctx.camera.controls.enabled = true;
     }
@@ -70,6 +74,7 @@ export class PlayScreen implements IScreen {
 
     this.session?.update(dt);
     this.refreshHud();
+    this.refreshBanner();
 
     if (this.session?.gameOver) {
       void ctx.screens.set(this.gameOverScreen);
@@ -118,6 +123,47 @@ export class PlayScreen implements IScreen {
     this.hud?.remove();
     this.hud = null;
     this.hudScore = NaN; // force a rewrite when the HUD is next created
+  }
+
+  /** Centre-screen message shown between waves. */
+  private ensureBanner(): void {
+    if (this.banner) return;
+    const el = document.createElement('div');
+    el.id = 'play-banner';
+    el.textContent = 'NEXT WAVE';
+    el.style.cssText = [
+      'position: absolute',
+      'top: 38%',
+      'left: 50%',
+      'transform: translate(-50%, -50%)',
+      'color: #7CFF7C',
+      'font-family: Courier New, monospace',
+      'font-size: 56px',
+      'font-weight: bold',
+      'letter-spacing: 8px',
+      'text-shadow: 0 0 12px #00ff66, 0 0 28px #00ff66',
+      'z-index: 90',
+      'pointer-events: none',
+      'display: none',
+    ].join(';');
+    document.getElementById('ui-root')?.appendChild(el);
+    this.banner = el;
+    this.bannerShown = false;
+  }
+
+  private destroyBanner(): void {
+    this.banner?.remove();
+    this.banner = null;
+    this.bannerShown = false;
+  }
+
+  /** Shows "NEXT WAVE" while the session is paused between waves; only touches the DOM when that changes. */
+  private refreshBanner(): void {
+    if (!this.banner) return;
+    const show = this.session?.isBetweenWaves ?? false;
+    if (show === this.bannerShown) return;
+    this.bannerShown = show;
+    this.banner.style.display = show ? 'block' : 'none';
   }
 
   /** Rewrites the DOM only when a displayed value changed (avoids per-frame text/DOM churn). */

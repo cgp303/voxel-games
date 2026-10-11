@@ -34,6 +34,8 @@ export class Player extends Entity implements ICollisionTarget {
     /** Seconds of respawn protection left; while > 0 the ship flashes, cannot fire and is not collidable. */
     private respawnRemaining = 0;
     private flashVisible = true;
+    /** True between being destroyed and respawn(): hidden, ignores input, not collidable. */
+    private downed = false;
 
     constructor(mesh: InstancedMesh, bounds: IPlayerBounds, spawnX = 0) {
         super(null);
@@ -52,8 +54,27 @@ export class Player extends Entity implements ICollisionTarget {
         return this.respawnRemaining > 0;
     }
 
+    public get isDown(): boolean {
+        return this.downed;
+    }
+
+    /** The ship may only fire when it is in play and not in its protected respawn period. */
+    public get canFire(): boolean {
+        return !this.downed && this.respawnRemaining <= 0;
+    }
+
+    /** Takes the ship out of play (hidden, no input, no collisions) until respawn() is called. */
+    public down(): void {
+        this.downed = true;
+        this.respawnRemaining = 0;
+        this.velocity.set(0, 0, 0);
+        this.flashVisible = false;
+        this.syncTransform();
+    }
+
     /** Puts the ship back at its original position and starts the protected, flashing respawn period. */
     public respawn(): void {
+        this.downed = false;
         this.position.set(this.spawnX, this.bounds.y, PLAYER.spawnZ);
         this.velocity.set(0, 0, 0);
         this.roll = 0;
@@ -69,7 +90,7 @@ export class Player extends Entity implements ICollisionTarget {
     }
 
     public override update(dt: number): void {
-        if (!this.active) return;
+        if (!this.active || this.downed) return;
 
         if (this.respawnRemaining > 0) {
             this.respawnRemaining = Math.max(0, this.respawnRemaining - dt);
@@ -109,7 +130,7 @@ export class Player extends Entity implements ICollisionTarget {
     }
 
     public get collisionEnabled(): boolean {
-        return this.active && this.respawnRemaining <= 0;
+        return this.active && !this.downed && this.respawnRemaining <= 0;
     }
 
     public getCollisionRoll(): number {

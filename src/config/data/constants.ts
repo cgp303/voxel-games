@@ -96,7 +96,7 @@ export const WEAPONS: Record<WeaponType, IWeaponConfig> = {
         maxCount: 32,
         fireIntervalSec: 0.25,
         speed: 180,
-        despawnZ: 170,
+        despawnZ: 320,
         fadeDurationSec: 0.15,
         muzzleOffset: { x: 0, y: 0, z: 4 },
         modelRotationY: 0,
@@ -164,7 +164,7 @@ export const FX: IFxSettings = {
  */
 export const EXPLOSION: IDebrisConfig = {
     maxParticles: 4000,
-    gravity: 60,
+    gravity: 80,
     airDrag: 0.25,
     restitution: 0.45,
     bounceFriction: 0.2,
@@ -172,19 +172,19 @@ export const EXPLOSION: IDebrisConfig = {
     spinImpactDamping: 0.65,
     spinContactDamping: 2.5,
     restSpeed: 4,
-    particleSize: 1,
-    fadeSec: 0.6,
+    particleSize: 1.5,
+    fadeSec: 0.1,
     killBelowY: -60,
     maxStepSec: 1 / 20,
     profiles: {
         invader: {
             speed: [14, 38],
-            upward: [6, 22],
-            scatter: 6,
+            upward: [32, 92],
+            scatter: 1,
             inheritVelocity: 0.5,
             spin: [4, 16],
-            life: [3, 5],
-            glow: { color: [1, 0.85, 0.55], intensity: 4, durationSec: 0.6 },
+            life: [0.5, 1],
+            glow: { color: [1, 0.85, 0.55], intensity: 2, durationSec: 0.8 },
         },
         player: {
             speed: [20, 52],
@@ -192,8 +192,8 @@ export const EXPLOSION: IDebrisConfig = {
             scatter: 8,
             inheritVelocity: 0.5,
             spin: [4, 18],
-            life: [3.5, 5.5],
-            glow: { color: [0.6, 0.85, 1], intensity: 5, durationSec: 0.9 },
+            life: [1, 2.5],
+            glow: { color: [0.6, 0.85, 1], intensity: 2, durationSec: 0.8 },
         },
     },
 };
@@ -201,6 +201,8 @@ export const EXPLOSION: IDebrisConfig = {
 /** Level progression. After the last level the session wraps to levels[loopFromIndex]. */
 export const LEVEL = {
     loopFromIndex: 0,
+    /** Pause (s) showing "NEXT WAVE" after the last invader of a wave is destroyed. */
+    waveClearDelaySec: 2.5,
 } as const;
 
 /** Dev/test helpers. Disable (or remove) before shipping. */
@@ -324,7 +326,7 @@ export const VIEW = {
 } as const;
 
 export const CAMERA = {
-    isoAngleDeg: 36,
+    isoAngleDeg: 20,
     distanceFactor: 0.3,
 } as const;
 

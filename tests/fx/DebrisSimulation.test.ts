@@ -74,10 +74,31 @@ function step(sim: DebrisSimulation, seconds: number, dt = 1 / 60): void {
     for (let t = 0; t < seconds; t += dt) sim.update(dt);
 }
 
+test('spawn returns the longest particle lifetime, the moment the explosion has finished', () => {
+    const config = { ...baseConfig, profiles: {
+        ...baseConfig.profiles,
+        invader: { ...baseConfig.profiles.invader, life: [1, 3] as const },
+    } };
+    const sim = new DebrisSimulation(config, flatGround(0), seeded(21));
+    const voxels = Array.from({ length: 40 }, (_, i): [number, number, number] => [i, 0, 0]);
+    const longest = sim.spawn('invader', cloudOf(...voxels), { x: 0, y: 5, z: 0 }, identity, still);
+    assert.ok(longest > 2 && longest <= 3, `longest ${longest}`);
+
+    step(sim, longest - 0.1);
+    assert.ok(sim.count > 0, 'something is still alive just before the longest life');
+    step(sim, 0.2);
+    assert.equal(sim.count, 0);
+});
+
+test('debris with no particles reports no lifetime', () => {
+    const sim = new DebrisSimulation({ ...baseConfig, maxParticles: 0 }, flatGround(0), seeded(22));
+    assert.equal(sim.spawn('invader', cloudOf([0, 0, 0]), { x: 0, y: 0, z: 0 }, identity, still), 0);
+});
+
 test('spawn makes one particle per voxel placed by the entity pose', () => {
     const sim = new DebrisSimulation(baseConfig, flatGround(-1000), seeded(1));
-    const made = sim.spawn('invader', cloudOf([1, 0, 0], [0, 0, 2]), { x: 10, y: 20, z: 30 }, identity, still);
-    assert.equal(made, 2);
+    const longestLife = sim.spawn('invader', cloudOf([1, 0, 0], [0, 0, 2]), { x: 10, y: 20, z: 30 }, identity, still);
+    assert.equal(longestLife, 2);
     assert.equal(sim.count, 2);
     assert.deepEqual([sim.px[0], sim.py[0], sim.pz[0]], [11, 20, 30]);
     assert.deepEqual([sim.px[1], sim.py[1], sim.pz[1]], [10, 20, 32]);

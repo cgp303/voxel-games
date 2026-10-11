@@ -20,17 +20,21 @@ export class DebrisSystem {
         this.mesh = this.renderer.mesh;
     }
 
-    /** Breaks a model apart into debris at the given world pose; `velocity` is the dying entity's own motion. */
+    /**
+     * Breaks a model apart into debris at the given world pose; `velocity` is the dying entity's own motion.
+     * Returns the longest lifetime (s) of the new debris, i.e. how long until the explosion has finished.
+     */
     public explode(
         kind: ExplosionKind,
         cloud: IVoxelCloud,
         origin: IVector3Like,
         orientation: IQuaternionLike,
         velocity: IVector3Like,
-    ): void {
-        this.simulation.spawn(kind, cloud, origin, orientation, velocity);
+    ): number {
+        const longestLife = this.simulation.spawn(kind, cloud, origin, orientation, velocity);
         // Show the new debris this frame rather than a frame late.
         this.renderer.sync(this.simulation);
+        return longestLife;
     }
 
     public update(dt: number): void {

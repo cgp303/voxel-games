@@ -103,7 +103,7 @@ export class DebrisSimulation {
     /**
      * Breaks a model into one particle per voxel. `orientation` and `origin` place the model in the world;
      * `velocity` is the dying entity's own velocity. When the pool is full the oldest-looking debris is replaced.
-     * Returns the number of particles created.
+     * Returns the longest lifetime (s) among the particles created, i.e. when the explosion has fully finished.
      */
     public spawn(
         kind: ExplosionKind,
@@ -118,6 +118,7 @@ export class DebrisSimulation {
         const profile = this.config.profiles[kind];
         const kindIndex = this.profileIndex[kind];
         const { x: qx, y: qy, z: qz, w: qw } = orientation;
+        let longestLife = 0;
 
         for (let i = 0; i < cloud.count; i++) {
             const slot = this.liveCount < capacity ? this.liveCount++ : this.pickEvictionSlot();
@@ -159,7 +160,9 @@ export class DebrisSimulation {
             this.spinAngle[slot] = 0;
 
             this.age[slot] = 0;
-            this.life[slot] = this.between(profile.life);
+            const life = this.between(profile.life);
+            this.life[slot] = life;
+            if (life > longestLife) longestLife = life;
             this.baseR[slot] = cloud.r[i];
             this.baseG[slot] = cloud.g[i];
             this.baseB[slot] = cloud.b[i];
@@ -167,7 +170,7 @@ export class DebrisSimulation {
 
             this.writeOutputs(slot);
         }
-        return cloud.count;
+        return longestLife;
     }
 
     public update(dtRaw: number): void {

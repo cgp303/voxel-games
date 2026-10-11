@@ -37,11 +37,11 @@ export function createBasicStages(
             ),
 
             new Stage(
-                "Figure Eight Again",
-                new FigureEightDirector(),
+                "Column Vertical",
+                new ColumnVerticalDirector(),
                 { orientation: "front" },
-                1.2,
-                1.4
+                1.0,
+                1.2
             ),
 
             new Stage(
@@ -69,11 +69,11 @@ export function createBasicStages(
             ),
 
             new Stage(
-                "Column Vertical",
-                new ColumnVerticalDirector(),
+                "Figure Eight Again",
+                new FigureEightDirector(),
                 { orientation: "front" },
-                1.0,
-                1.2
+                1.2,
+                1.4
             ),
 
             new Stage(
@@ -100,6 +100,7 @@ export function createBasicStages(
 
 export function createDemoStages(): StageQueue {
     const formation = makeVFormation(10, 6, 12);
+    const patternType = "V";
     return new StageQueue(
         [
             new Stage(
@@ -109,6 +110,34 @@ export function createDemoStages(): StageQueue {
                 0.5,
                 1.0
             ),
+            new Stage(
+                "Column Vertical",
+                new ColumnVerticalDirector(),
+                { orientation: "front" },
+                1.0,
+                1.2
+            ),
+            new Stage(
+                "Group Attack",
+                new GroupAttackPatternDirector([[`group2x2${patternType}`, 2, 1]]),
+                { orientation: "front" },
+                1.4,
+                1.6
+            ),
+            new Stage(
+                "Figure Eight Again",
+                new FigureEightDirector(),
+                { orientation: "front" },
+                1.2,
+                1.4
+            ),
+            new Stage(
+                "Group Attack",
+                new GroupAttackPatternDirector([[`groupXs${patternType}`, 2, 0]]),
+                { orientation: "front" },
+                1.4,
+                1.6
+            )
         ],
         1, // loopStartIndex
         formation,
