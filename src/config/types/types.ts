@@ -85,7 +85,7 @@ export type GroupType =
     | "group2x2Diamond"
     | "group3x3Diamond"
     | "groupCrossesDiamond"
-    | "groupDiamond"
+    | "groupXsDiamond"
     | "groupTsDiamond"
     | "groupDiamondsDiamond"
     // X formations
@@ -116,3 +116,10 @@ export type FitRect = {
 export type DemoAttractPanel = 'info' | 'highscores';
 
 export type PatternType = "Grid" | "V" | "X" | "Diamond";
+
+// weapons and projectiles
+/** Weapon kinds; add Missile, SmartBomb etc. when implemented. */
+export type WeaponType = 'Laser';
+
+/** Pooled projectile lifecycle: Idle (hidden in pool), Flying, Fading (shrinking before release). */
+export type ProjectileState = 'Idle' | 'Flying' | 'Fading';

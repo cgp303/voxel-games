@@ -8,6 +8,7 @@
     "editor": "vite --open /bezier-editor.html",
     "group-tool": "vite --open /group-attack-set-tool/index.html",
     "build": "tsc && vite build",
+    "test": "node --test \"tests/**/*.test.ts\"",
     "preview": "vite preview"
   },
   "devDependencies": {

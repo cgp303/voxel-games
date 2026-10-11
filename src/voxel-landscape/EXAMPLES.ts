@@ -22,7 +22,7 @@ export function example1_DefaultTerrain(scene: THREE.Scene) {
     console.log(`Generated terrain: ${terrain.voxels.length} voxels`);
 
     // Use existing VoxelWorld pipeline
-    const world = new VoxelWorld();
+    const world = new VoxelWorld(terrain.size);
     VoxParser.populateWorld(world, terrain);
 
     // Convert to Three.js mesh with our optimized geometry
@@ -47,7 +47,7 @@ export function example2_CompareTerrains(scene: THREE.Scene) {
         const generator = new TerrainGenerator(config);
         const terrain = generator.generate();
 
-        const world = new VoxelWorld();
+        const world = new VoxelWorld(terrain.size);
         VoxParser.populateWorld(world, terrain);
 
         const mesh = VoxelGeometry.createMesh(world, terrain.colors);
@@ -100,7 +100,7 @@ export function example3_CustomTerrain(scene: THREE.Scene) {
     const generator = new TerrainGenerator(customConfig);
     const terrain = generator.generate();
 
-    const world = new VoxelWorld();
+    const world = new VoxelWorld(terrain.size);
     VoxParser.populateWorld(world, terrain);
 
     const mesh = VoxelGeometry.createMesh(world, terrain.colors);

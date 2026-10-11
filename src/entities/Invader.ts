@@ -13,9 +13,12 @@ import type {
     InvaderTypeId,
 } from '../config/types/types';
 import type { IPathPattern, IEntryConfig, IFormationSlot, IInvaderInitConfig, ICubicBezierControls } from '../config/interfaces/interfaces';
-import { ENTRY } from '../config/data/constants';
+import { ENTRY, COLLISION } from '../config/data/constants';
 import type { FormationController } from '../systems/FormationController';
 import { Entity } from './Entity';
+import { CollisionLayer } from '../systems/collision/CollisionLayers';
+import type { CollisionModelSet } from '../systems/collision/CollisionModel';
+import type { ICollisionMover, ICollisionTarget } from '../systems/collision/collisionTypes';
 
 
 
@@ -39,13 +42,21 @@ const hiddenMatrix = new THREE.Matrix4().makeScale(0, 0, 0);
  * - displayQuat = flightWithBank * baseQuat  during entry
  * - dock: slerp displayQuat -> baseQuat
  */
-export class Invader extends Entity {
+export class Invader extends Entity implements ICollisionTarget, ICollisionMover {
     public typeId: InvaderTypeId = 'scout';
     public poolAssetKey?: string | null = null;
     public scoreValue = 50;
     public mode: InvaderMode = 'inactive';
     public slot: IFormationSlot = { col: 0, row: 0 };
     public side: EntrySide = 'left';
+
+    public readonly collisionLayer = CollisionLayer.INVADER;
+    /** Baked footprints of this invader's model; assigned when the invader is acquired. */
+    public collisionModels: CollisionModelSet | null = null;
+    /** As a mover (invader ramming the player), the invader is approximated by a circle of this radius. */
+    public readonly collisionRadius = COLLISION.invaderRadius;
+    /** Position at the start of the last update; the collision sweep runs previousPosition -> position. */
+    public readonly previousPosition = new Vector3();
 
     // Instanced mesh identifiers for rendering.
     public instanceId: number = -1;
@@ -125,6 +136,7 @@ export class Invader extends Entity {
 
         this.velocity.set(0, 0, 0);
         this.position.copy(cfg.spawn);
+        this.previousPosition.copy(cfg.spawn);
         this.mode = 'entering';
         this.active = true;
         this.roll = 0;
@@ -178,6 +190,7 @@ export class Invader extends Entity {
 
     public override update(dt: number): void {
         if (!this.active) return;
+        this.previousPosition.copy(this.position);
 
         switch (this.mode) {
             case 'entering':
@@ -409,6 +422,16 @@ export class Invader extends Entity {
 
     public isInFormation(): boolean {
         return this.mode === 'formation';
+    }
+
+    /** Alive and on the field (not yet dying or released to the pool). */
+    public get collisionEnabled(): boolean {
+        return this.active && (this.mode === 'entering' || this.mode === 'formation' || this.mode === 'diving');
+    }
+
+    /** Net rotation about the local Z (travel) axis: the bank and spin twist of the display orientation. */
+    public getCollisionRoll(): number {
+        return 2 * Math.atan2(this.displayQuat.z, this.displayQuat.w);
     }
 
     public override dispose(): void {

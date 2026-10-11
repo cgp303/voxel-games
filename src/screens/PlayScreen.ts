@@ -43,7 +43,8 @@ export class PlayScreen implements IScreen {
     this.session?.dispose();
     this.session = new PlaySession();
     this.session.start(ctx, {
-      levels: createBasicLevels()
+      levels: createBasicLevels(),
+      spawnPlayer: true,
     });
 
 
@@ -70,6 +71,10 @@ export class PlayScreen implements IScreen {
     this.session?.update(dt);
     this.refreshHud();
 
+    if (this.session?.gameOver) {
+      void ctx.screens.set(this.gameOverScreen);
+      return;
+    }
     // Quit play → Demo: session disposed on exit; Demo enter starts a fresh intro
     if (ctx.input.wasPressed('Escape')) {
       void ctx.screens.set(this.demoScreen);
@@ -77,7 +82,7 @@ export class PlayScreen implements IScreen {
     }
 
     // Test hook: dispose all invaders and jump to the next wave / level
-    if (DEBUG.enableWaveSkip && ctx.input.wasPressed(DEBUG.skipWaveKey)) {
+    if (DEBUG.enableWaveSkip && ctx.input.wasAnyPressed(...DEBUG.skipWaveKeys)) {
       this.session?.advanceWave();
     }
 
@@ -149,7 +154,7 @@ export class PlayScreen implements IScreen {
     const waveNote = progress
       ? `  ${progress.levelName} W${progress.waveIndex + 1}/${progress.waveCount}`
       : '';
-    const skipNote = DEBUG.enableWaveSkip ? '  SPACE=NextWave' : '';
+    const skipNote = DEBUG.enableWaveSkip ? '  L=NextWave' : '';
 
     this.hud.textContent =
       'SCORE ' + g.score + '   LIVES ' + g.lives + '   ESC=Demo  G=Die' + skipNote + waveNote + entryNote;

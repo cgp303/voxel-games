@@ -10,9 +10,16 @@ import type {
 } from '../config/interfaces/interfaces';
 import { GameEvents } from '../config/types/types';
 import type { InvaderTypeId } from '../config/types/types';
-import { INSTANCED_ASSETS, LEVEL } from '../config/data/constants';
+import { INSTANCED_ASSETS, INVADER_ASSET_KEYS, LEVEL, PLAYER, WEAPONS, COLLISION, DEBUG } from '../config/data/constants';
 import type { IGameContext } from '../config/interfaces/interfaces';
 import { EntityManager } from '../entities/EntityManager';
+import { Invader } from '../entities/Invader';
+import { Player } from '../entities/Player';
+import { Projectile } from '../entities/Projectile';
+import { Weapon } from '../entities/Weapon';
+import { ProjectilePool } from './ProjectilePool';
+import { CollisionSystem } from './collision/CollisionSystem';
+import type { ICollisionHit, ICollisionMover, ICollisionTarget } from './collision/collisionTypes';
 import { EntryPatternDirector } from './patterns/directors/EntryPatternDirector';
 import { FormationController } from './FormationController';
 import type { IPatternDirector, IPlaySessionStartOptions } from '../config/interfaces/interfaces';
@@ -40,7 +47,18 @@ import { SimpleLoopFormationPatternBuilder } from './patterns/patterns/formation
  */
 export class PlaySession {
     public invaders: EntityManager | null = null;
+    public player: Player | null = null;
     public readonly formation = new FormationController();
+    /** Set when the player loses their last life; the owning screen switches to game over. */
+    public gameOver = false;
+
+    private projectilePool: ProjectilePool | null = null;
+    private playerWeapon: Weapon | null = null;
+
+    private collision: CollisionSystem | null = null;
+    // Reused every frame so collision runs without allocating.
+    private readonly collisionMovers: ICollisionMover[] = [];
+    private readonly collisionTargets: ICollisionTarget[] = [];
 
     private ctx: IGameContext | null = null;
     private formationOverride: Partial<IFormationConfig> = {};
@@ -72,6 +90,9 @@ export class PlaySession {
             ctx.assets.getOrCreateInstancedMesh(key, maxCount);
         }
 
+        if (options.spawnPlayer) {
+            this.spawnPlayer(ctx);
+        }
         if (options.levels && options.levels.length > 0) {
             this.levels = options.levels;
             this.levelIndex = 0;
@@ -183,6 +204,8 @@ export class PlaySession {
     public onPlayerDeath(): void {
         if (!this.started || !this.ctx) return;
 
+        this.removePlayer();
+
         // Cancel current director/stage
         if (this.director && !this.director.isCancelled()) {
             this.director.cancel();
@@ -211,7 +234,11 @@ export class PlaySession {
         this.formation.update(dt);
         this.director?.update(dt);
 
+        // Player first: invaders.update() flags all instanced meshes dirty once, at the end.
+        this.updatePlayer(dt);
+        this.projectilePool?.update(dt);
         this.invaders?.update(dt);
+        this.updateCollisions();
 
         if (this.director?.isComplete()) {
             this.advanceStage();
@@ -245,10 +272,126 @@ export class PlaySession {
             }
         }
 
+        this.removePlayer();
+        this.projectilePool?.clear();
+        this.projectilePool = null;
+        this.collision = null;
+        this.collisionMovers.length = 0;
+        this.collisionTargets.length = 0;
         this.invaders?.clear();
         this.ctx?.playField.clearInvaders();
         this.ctx = null;
         this.started = false;
+    }
+
+    private spawnPlayer(ctx: IGameContext): void {
+        const mesh = ctx.assets.getOrCreateInstancedMesh(PLAYER.assetKey);
+        this.player = new Player(mesh, {
+            minX: PLAYER.minX,
+            maxX: PLAYER.maxX,
+            minZ: PLAYER.spawnZ - PLAYER.zRange,
+            maxZ: PLAYER.spawnZ + PLAYER.zRange,
+            y: ctx.playField.bounds.height + PLAYER.hoverPadding,
+        });
+
+        const weaponConfig = WEAPONS[PLAYER.weapon];
+        const shotMesh = ctx.assets.getOrCreateInstancedMesh(weaponConfig.assetKey, weaponConfig.maxCount);
+        this.projectilePool = new ProjectilePool(shotMesh, weaponConfig);
+        this.playerWeapon = new Weapon(this.projectilePool, weaponConfig);
+
+        this.collision = new CollisionSystem(COLLISION);
+        this.player.collisionModels = ctx.assets.getCollisionModels(PLAYER.assetKey);
+        // Bake every footprint for the mover radii now so the first shot or collision does not hitch.
+        this.player.collisionModels.get(COLLISION.invaderRadius);
+        for (const key of INVADER_ASSET_KEYS) {
+            ctx.assets.getCollisionModels(key).get(weaponConfig.collisionRadius);
+        }
+    }
+
+    /**
+     * Sweeps every live shot against the invaders, and the invaders against the player, then applies the hits.
+     * Runs after all movement so everything is at this frame's positions.
+     */
+    private updateCollisions(): void {
+        const collision = this.collision;
+        const pool = this.projectilePool;
+        const invaders = this.invaders;
+        if (!collision || !pool || !invaders) return;
+
+        const movers = this.collisionMovers;
+        const targets = this.collisionTargets;
+        for (const shot of pool.liveShots) {
+            if (shot.collisionEnabled) movers.push(shot);
+        }
+        for (const entity of invaders.getAll()) {
+            if (!(entity instanceof Invader)) continue;
+            targets.push(entity);
+            if (this.player?.collisionEnabled) movers.push(entity);
+        }
+        if (this.player) targets.push(this.player);
+
+        if (movers.length > 0) {
+            for (const hit of collision.update(movers, targets)) {
+                this.resolveHit(hit);
+            }
+        }
+        movers.length = 0;
+        targets.length = 0;
+    }
+
+    /**
+     * Collision response. A shot is spent and removes the invader it hits. An invader that rams the player is
+     * destroyed and, unless the player is invincible, costs a life.
+     */
+    private resolveHit(hit: ICollisionHit): void {
+        const { mover, target } = hit;
+
+        if (target instanceof Invader) {
+            if (!target.collisionEnabled) return;
+            if (mover instanceof Projectile) this.projectilePool?.release(mover);
+            this.invaders?.remove(target);
+        } else if (target instanceof Player && target === this.player && target.collisionEnabled) {
+            if (mover instanceof Invader && mover.collisionEnabled) this.invaders?.remove(mover);
+            this.onPlayerHit(target);
+        }
+    }
+
+    /** Loses a life, then either respawns the ship (flashing, protected) or ends the game. */
+    private onPlayerHit(player: Player): void {
+        const ctx = this.ctx;
+        if (DEBUG.invinciblePlayer || !ctx) return;
+
+        ctx.events.emit(GameEvents.playerDied, undefined);
+        if (ctx.game.loseLife()) {
+            this.removePlayer();
+            this.gameOver = true;
+        } else {
+            player.respawn();
+        }
+    }
+
+    /** Shots already in flight keep travelling; they are only cleared on dispose. */
+    private removePlayer(): void {
+        this.player?.dispose();
+        this.player = null;
+        this.playerWeapon = null;
+    }
+
+    private updatePlayer(dt: number): void {
+        const player = this.player;
+        const input = this.ctx?.input;
+        if (!player || !input) return;
+
+        const anyDown = (keys: readonly string[]): number => (keys.some((k) => input.isDown(k)) ? 1 : 0);
+        const axisX = anyDown(PLAYER.keys.right) - anyDown(PLAYER.keys.left);
+        const axisZ = anyDown(PLAYER.keys.forward) - anyDown(PLAYER.keys.back);
+        player.setInput(axisX, axisZ);
+        player.update(dt);
+
+        this.playerWeapon?.update(dt);
+        if (anyDown(PLAYER.keys.fire) && !player.isRespawning) {
+            this.playerWeapon?.tryFire(player.position);
+        }
     }
 
     private onlyEntryStage(): boolean {
@@ -290,8 +433,8 @@ export class PlaySession {
         this.invaders?.clear();
         ctx.playField.clearInvaders();
 
-        // Reset the InstancedMesh count and free-slots for every invader mesh
-        for (const { key } of INSTANCED_ASSETS) {
+        // Reset the InstancedMesh count and free-slots for every invader mesh (not the player's)
+        for (const key of INVADER_ASSET_KEYS) {
             ctx.assets.resetInstancedMeshCount(key);
         }
     }

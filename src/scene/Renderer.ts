@@ -2,12 +2,11 @@
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
-import { BloomPass } from 'three/examples/jsm/postprocessing/BloomPass.js';
 import { GameScene } from './Scene';
 import { GameCamera } from './Camera';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { FXAAShader } from 'three/examples/jsm/shaders/FXAAShader.js';
-import { VIEW } from '../config/data/constants';
+import { FX, VIEW } from '../config/data/constants';
 import {
     applyFitRect,
     applyUiScale,
@@ -16,6 +15,27 @@ import {
     getUiRoot,
     viewAspect,
 } from '../core/viewport';
+
+/** Adds the blurred bloom buffer onto the scene colour. */
+const BloomMixShader = {
+    uniforms: {
+        tDiffuse: { value: null as THREE.Texture | null },
+        tBloom: { value: null as THREE.Texture | null },
+    },
+    vertexShader: `
+        varying vec2 vUv;
+        void main() {
+            vUv = uv;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }`,
+    fragmentShader: `
+        uniform sampler2D tDiffuse;
+        uniform sampler2D tBloom;
+        varying vec2 vUv;
+        void main() {
+            gl_FragColor = texture2D(tDiffuse, vUv) + texture2D(tBloom, vUv);
+        }`,
+};
 
 export class GameRenderer {
     public renderer: THREE.WebGLRenderer;
@@ -26,6 +46,14 @@ export class GameRenderer {
     private readonly gameFrame: HTMLElement;
     private readonly uiRoot: HTMLElement;
     private fxaaPass: ShaderPass | null = null;
+
+    // Selective bloom (only active when FX.enabled).
+    private bloomComposer: EffectComposer | null = null;
+    private bloomRenderPass: RenderPass | null = null;
+    private bloomMixPass: ShaderPass | null = null;
+    private readonly darkMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
+    private readonly darkenedMeshes: THREE.Mesh[] = [];
+    private readonly darkenedMaterials: THREE.Material[] = [];
 
     constructor(scene: GameScene, camera: GameCamera | null = null) {
         this.scene = scene;
@@ -54,25 +82,9 @@ export class GameRenderer {
         );
         this.composer.addPass(renderPass);
 
-        // expensive unreal bloom pass.
-        // const bloomPass = new UnrealBloomPass(
-        //     new THREE.Vector2(VIEW.internalWidth, VIEW.internalHeight),
-        //     0.2,
-        //     1.0,
-        //     0.2,
-        // );
-        // this.composer.addPass(bloomPass);
-
-        // // --- Cheap glow instead of UnrealBloomPass ---
-        // const bloomPass = new BloomPass(
-        //     1.2,   // strength (try 0.5 – 1.2)
-        //     15,    // kernel size (lower = cheaper, 15-25 is good)
-        //     0.25,   // sigma (blur amount)
-        //     256  // resolution (lower = much cheaper, try 128 or 256)
-        // );
-        // this.composer.addPass(bloomPass);
-
-
+        if (FX.enabled) {
+            this.buildBloomPasses();
+        }
 
         this.fxaaPass = new ShaderPass(FXAAShader);
         this.fxaaPass.uniforms['resolution'].value.x = 1 / VIEW.internalWidth;
@@ -81,15 +93,21 @@ export class GameRenderer {
 
         this.composer.setSize(VIEW.internalWidth, VIEW.internalHeight);
 
+        if (this.camera) this.prepareCamera(this.camera.camera);
+
         // Initial contain-fit (App also calls on resize)
         this.applyFrameToWindow();
     }
 
     public setCamera(camera: GameCamera) {
         this.camera = camera;
+        this.prepareCamera(camera.camera);
         if (this.composer) {
             const renderPass = this.composer.passes[0] as RenderPass;
             renderPass.camera = camera.camera;
+        }
+        if (this.bloomRenderPass) {
+            this.bloomRenderPass.camera = camera.camera;
         }
     }
 
@@ -115,8 +133,82 @@ export class GameRenderer {
     public render() {
         if (this.camera) {
             this.camera.update();
+            if (this.bloomComposer && this.bloomMixPass) {
+                this.renderBloomBuffer(this.bloomComposer, this.bloomMixPass);
+            }
             this.composer?.render();
         }
+    }
+
+    /** Builds the bloom composer and the mix pass that adds its result into the main composer. */
+    private buildBloomPasses(): void {
+        const width = Math.round(VIEW.internalWidth * FX.bloom.resolutionScale);
+        const height = Math.round(VIEW.internalHeight * FX.bloom.resolutionScale);
+
+        this.bloomComposer = new EffectComposer(this.renderer);
+        this.bloomComposer.renderToScreen = false;
+        this.bloomComposer.setSize(width, height);
+        this.bloomRenderPass = new RenderPass(
+            this.scene.scene,
+            this.camera?.camera || new THREE.Camera(),
+        );
+        this.bloomComposer.addPass(this.bloomRenderPass);
+        this.bloomComposer.addPass(
+            new UnrealBloomPass(
+                new THREE.Vector2(width, height),
+                FX.bloom.strength,
+                FX.bloom.radius,
+                0,
+            ),
+        );
+
+        this.bloomMixPass = new ShaderPass(BloomMixShader);
+        this.composer?.addPass(this.bloomMixPass);
+    }
+
+    /** Lets the camera see the FX layer (shots live there when FX is on). */
+    private prepareCamera(camera: THREE.Camera): void {
+        if (FX.enabled) {
+            camera.layers.enable(FX.layer);
+        }
+    }
+
+    /**
+     * Renders glow sources into the bloom buffer: non-FX meshes are drawn black,
+     * and the background and fog are removed so only emissive FX meshes add light.
+     */
+    private renderBloomBuffer(bloomComposer: EffectComposer, mixPass: ShaderPass): void {
+        const scene = this.scene.scene;
+        this.darkenNonFxMeshes(scene);
+
+        const background = scene.background;
+        const fog = scene.fog;
+        scene.background = null;
+        scene.fog = null;
+        bloomComposer.render();
+        scene.background = background;
+        scene.fog = fog;
+
+        this.restoreMaterials();
+        mixPass.uniforms.tBloom.value = bloomComposer.readBuffer.texture;
+    }
+
+    private darkenNonFxMeshes(root: THREE.Object3D): void {
+        root.traverse((obj) => {
+            const mesh = obj as THREE.Mesh;
+            if (!mesh.isMesh || mesh.layers.isEnabled(FX.layer)) return;
+            this.darkenedMeshes.push(mesh);
+            this.darkenedMaterials.push(mesh.material as THREE.Material);
+            mesh.material = this.darkMaterial;
+        });
+    }
+
+    private restoreMaterials(): void {
+        for (let i = this.darkenedMeshes.length - 1; i >= 0; i--) {
+            this.darkenedMeshes[i].material = this.darkenedMaterials[i];
+        }
+        this.darkenedMeshes.length = 0;
+        this.darkenedMaterials.length = 0;
     }
 
     /**

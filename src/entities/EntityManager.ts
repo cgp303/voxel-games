@@ -124,6 +124,7 @@ export class EntityManager {
 
         invader.instanceId = instanceId;
         invader.assetKey = assetKey;
+        invader.collisionModels = this.assets.getCollisionModels(assetKey);
         invader.setInstancedMesh(mesh);
 
         return invader;
