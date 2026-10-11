@@ -5,6 +5,8 @@ import { VoxelGeometry } from '../voxel/VoxelGeometry';
 import { ASSET_PATHS, type AssetKey } from './manifests';
 import { VoxParser } from '../voxel/VoxParser';
 import { disposeObject3D } from '../world/PlayField';
+import { CollisionModelSet } from '../systems/collision/CollisionModel';
+import { COLLISION } from '../config/data/constants';
 
 
 /**
@@ -14,6 +16,7 @@ export class AssetManager {
   private models = new Map<string, IParsedVoxModel>();
   private meshTemplates = new Map<string, THREE.Object3D>();
   private instancedMeshes = new Map<string, THREE.InstancedMesh>();
+  private collisionModels = new Map<string, CollisionModelSet>();
   // Track available instanceIds for recycling (application-scoped); maps assetKey → free slot indices
   private freeSlots: Map<string, number[]> = new Map();
 
@@ -44,7 +47,7 @@ export class AssetManager {
       throw new Error(`AssetManager: no model loaded for key "${key}"`);
     }
 
-    const world = new VoxelWorld();
+    const world = new VoxelWorld(model.size);
     VoxParser.populateWorld(world, model);
     const mesh = VoxelGeometry.createMesh(world, model.colors);
 
@@ -80,7 +83,7 @@ export class AssetManager {
     if (!model) {
       throw new Error(`AssetManager: no model loaded for key "${assetKey}"`);
     }
-    const world = new VoxelWorld();
+    const world = new VoxelWorld(model.size);
     VoxParser.populateWorld(world, model);
 
     // Reuse the same geometry + material that the old template used
@@ -97,6 +100,26 @@ export class AssetManager {
 
     this.instancedMeshes.set(assetKey, mesh);
     return mesh;
+  }
+
+  /**
+   * Baked collision footprints for a loaded model (built on first request, then cached).
+   * Cleared together with the models in clear().
+   */
+  public getCollisionModels(assetKey: string): CollisionModelSet {
+    const cached = this.collisionModels.get(assetKey);
+    if (cached) return cached;
+
+    const model = this.models.get(assetKey);
+    if (!model) {
+      throw new Error(`AssetManager: no model loaded for key "${assetKey}"`);
+    }
+    const set = new CollisionModelSet(model.voxels, {
+      rollBuckets: COLLISION.rollBuckets,
+      maskResolution: COLLISION.maskResolution,
+    });
+    this.collisionModels.set(assetKey, set);
+    return set;
   }
 
   public markInstancedMeshesDirty(): void {
@@ -162,6 +185,7 @@ export class AssetManager {
     this.instancedMeshes.clear();
     this.freeSlots.clear();
     this.models.clear();
+    this.collisionModels.clear();
     this.meshTemplates.clear();
   }
 }

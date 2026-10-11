@@ -16,6 +16,7 @@ import type { PlayField } from '../../world/PlayField';
 import type { Game } from '../../app/Game';
 import type { ScreenManager } from '../../screens/ScreenManager';
 import { StageQueue } from '../../systems/stages/StageQueue';
+import type { CollisionLayerFlag } from '../../systems/collision/CollisionLayers';
 
 /**
  * Generic context passed to ANY PatternDirector.
@@ -280,6 +281,63 @@ export interface IPlaySessionStartOptions {
     stageQueue?: StageQueue;
     /** Ordered levels (Play); the session loops back to the first after the last. */
     levels?: ILevelDescriptor[];
+    /** Spawn the player ship (Play only; Demo leaves this off). */
+    spawnPlayer?: boolean;
+}
+
+/** Plain x/y/z offset (keeps config free of THREE objects). */
+export interface IVector3Like {
+    x: number;
+    y: number;
+    z: number;
+}
+
+/** Per-weapon tuning: visuals, pool size, fire rate and projectile travel. */
+export interface IWeaponConfig {
+    assetKey: string;
+    maxCount: number;
+    fireIntervalSec: number;
+    speed: number;
+    /** Z at which a flying shot starts fading out. */
+    despawnZ: number;
+    fadeDurationSec: number;
+    muzzleOffset: IVector3Like;
+    /** Yaw (radians) applied to the shot model so it faces the direction of travel. */
+    modelRotationY: number;
+    /** Whether shots of this weapon cast shadows (e.g. lasers no, bombs yes). */
+    castShadow: boolean;
+    /** Collision layer of the shots (who they can hit is set by COLLISION.rules). */
+    collisionLayer: CollisionLayerFlag;
+    /** World-unit radius added around the shot's path when testing against targets. */
+    collisionRadius: number;
+}
+
+/** Bloom tuning for the selective glow pass. */
+export interface IBloomConfig {
+    strength: number;
+    radius: number;
+    /** Scale of the bloom render target relative to the internal view size. */
+    resolutionScale: number;
+}
+
+/** Optional visual effects. When `enabled` is false, no extra passes or materials are used. */
+export interface IFxSettings {
+    enabled: boolean;
+    /** Object layer for meshes that should glow (all other meshes are excluded from bloom). */
+    layer: number;
+    /** Emissive multiplier for glowing shot materials. */
+    shotEmissiveIntensity: number;
+    bloom: IBloomConfig;
+}
+
+/** World-space movement limits for the player ship. */
+export interface IPlayerBounds {
+    minX: number;
+    maxX: number;
+    minZ: number;
+    maxZ: number;
+    /** Fixed hover height. */
+    y: number;
 }
 
 // for cubicBezier.ts

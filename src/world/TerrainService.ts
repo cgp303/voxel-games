@@ -50,7 +50,7 @@ export class TerrainService {
     const generator = new TerrainGenerator(config);
     const terrain = generator.generate();
 
-    const world = new VoxelWorld();
+    const world = new VoxelWorld(terrain.size);
     VoxParser.populateWorld(world, terrain);
 
     const mesh = VoxelGeometry.createMesh(world, terrain.colors);
