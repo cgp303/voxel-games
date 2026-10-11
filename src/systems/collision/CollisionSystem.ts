@@ -1,12 +1,14 @@
 import { SpatialGrid } from './SpatialGrid.ts';
 import { clipSegmentToBox, traceSegmentThroughMask } from './segmentTests.ts';
-import type { IMaskHit, ISlabResult } from './segmentTests.ts';
+import type { } from './segmentTests.ts';
 import type {
     ICollisionHit,
     ICollisionMover,
     ICollisionSystemConfig,
     ICollisionTarget,
-} from './collisionTypes.ts';
+    IMaskHit,
+    ISlabResult
+} from '../../config/interfaces/interfaces.ts';
 
 const LAYER_SLOTS = 32;
 

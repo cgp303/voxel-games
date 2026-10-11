@@ -1,13 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { CollisionSystem } from '../../src/systems/collision/CollisionSystem.ts';
-import { CollisionLayer } from '../../src/systems/collision/CollisionLayers.ts';
+import { CollisionLayer } from '../../src/config/types/types.ts';
 import { CollisionModelSet } from '../../src/systems/collision/CollisionModel.ts';
 import type {
     ICollisionMover,
     ICollisionSystemConfig,
     ICollisionTarget,
-} from '../../src/systems/collision/collisionTypes.ts';
+} from '../../src/config/interfaces/interfaces.ts';
 import { box } from './helpers.ts';
 
 const options = { rollBuckets: 4, maskResolution: 2 };

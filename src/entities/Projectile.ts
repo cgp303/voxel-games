@@ -1,9 +1,8 @@
 import { Matrix4, Quaternion, Vector3, type InstancedMesh } from 'three';
 import { Entity } from './Entity';
-import type { IWeaponConfig } from '../config/interfaces/interfaces';
+import type { IWeaponConfig, ICollisionMover } from '../config/interfaces/interfaces';
 import type { ProjectileState } from '../config/types/types';
-import type { ICollisionMover } from '../systems/collision/collisionTypes';
-import type { CollisionLayerFlag } from '../systems/collision/CollisionLayers';
+import type { CollisionLayerFlag } from '../config/types/types';
 
 const Y_AXIS = new Vector3(0, 1, 0);
 const tempMatrix = new Matrix4();

@@ -1,7 +1,14 @@
 ﻿import * as THREE from 'three';
 import type { GameCamera } from '../scene/Camera';
 import { CAMERA, GAME, TERRAIN } from '../config/data/constants';
-import type { IInvaderGridOptions, ITerrainBuildResult, IScrollingTerrainBuildResult } from '../config/interfaces/interfaces';
+import type {
+    IGradient2,
+    IGroundSampler,
+    IInvaderGridOptions,
+    ITerrainBuildResult,
+    IScrollingTerrainBuildResult,
+} from '../config/interfaces/interfaces';
+import type { HeightField } from './HeightField';
 
 /**
  * Play area: terrain + formation under one root group.
@@ -10,7 +17,7 @@ import type { IInvaderGridOptions, ITerrainBuildResult, IScrollingTerrainBuildRe
  * Terrain lives under terrainRoot (may scroll).
  * Invaders live under invaderRoot (do NOT parent under terrain).
  */
-export class PlayField {
+export class PlayField implements IGroundSampler {
     public readonly root: THREE.Group;
     public bounds = { width: 0, height: 0, depth: 0 };
 
@@ -24,6 +31,7 @@ export class PlayField {
     private terrainMeshA: THREE.Mesh | null = null;
     private terrainMeshB: THREE.Mesh | null = null;
     private tileDepth = 0;
+    private heightField: HeightField | null = null;
     private scrollSpeedZ: number = TERRAIN.scrollSpeedZ;
     private scrollEnabled: boolean = TERRAIN.scrollEnabledDefault;
     private gameCamera: GameCamera | null = null;
@@ -64,6 +72,7 @@ export class PlayField {
         this.terrainMesh = result.mesh;
         this.terrainRoot.add(result.mesh);
         this.tileDepth = result.depth;
+        this.heightField = result.heightField;
         this.setBounds(result.width, result.height, result.depth);
     }
 
@@ -77,6 +86,7 @@ export class PlayField {
         this.terrainMeshA = result.meshA;
         this.terrainMeshB = result.meshB;
         this.tileDepth = result.tileDepth;
+        this.heightField = result.heightField;
 
         this.terrainRoot.add(result.meshA);
         this.terrainRoot.add(result.meshB);
@@ -100,6 +110,33 @@ export class PlayField {
 
     public getScrollEnabled(): boolean {
         return this.scrollEnabled;
+    }
+
+    public getGroundHeight(x: number, z: number): number {
+        const field = this.heightField;
+        const tile = this.terrainMeshA ?? this.terrainMesh;
+        if (!field || !tile) return -Infinity;
+
+        // Both belt tiles are identical and a whole number of tile depths apart, so one tile is enough.
+        const root = this.terrainRoot.position;
+        const surface = field.heightAt(x - root.x - tile.position.x, z - root.z - tile.position.z);
+        return root.y + tile.position.y + surface;
+    }
+
+    public getGroundGradient(x: number, z: number, out: IGradient2): IGradient2 {
+        const field = this.heightField;
+        const tile = this.terrainMeshA ?? this.terrainMesh;
+        if (!field || !tile) {
+            out.x = 0;
+            out.z = 0;
+            return out;
+        }
+        const root = this.terrainRoot.position;
+        return field.gradientAt(x - root.x - tile.position.x, z - root.z - tile.position.z, out);
+    }
+
+    public getGroundScrollVelocityZ(): number {
+        return this.scrollEnabled && this.terrainMeshA ? this.scrollSpeedZ : 0;
     }
 
     /**
@@ -200,6 +237,7 @@ export class PlayField {
         this.terrainMesh = null;
         this.terrainMeshA = null;
         this.terrainMeshB = null;
+        this.heightField = null;
         this.tileDepth = 0;
         this.terrainRoot.position.set(0, 0, 0);
     }

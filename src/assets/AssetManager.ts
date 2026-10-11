@@ -1,7 +1,8 @@
 ﻿import * as THREE from 'three';
-import type { IParsedVoxModel } from '../config/interfaces/interfaces';
+import type { IParsedVoxModel, IVoxelCloud } from '../config/interfaces/interfaces';
 import { VoxelWorld } from '../voxel/VoxelWorld';
 import { VoxelGeometry } from '../voxel/VoxelGeometry';
+import { buildVoxelCloud } from '../voxel/VoxelCloud';
 import { ASSET_PATHS, type AssetKey } from './manifests';
 import { VoxParser } from '../voxel/VoxParser';
 import { disposeObject3D } from '../world/PlayField';
@@ -17,6 +18,7 @@ export class AssetManager {
   private meshTemplates = new Map<string, THREE.Object3D>();
   private instancedMeshes = new Map<string, THREE.InstancedMesh>();
   private collisionModels = new Map<string, CollisionModelSet>();
+  private voxelClouds = new Map<string, IVoxelCloud>();
   // Track available instanceIds for recycling (application-scoped); maps assetKey → free slot indices
   private freeSlots: Map<string, number[]> = new Map();
 
@@ -122,6 +124,23 @@ export class AssetManager {
     return set;
   }
 
+  /**
+   * Per-voxel positions and true colours of a loaded model, for effects such as debris.
+   * Built on first request, then cached; cleared together with the models in clear().
+   */
+  public getVoxelCloud(assetKey: string): IVoxelCloud {
+    const cached = this.voxelClouds.get(assetKey);
+    if (cached) return cached;
+
+    const model = this.models.get(assetKey);
+    if (!model) {
+      throw new Error(`AssetManager: no model loaded for key "${assetKey}"`);
+    }
+    const cloud = buildVoxelCloud(model);
+    this.voxelClouds.set(assetKey, cloud);
+    return cloud;
+  }
+
   public markInstancedMeshesDirty(): void {
     for (const mesh of this.instancedMeshes.values()) {
       if (mesh.count > 0) {
@@ -186,6 +205,7 @@ export class AssetManager {
     this.freeSlots.clear();
     this.models.clear();
     this.collisionModels.clear();
+    this.voxelClouds.clear();
     this.meshTemplates.clear();
   }
 }

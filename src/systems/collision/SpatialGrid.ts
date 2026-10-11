@@ -1,4 +1,4 @@
-import type { ICollisionGridBounds } from './collisionTypes.ts';
+import type { ICollisionGridBounds } from '../../config/interfaces/interfaces';
 
 /**
  * Uniform X/Z grid, rebuilt every frame from flat typed arrays (counting sort, no per-frame allocation).

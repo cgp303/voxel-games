@@ -1,31 +1,6 @@
 const EPS = 1e-6;
+import type { ICollisionVoxel, ICollisionBakeOptions, ICollisionBucket } from '../../config/interfaces/interfaces';
 
-export interface ICollisionVoxel {
-    readonly x: number;
-    readonly y: number;
-    readonly z: number;
-}
-
-export interface ICollisionBakeOptions {
-    /** Number of roll angles (about Z) baked over 360 degrees. */
-    rollBuckets: number;
-    /** Mask cells per world unit (1 voxel = 1 unit). */
-    maskResolution: number;
-}
-
-/** Footprint of a model at one roll angle, collapsed along world Y onto the X/Z plane. */
-export interface ICollisionBucket {
-    /** Offsets from the entity origin to the mask grid's bounds (this is the bucket's AABB). */
-    readonly minX: number;
-    readonly minZ: number;
-    readonly maxX: number;
-    readonly maxZ: number;
-    readonly cols: number;
-    readonly rows: number;
-    readonly cellsPerUnit: number;
-    /** Row-major occupancy: data[row * cols + col] is 1 where the footprint is solid. */
-    readonly data: Uint8Array;
-}
 
 /** All roll buckets of one model, baked for one mover radius. */
 export class CollisionModel {

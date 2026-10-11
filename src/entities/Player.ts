@@ -1,10 +1,9 @@
 import { Matrix4, Quaternion, Vector3, type InstancedMesh } from 'three';
 import { Entity } from './Entity';
 import { PLAYER } from '../config/data/constants';
-import type { IPlayerBounds } from '../config/interfaces/interfaces';
-import { CollisionLayer } from '../systems/collision/CollisionLayers';
+import type { IPlayerBounds, ICollisionTarget } from '../config/interfaces/interfaces';
+import { CollisionLayer } from '../config/types/types';
 import type { CollisionModelSet } from '../systems/collision/CollisionModel';
-import type { ICollisionTarget } from '../systems/collision/collisionTypes';
 
 const FORWARD_AXIS = new Vector3(0, 0, 1);
 const tempMatrix = new Matrix4();
@@ -115,6 +114,11 @@ export class Player extends Entity implements ICollisionTarget {
 
     public getCollisionRoll(): number {
         return this.roll;
+    }
+
+    /** Current orientation (the banking roll about Z), as drawn. */
+    public get orientation(): Quaternion {
+        return this.rollQuat;
     }
 
     private updateFlash(): void {

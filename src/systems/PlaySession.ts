@@ -1,4 +1,4 @@
-﻿import { Vector3 } from 'three';
+﻿import { Vector3, type Quaternion } from 'three';
 import type {
     IFormationConfig,
     IIntroStartedPayload,
@@ -9,7 +9,7 @@ import type {
     ILevelCompletedPayload,
 } from '../config/interfaces/interfaces';
 import { GameEvents } from '../config/types/types';
-import type { InvaderTypeId } from '../config/types/types';
+import type { InvaderTypeId, ExplosionKind } from '../config/types/types';
 import { INSTANCED_ASSETS, INVADER_ASSET_KEYS, LEVEL, PLAYER, WEAPONS, COLLISION, DEBUG } from '../config/data/constants';
 import type { IGameContext } from '../config/interfaces/interfaces';
 import { EntityManager } from '../entities/EntityManager';
@@ -19,10 +19,10 @@ import { Projectile } from '../entities/Projectile';
 import { Weapon } from '../entities/Weapon';
 import { ProjectilePool } from './ProjectilePool';
 import { CollisionSystem } from './collision/CollisionSystem';
-import type { ICollisionHit, ICollisionMover, ICollisionTarget } from './collision/collisionTypes';
+import { DebrisSystem } from './fx/DebrisSystem';
 import { EntryPatternDirector } from './patterns/directors/EntryPatternDirector';
 import { FormationController } from './FormationController';
-import type { IPatternDirector, IPlaySessionStartOptions } from '../config/interfaces/interfaces';
+import type { IPatternDirector, IPlaySessionStartOptions, ICollisionHit, ICollisionMover, ICollisionTarget } from '../config/interfaces/interfaces';
 import { Stage } from './stages/Stage';
 import { StageQueue } from './stages/StageQueue';
 import { Level } from './stages/Level';
@@ -59,6 +59,10 @@ export class PlaySession {
     // Reused every frame so collision runs without allocating.
     private readonly collisionMovers: ICollisionMover[] = [];
     private readonly collisionTargets: ICollisionTarget[] = [];
+
+    private debris: DebrisSystem | null = null;
+    private readonly debrisVelocity = new Vector3();
+    private frameDt = 0;
 
     private ctx: IGameContext | null = null;
     private formationOverride: Partial<IFormationConfig> = {};
@@ -238,6 +242,8 @@ export class PlaySession {
         this.updatePlayer(dt);
         this.projectilePool?.update(dt);
         this.invaders?.update(dt);
+        this.frameDt = dt;
+        this.debris?.update(dt);
         this.updateCollisions();
 
         if (this.director?.isComplete()) {
@@ -278,6 +284,8 @@ export class PlaySession {
         this.collision = null;
         this.collisionMovers.length = 0;
         this.collisionTargets.length = 0;
+        this.debris?.dispose();
+        this.debris = null;
         this.invaders?.clear();
         this.ctx?.playField.clearInvaders();
         this.ctx = null;
@@ -305,7 +313,12 @@ export class PlaySession {
         this.player.collisionModels.get(COLLISION.invaderRadius);
         for (const key of INVADER_ASSET_KEYS) {
             ctx.assets.getCollisionModels(key).get(weaponConfig.collisionRadius);
+            ctx.assets.getVoxelCloud(key);
         }
+        ctx.assets.getVoxelCloud(PLAYER.assetKey);
+
+        this.debris = new DebrisSystem(ctx.playField);
+        ctx.scene.scene.add(this.debris.mesh);
     }
 
     /**
@@ -340,8 +353,8 @@ export class PlaySession {
     }
 
     /**
-     * Collision response. A shot is spent and removes the invader it hits. An invader that rams the player is
-     * destroyed and, unless the player is invincible, costs a life.
+     * Collision response. A shot is spent and destroys the invader it hits. An invader that rams the player is
+     * destroyed and, unless the player is invincible, costs a life. Destroyed ships break apart into debris.
      */
     private resolveHit(hit: ICollisionHit): void {
         const { mover, target } = hit;
@@ -349,11 +362,16 @@ export class PlaySession {
         if (target instanceof Invader) {
             if (!target.collisionEnabled) return;
             if (mover instanceof Projectile) this.projectilePool?.release(mover);
-            this.invaders?.remove(target);
+            this.destroyInvader(target);
         } else if (target instanceof Player && target === this.player && target.collisionEnabled) {
-            if (mover instanceof Invader && mover.collisionEnabled) this.invaders?.remove(mover);
+            if (mover instanceof Invader && mover.collisionEnabled) this.destroyInvader(mover);
             this.onPlayerHit(target);
         }
+    }
+
+    private destroyInvader(invader: Invader): void {
+        this.explodeInvader(invader);
+        this.invaders?.remove(invader);
     }
 
     /** Loses a life, then either respawns the ship (flashing, protected) or ends the game. */
@@ -361,6 +379,7 @@ export class PlaySession {
         const ctx = this.ctx;
         if (DEBUG.invinciblePlayer || !ctx) return;
 
+        this.explodePlayer(player);
         ctx.events.emit(GameEvents.playerDied, undefined);
         if (ctx.game.loseLife()) {
             this.removePlayer();
@@ -368,6 +387,34 @@ export class PlaySession {
         } else {
             player.respawn();
         }
+    }
+
+    private explodeInvader(invader: Invader): void {
+        const dt = this.frameDt;
+        const inverse = dt > 0 ? 1 / dt : 0;
+        // The invader follows paths rather than integrating velocity, so measure it from this frame's movement.
+        this.debrisVelocity.set(
+            (invader.position.x - invader.previousPosition.x) * inverse,
+            (invader.position.y - invader.previousPosition.y) * inverse,
+            (invader.position.z - invader.previousPosition.z) * inverse,
+        );
+        this.explode('invader', invader.assetKey, invader.position, invader.orientation, this.debrisVelocity);
+    }
+
+    private explodePlayer(player: Player): void {
+        this.explode('player', PLAYER.assetKey, player.position, player.orientation, player.velocity);
+    }
+
+    private explode(
+        kind: ExplosionKind,
+        assetKey: string,
+        position: Vector3,
+        orientation: Quaternion,
+        velocity: Vector3,
+    ): void {
+        const ctx = this.ctx;
+        if (!this.debris || !ctx) return;
+        this.debris.explode(kind, ctx.assets.getVoxelCloud(assetKey), position, orientation, velocity);
     }
 
     /** Shots already in flight keep travelling; they are only cleared on dispose. */

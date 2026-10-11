@@ -1,14 +1,5 @@
-import type { ICollisionBucket } from './CollisionModel.ts';
+import type { ICollisionBucket, ISlabResult, IMaskHit } from '../../config/interfaces/interfaces.ts';
 
-export interface ISlabResult {
-    tEnter: number;
-    tExit: number;
-}
-
-export interface IMaskHit {
-    /** Fraction (0..1) along the segment at which it enters the first solid cell. */
-    t: number;
-}
 
 /**
  * Slab test: clips the segment a -> b (X/Z) against an axis-aligned box.
@@ -82,7 +73,7 @@ export function traceSegmentThroughMask(
     let nextZ = dz === 0 ? Infinity : ((dz > 0 ? row + 1 : row) - sz) / dz;
 
     let t = tEnter;
-    for (;;) {
+    for (; ;) {
         if (data[row * cols + col] !== 0) {
             out.t = t;
             return true;

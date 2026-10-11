@@ -12,13 +12,12 @@ import type {
     InvaderMode,
     InvaderTypeId,
 } from '../config/types/types';
-import type { IPathPattern, IEntryConfig, IFormationSlot, IInvaderInitConfig, ICubicBezierControls } from '../config/interfaces/interfaces';
+import type { IPathPattern, IEntryConfig, IFormationSlot, IInvaderInitConfig, ICubicBezierControls, ICollisionMover, ICollisionTarget } from '../config/interfaces/interfaces';
 import { ENTRY, COLLISION } from '../config/data/constants';
 import type { FormationController } from '../systems/FormationController';
 import { Entity } from './Entity';
-import { CollisionLayer } from '../systems/collision/CollisionLayers';
+import { CollisionLayer } from '../config/types/types';
 import type { CollisionModelSet } from '../systems/collision/CollisionModel';
-import type { ICollisionMover, ICollisionTarget } from '../systems/collision/collisionTypes';
 
 
 
@@ -432,6 +431,11 @@ export class Invader extends Entity implements ICollisionTarget, ICollisionMover
     /** Net rotation about the local Z (travel) axis: the bank and spin twist of the display orientation. */
     public getCollisionRoll(): number {
         return 2 * Math.atan2(this.displayQuat.z, this.displayQuat.w);
+    }
+
+    /** Current display orientation (read-only use; it is the quaternion the instance is drawn with). */
+    public get orientation(): Quaternion {
+        return this.displayQuat;
     }
 
     public override dispose(): void {

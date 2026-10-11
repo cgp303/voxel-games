@@ -1,8 +1,7 @@
 ﻿import * as THREE from 'three';
 import type { InvaderTypeId, WeaponType } from '../types/types';
-import type { IFxSettings, IInvaderTypeDefinition, IWeaponConfig } from '../interfaces/interfaces';
-import { CollisionLayer } from '../../systems/collision/CollisionLayers';
-import type { ICollisionSystemConfig } from '../../systems/collision/collisionTypes';
+import type { IFxSettings, IInvaderTypeDefinition, IWeaponConfig, ICollisionSystemConfig, IDebrisConfig } from '../interfaces/interfaces';
+import { CollisionLayer } from '../types/types';
 /** Shared gameplay / layout constants (expand in later phases) */
 export const GAME = {
     defaultLives: 3,
@@ -159,6 +158,45 @@ export const FX: IFxSettings = {
     },
 };
 
+/**
+ * Explosion debris: a destroyed model breaks into one cube per voxel that flies out, tumbles, falls
+ * under gravity and bounces off the (scrolling) terrain. See systems/fx.
+ */
+export const EXPLOSION: IDebrisConfig = {
+    maxParticles: 4000,
+    gravity: 60,
+    airDrag: 0.25,
+    restitution: 0.45,
+    bounceFriction: 0.2,
+    contactFriction: 3,
+    spinImpactDamping: 0.65,
+    spinContactDamping: 2.5,
+    restSpeed: 4,
+    particleSize: 1,
+    fadeSec: 0.6,
+    killBelowY: -60,
+    maxStepSec: 1 / 20,
+    profiles: {
+        invader: {
+            speed: [14, 38],
+            upward: [6, 22],
+            scatter: 6,
+            inheritVelocity: 0.5,
+            spin: [4, 16],
+            life: [3, 5],
+            glow: { color: [1, 0.85, 0.55], intensity: 4, durationSec: 0.6 },
+        },
+        player: {
+            speed: [20, 52],
+            upward: [10, 30],
+            scatter: 8,
+            inheritVelocity: 0.5,
+            spin: [4, 18],
+            life: [3.5, 5.5],
+            glow: { color: [0.6, 0.85, 1], intensity: 5, durationSec: 0.9 },
+        },
+    },
+};
 
 /** Level progression. After the last level the session wraps to levels[loopFromIndex]. */
 export const LEVEL = {
