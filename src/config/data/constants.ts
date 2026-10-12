@@ -1,6 +1,6 @@
 ﻿import * as THREE from 'three';
-import type { InvaderTypeId, WeaponType } from '../types/types';
-import type { IFxSettings, IInvaderTypeDefinition, IWeaponConfig, ICollisionSystemConfig, IDebrisConfig } from '../interfaces/interfaces';
+import type { InvaderTypeId, InvaderWeaponType, WeaponType } from '../types/types';
+import type { IFxSettings, IInvaderTypeDefinition, IInvaderWeaponConfig, IWeaponConfig, ICollisionSystemConfig, IDebrisConfig, ISparkConfig } from '../interfaces/interfaces';
 import { CollisionLayer } from '../types/types';
 /** Shared gameplay / layout constants (expand in later phases) */
 export const GAME = {
@@ -31,6 +31,7 @@ export const INSTANCED_ASSETS: { key: string; maxCount: number }[] = [
     { key: 'invader', maxCount: 80 },
     { key: 'player', maxCount: 1 },
     { key: 'lazer', maxCount: 32 },
+    { key: 'mine', maxCount: 32 },
 ];
 
 /** Per-type invader data: instanced mesh key, score value and hit points. */
@@ -103,8 +104,35 @@ export const WEAPONS: Record<WeaponType, IWeaponConfig> = {
         castShadow: false,
         collisionLayer: CollisionLayer.PLAYER_MISSILE,
         collisionRadius: 2,
+        destroysMines: true,
+        power: 1,
     },
 };
+
+/**
+ * Weapons used by invaders. Each type has its own pooled, instanced mesh.
+ * Drops are limited by invader type and by the path segment being flown.
+ */
+export const INVADER_WEAPONS: Record<InvaderWeaponType, IInvaderWeaponConfig> = {
+    Mine: {
+        assetKey: 'mine',
+        maxCount: 32,
+        dropChancePerFrame: 0.02,
+        releaseXRange: { min: -70, max: 70 },
+        maxPerAttack: 5,
+        allowedInvaderTypes: ['scout', 'fighter', 'elite', 'tie'],
+        allowedSegments: { groupAttack1: [1, 2, 3] },
+        despawnMarginPastPlayer: 20,
+        spinRateRadPerSec: Math.PI * 2,
+        hitPoints: 3,
+        knockbackDistance: 24,
+        knockbackSpeed: 90,
+        collisionRadius: 2,
+        castShadow: true,
+    },
+};
+
+export const INVADER_WEAPON_TYPES = Object.keys(INVADER_WEAPONS) as InvaderWeaponType[];
 
 /**
  * Collision detection (see systems/collision). Shots are swept along their path and tested against
@@ -196,6 +224,23 @@ export const EXPLOSION: IDebrisConfig = {
             glow: { color: [0.6, 0.85, 1], intensity: 2, durationSec: 0.8 },
         },
     },
+};
+
+/** Sparks thrown off an invader weapon when a shot hits but does not destroy it. See systems/fx/SparkSystem. */
+export const SPARKS: ISparkConfig = {
+    maxParticles: 256,
+    size: 1,
+    count: [4, 9],
+    speed: [30, 70],
+    direction: { x: 0, y: 1, z: 1 },
+    spread: 0.9,
+    gravity: 20,
+    life: [0.4, 0.6],
+    inheritVelocity: 0.5,
+    hotColor: [1, 0.9, 0.55],
+    hotIntensity: 3,
+    redColor: [1, 0.08, 0.02],
+    redAtFraction: 0.55,
 };
 
 /** Level progression. After the last level the session wraps to levels[loopFromIndex]. */
@@ -325,9 +370,14 @@ export const VIEW = {
     bezelColor: '#0a0a0a',
 } as const;
 
+// export const CAMERA = {
+//     isoAngleDeg: 20,
+//     distanceFactor: 0.325,
+// } as const;
+
 export const CAMERA = {
-    isoAngleDeg: 20,
-    distanceFactor: 0.3,
+    isoAngleDeg: 35,
+    distanceFactor: 0.325,
 } as const;
 
 

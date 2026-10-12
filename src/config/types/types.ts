@@ -121,6 +121,12 @@ export type PatternType = "Grid" | "V" | "X" | "Diamond";
 /** Weapon kinds; add Missile, SmartBomb etc. when implemented. */
 export type WeaponType = 'Laser';
 
+/** Weapons carried by invaders (each type has its own pool bucket and instanced mesh). */
+export type InvaderWeaponType = 'Mine';
+
+/** Identifies an invader attack pattern so weapons can be limited to specific patterns. */
+export type AttackPatternId = 'groupAttack1' | 'groupAttack2';
+
 /** Pooled projectile lifecycle: Idle (hidden in pool), Flying, Fading (shrinking before release). */
 export type ProjectileState = 'Idle' | 'Flying' | 'Fading';
 

@@ -82,7 +82,7 @@ export class GroupAttackPattern1Builder implements IPatternBuilder {
             );
         });
 
-        return new MultiSegmentPattern(segments, GroupAttackPattern1Builder.RANGES, GroupAttackPattern1Builder.DURATION);
+        return new MultiSegmentPattern(segments, GroupAttackPattern1Builder.RANGES, GroupAttackPattern1Builder.DURATION, 0, 'groupAttack1');
     }
 
     smoothSegmentJoins(prevSegment) {

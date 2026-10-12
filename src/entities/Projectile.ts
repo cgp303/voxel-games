@@ -20,6 +20,8 @@ export class Projectile extends Entity implements ICollisionMover {
     public readonly previousPosition = new Vector3();
     public readonly collisionLayer: CollisionLayerFlag;
     public readonly collisionRadius: number;
+    /** Damage this shot does to invader weapons' hit points. */
+    public readonly power: number;
 
     private readonly instancedMesh: InstancedMesh;
     private readonly instanceId: number;
@@ -37,6 +39,7 @@ export class Projectile extends Entity implements ICollisionMover {
         this.config = config;
         this.collisionLayer = config.collisionLayer;
         this.collisionRadius = config.collisionRadius;
+        this.power = config.power;
         this.modelRotation.setFromAxisAngle(Y_AXIS, config.modelRotationY);
         this.active = false;
         this.syncTransform();

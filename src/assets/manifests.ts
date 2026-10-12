@@ -7,6 +7,7 @@ export const ASSET_PATHS = {
     invader3: 'assets/vox/inv8.vox',
     player: 'assets/vox/player.vox',
     lazer: 'assets/vox/lazer1.vox',
+    mine: 'assets/vox/bomb1.vox',
 } as const;
 
 export type AssetKey = keyof typeof ASSET_PATHS;

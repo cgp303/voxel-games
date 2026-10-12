@@ -30,7 +30,7 @@ export function createBasicStages(
 
             new Stage(
                 "Group Attack",
-                new GroupAttackPatternDirector([[`group2x2${patternType}`, 2, 1]]),
+                new GroupAttackPatternDirector([[`groupXs${patternType}`, 8, 0]]),
                 { orientation: "front" },
                 1.4,
                 1.6
@@ -42,6 +42,14 @@ export function createBasicStages(
                 { orientation: "front" },
                 1.0,
                 1.2
+            ),
+
+            new Stage(
+                "Group Attack",
+                new GroupAttackPatternDirector([[`group2x2${patternType}`, 2, 1]]),
+                { orientation: "front" },
+                1.4,
+                1.6
             ),
 
             new Stage(
@@ -110,6 +118,15 @@ export function createDemoStages(): StageQueue {
                 0.5,
                 1.0
             ),
+
+            new Stage(
+                "Group Attack",
+                new GroupAttackPatternDirector([[`groupXs${patternType}`, 5, 0]]),
+                { orientation: "front" },
+                1.4,
+                1.6
+            ),
+
             new Stage(
                 "Column Vertical",
                 new ColumnVerticalDirector(),

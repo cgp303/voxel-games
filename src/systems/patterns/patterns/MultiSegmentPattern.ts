@@ -1,9 +1,11 @@
 import { Vector3 } from 'three';
 import type { IPathPattern, IPathSegment } from '../../../config/interfaces/interfaces';
+import type { AttackPatternId } from '../../../config/types/types';
 
 export class MultiSegmentPattern implements IPathPattern {
     public readonly duration: number;
     public readonly durationOverlap: number;
+    public readonly id?: AttackPatternId;
     private readonly segments: IPathSegment[];
     private readonly ranges: { start: number; end: number }[];
 
@@ -11,12 +13,18 @@ export class MultiSegmentPattern implements IPathPattern {
         segments: IPathSegment[],
         ranges: { start: number; end: number }[],
         duration: number,
-        durationOverlap: number = 0
+        durationOverlap: number = 0,
+        id?: AttackPatternId
     ) {
         this.segments = segments;
         this.ranges = ranges;
         this.duration = duration;
         this.durationOverlap = durationOverlap; // or set it to an appropriate value based on your logic
+        this.id = id;
+    }
+
+    public getSegmentIndex(t: number): number {
+        return this.findSegmentIndex(t);
     }
 
     private findSegmentIndex(t: number): number {
