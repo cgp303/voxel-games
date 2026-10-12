@@ -59,7 +59,7 @@ export class GroupAttackPattern2Builder implements IPatternBuilder {
             );
         });
 
-        return new MultiSegmentPattern(segments, GroupAttackPattern2Builder.RANGES, GroupAttackPattern2Builder.DURATION, 0);
+        return new MultiSegmentPattern(segments, GroupAttackPattern2Builder.RANGES, GroupAttackPattern2Builder.DURATION, 0, 'groupAttack2');
     }
 
 }

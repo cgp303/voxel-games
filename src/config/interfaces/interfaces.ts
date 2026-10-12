@@ -5,7 +5,7 @@ import type { EntityManager } from '../../entities/EntityManager';
 import type { Object3D, Vector3 } from 'three';
 import * as THREE from 'three';
 import type { MultiSegmentPattern } from '../../systems/patterns/patterns/MultiSegmentPattern';
-import type { MovementPath, InvaderTypeId, EntrySide } from '../types/types';
+import type { MovementPath, InvaderTypeId, EntrySide, AttackPatternId } from '../types/types';
 import type { GameScene } from '../../scene/Scene';
 import type { GameCamera } from '../../scene/Camera';
 import type { GameRenderer } from '../../scene/Renderer';
@@ -84,6 +84,10 @@ export interface IPathSegment {
  */
 export interface IPathPattern {
     duration: number;
+    /** Set by patterns that invader weapons may be restricted to. */
+    readonly id?: AttackPatternId;
+    /** Index of the path segment active at normalised time t (patterns without segments omit this). */
+    getSegmentIndex?(t: number): number;
     sampleSpinRate(t: number): number;
     samplePosition(t: number, out: THREE.Vector3): THREE.Vector3;
     sampleTangent(t: number, out: THREE.Vector3): THREE.Vector3;
@@ -321,6 +325,40 @@ export interface IWeaponConfig {
     collisionLayer: CollisionLayerFlag;
     /** World-unit radius added around the shot's path when testing against targets. */
     collisionRadius: number;
+    /** Whether this weapon's shots can hit invader mines (default false). */
+    destroysMines: boolean;
+    /** Damage each shot does to an invader weapon's hit points (e.g. a laser with power 1 needs 3 hits for a 3 hp mine). */
+    power: number;
+}
+
+/** Per-weapon tuning for weapons dropped or fired by invaders. */
+export interface IInvaderWeaponConfig {
+    assetKey: string;
+    /** Pool size: the most of this weapon that can be live at once. */
+    maxCount: number;
+    /** Chance of a drop per frame at 60 fps while an invader is eligible (scaled by dt at other frame rates). */
+    dropChancePerFrame: number;
+    /** An invader only releases the weapon while its own X is within this world range, so drops bunch toward the middle. */
+    releaseXRange: { min: number; max: number };
+    /** Most of this weapon one invader can drop per attack; reset when it returns to the formation. */
+    maxPerAttack: number;
+    /** Invader types that can use this weapon. */
+    allowedInvaderTypes: readonly InvaderTypeId[];
+    /** Pattern id -> indices of the path segments during which the weapon may be used. */
+    allowedSegments: Partial<Record<AttackPatternId, readonly number[]>>;
+    /** World units past the player's back edge at which the weapon is recycled. */
+    despawnMarginPastPlayer: number;
+    /** Rotation about the weapon's local Z axis while it flies (radians per second; sign sets direction). */
+    spinRateRadPerSec: number;
+    /** Hits (by total player weapon power) needed to destroy it. */
+    hitPoints: number;
+    /** Extra distance (world units) a hit that does not destroy it pushes the weapon back, away from the player. */
+    knockbackDistance: number;
+    /** Initial speed of that push (units/s); it decelerates to zero over the distance, then the weapon resumes its course. */
+    knockbackSpeed: number;
+    /** World-unit radius used when the weapon sweeps against the player. */
+    collisionRadius: number;
+    castShadow: boolean;
 }
 
 /** Bloom tuning for the selective glow pass. */
@@ -513,6 +551,34 @@ export interface IVoxelCloud {
     readonly b: Float32Array;
 }
 
+
+/////////////sparks
+/** Short-lived glowing single-voxel sparks thrown off by hits that do not destroy the target. */
+export interface ISparkConfig {
+    maxParticles: number;
+    /** Edge length of one spark cube (world units; voxels are 1). */
+    size: number;
+    /** Sparks per hit, [min, max]. */
+    count: readonly [number, number];
+    /** Launch speed along the spark direction (units/s), [min, max]. */
+    speed: readonly [number, number];
+    /** World direction the sparks are thrown in, centred on the scatter cone (need not be normalised; +Y up, +Z away from the player). */
+    direction: IVector3Like;
+    /** Half-angle (radians) of the cone sparks are scattered in around the spark direction. */
+    spread: number;
+    /** Downward acceleration (units/s^2). */
+    gravity: number;
+    /** Lifetime (s), [min, max]. */
+    life: readonly [number, number];
+    /** Fraction of the emitting target's velocity the sparks inherit. */
+    inheritVelocity: number;
+    /** Starting colour multiplied by `hotIntensity` (above 1 drives the bloom). */
+    hotColor: readonly [number, number, number];
+    hotIntensity: number;
+    /** Colour the spark cools to by `redAtFraction` of its life; it then dims and shrinks to nothing. */
+    redColor: readonly [number, number, number];
+    redAtFraction: number;
+}
 
 /////////////explosion debris
 /** How one kind of explosion launches and lights its debris. Ranges are [min, max]. */

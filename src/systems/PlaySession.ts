@@ -1,4 +1,4 @@
-﻿import { Vector3, type Quaternion } from 'three';
+﻿import { Vector3, Quaternion } from 'three';
 import type {
     IFormationConfig,
     IIntroStartedPayload,
@@ -8,18 +8,21 @@ import type {
     IWaveClearedPayload,
     ILevelCompletedPayload,
 } from '../config/interfaces/interfaces';
-import { GameEvents } from '../config/types/types';
-import type { InvaderTypeId, ExplosionKind } from '../config/types/types';
-import { INSTANCED_ASSETS, INVADER_ASSET_KEYS, LEVEL, PLAYER, WEAPONS, COLLISION, DEBUG } from '../config/data/constants';
+import { GameEvents, CollisionLayer } from '../config/types/types';
+import type { InvaderTypeId, ExplosionKind, CollisionLayerFlag } from '../config/types/types';
+import { INSTANCED_ASSETS, INVADER_ASSET_KEYS, INVADER_WEAPONS, INVADER_WEAPON_TYPES, LEVEL, PLAYER, WEAPONS, COLLISION, DEBUG } from '../config/data/constants';
 import type { IGameContext } from '../config/interfaces/interfaces';
 import { EntityManager } from '../entities/EntityManager';
 import { Invader } from '../entities/Invader';
+import { InvaderWeapon } from '../entities/InvaderWeapon';
 import { Player } from '../entities/Player';
 import { Projectile } from '../entities/Projectile';
 import { Weapon } from '../entities/Weapon';
 import { ProjectilePool } from './ProjectilePool';
+import { InvaderWeaponPool } from './InvaderWeaponPool';
 import { CollisionSystem } from './collision/CollisionSystem';
 import { DebrisSystem } from './fx/DebrisSystem';
+import { SparkSystem } from './fx/SparkSystem';
 import { EntryPatternDirector } from './patterns/directors/EntryPatternDirector';
 import { FormationController } from './FormationController';
 import type { IPatternDirector, IPlaySessionStartOptions, ICollisionHit, ICollisionMover, ICollisionTarget } from '../config/interfaces/interfaces';
@@ -27,6 +30,8 @@ import { Stage } from './stages/Stage';
 import { StageQueue } from './stages/StageQueue';
 import { Level } from './stages/Level';
 import { SimpleLoopFormationPatternBuilder } from './patterns/patterns/formation-patterns/SimpleLoopFormationPatternBuilder';
+
+const identityOrientation = new Quaternion();
 
 
 
@@ -54,6 +59,7 @@ export class PlaySession {
 
     private projectilePool: ProjectilePool | null = null;
     private playerWeapon: Weapon | null = null;
+    private weaponPool: InvaderWeaponPool | null = null;
 
     private collision: CollisionSystem | null = null;
     // Reused every frame so collision runs without allocating.
@@ -61,7 +67,10 @@ export class PlaySession {
     private readonly collisionTargets: ICollisionTarget[] = [];
 
     private debris: DebrisSystem | null = null;
+    private sparks: SparkSystem | null = null;
+    private readonly sparkOrigin = new Vector3();
     private readonly debrisVelocity = new Vector3();
+    private readonly weaponVelocity = new Vector3();
     private frameDt = 0;
     /** Seconds until a destroyed player respawns (the length of their explosion). */
     private respawnCountdown = 0;
@@ -102,6 +111,7 @@ export class PlaySession {
         for (const { key, maxCount } of INSTANCED_ASSETS) {
             ctx.assets.getOrCreateInstancedMesh(key, maxCount);
         }
+        this.weaponPool = new InvaderWeaponPool(ctx.assets);
 
         if (options.spawnPlayer) {
             this.spawnPlayer(ctx);
@@ -248,6 +258,7 @@ export class PlaySession {
      */
     public clearCombatants(): void {
         this.invaders?.clear();
+        this.weaponPool?.clear();
         this.ctx?.playField.clearInvaders();
     }
 
@@ -263,9 +274,12 @@ export class PlaySession {
         // Player first: invaders.update() flags all instanced meshes dirty once, at the end.
         this.updatePlayer(dt);
         this.projectilePool?.update(dt);
+        this.weaponPool?.update(dt);
         this.invaders?.update(dt);
         this.frameDt = dt;
+        this.updateInvaderWeaponDrops(dt);
         this.debris?.update(dt);
+        this.sparks?.update(dt);
         this.updateCollisions();
 
         if (betweenWaves) {
@@ -321,11 +335,15 @@ export class PlaySession {
         this.removePlayer();
         this.projectilePool?.clear();
         this.projectilePool = null;
+        this.weaponPool?.clear();
+        this.weaponPool = null;
         this.collision = null;
         this.collisionMovers.length = 0;
         this.collisionTargets.length = 0;
         this.debris?.dispose();
         this.debris = null;
+        this.sparks?.dispose();
+        this.sparks = null;
         this.invaders?.clear();
         this.ctx?.playField.clearInvaders();
         this.ctx = null;
@@ -355,10 +373,19 @@ export class PlaySession {
             ctx.assets.getCollisionModels(key).get(weaponConfig.collisionRadius);
             ctx.assets.getVoxelCloud(key);
         }
+        for (const type of INVADER_WEAPON_TYPES) {
+            const invaderWeapon = INVADER_WEAPONS[type];
+            // The player is swept by the weapon; the weapon is swept by player shots.
+            this.player.collisionModels.get(invaderWeapon.collisionRadius);
+            ctx.assets.getCollisionModels(invaderWeapon.assetKey).get(weaponConfig.collisionRadius);
+            ctx.assets.getVoxelCloud(invaderWeapon.assetKey);
+        }
         ctx.assets.getVoxelCloud(PLAYER.assetKey);
 
         this.debris = new DebrisSystem(ctx.playField);
         ctx.scene.scene.add(this.debris.mesh);
+        this.sparks = new SparkSystem();
+        ctx.scene.scene.add(this.sparks.mesh);
     }
 
     /**
@@ -381,6 +408,12 @@ export class PlaySession {
             targets.push(entity);
             if (this.player?.collisionEnabled) movers.push(entity);
         }
+        // Non-shootable weapons are filtered out of the target list by the collision rules.
+        this.weaponPool?.forEachLive((weapon) => {
+            if (!weapon.collisionEnabled) return;
+            targets.push(weapon);
+            if (this.player?.collisionEnabled) movers.push(weapon);
+        });
         if (this.player) targets.push(this.player);
 
         if (movers.length > 0) {
@@ -403,8 +436,20 @@ export class PlaySession {
             if (!target.collisionEnabled) return;
             if (mover instanceof Projectile) this.projectilePool?.release(mover);
             this.destroyInvader(target);
+        } else if (target instanceof InvaderWeapon) {
+            if (!target.collisionEnabled) return;
+            if (mover instanceof Projectile) {
+                this.projectilePool?.release(mover);
+                // Weapons survive hits until their hit points run out; a surviving one is knocked back and throws sparks.
+                if (!target.takeHit(mover.power)) {
+                    this.emitSparks(hit.x, target.position.y, hit.z, target.velocity);
+                    return;
+                }
+            }
+            this.destroyInvaderWeapon(target);
         } else if (target instanceof Player && target === this.player && target.collisionEnabled) {
             if (mover instanceof Invader && mover.collisionEnabled) this.destroyInvader(mover);
+            if (mover instanceof InvaderWeapon && mover.collisionEnabled) this.destroyInvaderWeapon(mover);
             this.onPlayerHit(target);
         }
     }
@@ -412,6 +457,53 @@ export class PlaySession {
     private destroyInvader(invader: Invader): void {
         this.explodeInvader(invader);
         this.invaders?.remove(invader);
+    }
+
+    /** Sparks fly up and back (away from the player) out of the hit. */
+    private emitSparks(x: number, y: number, z: number, targetVelocity: Vector3): void {
+        this.sparkOrigin.set(x, y, z);
+        this.sparks?.emit(this.sparkOrigin, targetVelocity);
+    }
+
+    private destroyInvaderWeapon(weapon: InvaderWeapon): void {
+        this.debrisVelocity.copy(weapon.velocity);
+        this.explode('invader', INVADER_WEAPONS[weapon.type].assetKey, weapon.position, identityOrientation, this.debrisVelocity);
+        this.weaponPool?.release(weapon);
+    }
+
+    /**
+     * Rolls each eligible diving invader's drop chance for every invader weapon. Weapons start at the invader's
+     * position and then travel with the terrain scroll (straight toward the player).
+     */
+    private updateInvaderWeaponDrops(dt: number): void {
+        const pool = this.weaponPool;
+        const invaders = this.invaders;
+        const ctx = this.ctx;
+        if (!pool || !invaders || !ctx || dt <= 0) return;
+
+        this.weaponVelocity.set(0, 0, ctx.playField.getGroundScrollVelocityZ());
+        const layer = this.invaderWeaponLayer();
+
+        for (const entity of invaders.getAll()) {
+            if (!(entity instanceof Invader)) continue;
+            for (const type of INVADER_WEAPON_TYPES) {
+                const config = INVADER_WEAPONS[type];
+                if (!entity.canDropWeapon(type, config)) continue;
+                // Frame-rate independent: dropChancePerFrame is the chance per frame at 60 fps.
+                const chance = 1 - Math.pow(1 - config.dropChancePerFrame, dt * 60);
+                if (Math.random() >= chance) continue;
+                if (pool.spawn(type, entity.position, this.weaponVelocity, layer)) {
+                    entity.registerWeaponDrop(type);
+                }
+            }
+        }
+    }
+
+    /** Invader weapons can be shot only when the player's current weapon destroys them. */
+    private invaderWeaponLayer(): CollisionLayerFlag {
+        return WEAPONS[PLAYER.weapon].destroysMines
+            ? CollisionLayer.INVADER_WEAPON_SHOOTABLE
+            : CollisionLayer.INVADER_WEAPON;
     }
 
     /** Loses a life. The ship stays out of play until its explosion has finished, then respawns or the game ends. */
@@ -546,6 +638,7 @@ export class PlaySession {
     private bootIntro(reason: IIntroStartedPayload['reason']): void {
         // Full reset: stop any prior queue, drop actors, rebuild formation + queue.
         this.clearActiveInvaders('restart');
+        this.weaponPool?.clear();
         this.beginCurrentWave(reason);
     }
 

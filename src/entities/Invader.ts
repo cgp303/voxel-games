@@ -11,8 +11,9 @@ import type {
     EntrySide,
     InvaderMode,
     InvaderTypeId,
+    InvaderWeaponType,
 } from '../config/types/types';
-import type { IPathPattern, IEntryConfig, IFormationSlot, IInvaderInitConfig, ICubicBezierControls, ICollisionMover, ICollisionTarget } from '../config/interfaces/interfaces';
+import type { IPathPattern, IEntryConfig, IFormationSlot, IInvaderInitConfig, IInvaderWeaponConfig, ICubicBezierControls, ICollisionMover, ICollisionTarget } from '../config/interfaces/interfaces';
 import { ENTRY, COLLISION } from '../config/data/constants';
 import type { FormationController } from '../systems/FormationController';
 import { Entity } from './Entity';
@@ -104,6 +105,8 @@ export class Invader extends Entity implements ICollisionTarget, ICollisionMover
 
     private _attackOffset: Vector3 = new Vector3(0, 0, 0);
 
+    /** Weapons dropped during the current attack; cleared when a new attack starts or the invader docks. */
+    private readonly weaponsDropped: Partial<Record<InvaderWeaponType, number>> = {};
     constructor() {
         super(null);                       // no private mesh any more
         this.integrateVelocity = false;
@@ -138,6 +141,7 @@ export class Invader extends Entity implements ICollisionTarget, ICollisionMover
         this.previousPosition.copy(cfg.spawn);
         this.mode = 'entering';
         this.active = true;
+        this.resetWeaponDrops();
         this.roll = 0;
         this.spinAngle = 0;
         this.hasPrevForward = false;
@@ -169,7 +173,31 @@ export class Invader extends Entity implements ICollisionTarget, ICollisionMover
         this.mode = 'diving';
         this.pathT = 0;
         this.spinAngle = 0;
+        this.resetWeaponDrops();
         this.attackOffset = cfg.attackOffset ?? new Vector3(0, 0, 0);
+    }
+
+    /** True when this invader's type, pattern, segment and per-attack drop count permit using the weapon right now. */
+    public canDropWeapon(type: InvaderWeaponType, config: IInvaderWeaponConfig): boolean {
+        if (!this.active || this.mode !== 'diving') return false;
+        if (!config.allowedInvaderTypes.includes(this.typeId)) return false;
+        if (this.position.x < config.releaseXRange.min || this.position.x > config.releaseXRange.max) return false;
+        if ((this.weaponsDropped[type] ?? 0) >= config.maxPerAttack) return false;
+
+        const pattern = this.pathPattern;
+        if (!pattern?.id || !pattern.getSegmentIndex) return false;
+        const segments = config.allowedSegments[pattern.id];
+        return segments !== undefined && segments.includes(pattern.getSegmentIndex(this.pathT));
+    }
+
+    public registerWeaponDrop(type: InvaderWeaponType): void {
+        this.weaponsDropped[type] = (this.weaponsDropped[type] ?? 0) + 1;
+    }
+
+    private resetWeaponDrops(): void {
+        for (const key of Object.keys(this.weaponsDropped) as InvaderWeaponType[]) {
+            this.weaponsDropped[key] = 0;
+        }
     }
 
     public get attackOffset(): Vector3 {
@@ -227,6 +255,7 @@ export class Invader extends Entity implements ICollisionTarget, ICollisionMover
             this.pathT = 1;
             this.position.copy(this.homeScratch);
             this.mode = 'formation';
+            this.resetWeaponDrops();
             this.roll = 0;
             this.hasPrevForward = false;
             // Keep current flight orientation; formation slerps to rest.
