@@ -73,7 +73,29 @@ export class ColumnVerticalPatternBuilder implements IPatternBuilder {
                 };
             }
 
-            if (i === 0) controls.p0.copy(start);   // live spawn point, not a mirrored via-point
+
+            if (i === 0) {
+                controls.p0.copy(start);   // live spawn point, not a mirrored via-point
+                controls.p1.z = start.z + 120;
+                controls.p2.z = start.z + 120;
+                controls.p3.z = start.z + 120;
+                // ensure the first control point aligns with the start
+            }
+
+            if (i === 1) {
+                controls.p0.z = start.z + 120  // live spawn point, not a mirrored via-point
+                controls.p1.z = start.z + 120;
+                controls.p2.z = start.z + 110;
+                controls.p3.z = start.z + 60;
+                // ensure the first control point aligns with the start
+            }
+            if (i === 2) {
+
+                controls.p0.z = start.z + 60;
+                // ensure the first control point aligns with the start
+            }
+
+
             if (i === last) controls.p3.copy(endPosition); // live dock point, not a mirrored via-point
 
             prevControls = controls;

@@ -117,27 +117,21 @@ export function createDemoStages(): StageQueue {
                 1.0,
                 1.2
             ),
+
             new Stage(
-                "Group Attack",
-                new GroupAttackPatternDirector([[`group2x2${patternType}`, 2, 1]]),
+                "Column Vertical",
+                new ColumnVerticalDirector(),
                 { orientation: "front" },
-                1.4,
-                1.6
+                1.0,
+                1.2
             ),
             new Stage(
-                "Figure Eight Again",
-                new FigureEightDirector(),
+                "Column Vertical",
+                new ColumnVerticalDirector(),
                 { orientation: "front" },
-                1.2,
-                1.4
+                1.0,
+                1.2
             ),
-            new Stage(
-                "Group Attack",
-                new GroupAttackPatternDirector([[`groupXs${patternType}`, 2, 0]]),
-                { orientation: "front" },
-                1.4,
-                1.6
-            )
         ],
         1, // loopStartIndex
         formation,

@@ -172,7 +172,7 @@ export const EXPLOSION: IDebrisConfig = {
     spinImpactDamping: 0.65,
     spinContactDamping: 2.5,
     restSpeed: 4,
-    particleSize: 1.5,
+    particleSize: 1,
     fadeSec: 0.1,
     killBelowY: -60,
     maxStepSec: 1 / 20,
