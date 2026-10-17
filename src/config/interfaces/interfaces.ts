@@ -2,10 +2,10 @@
 
 import type { FormationController } from '../../systems/FormationController';
 import type { EntityManager } from '../../entities/EntityManager';
-import type { Object3D, Vector3 } from 'three';
+import type { Object3D, Quaternion, Vector3 } from 'three';
 import * as THREE from 'three';
 import type { MultiSegmentPattern } from '../../systems/patterns/patterns/MultiSegmentPattern';
-import type { MovementPath, InvaderTypeId, EntrySide, AttackPatternId } from '../types/types';
+import type { MovementPath, InvaderTypeId, EntrySide, AttackPatternId, InvaderWeaponType } from '../types/types';
 import type { GameScene } from '../../scene/Scene';
 import type { GameCamera } from '../../scene/Camera';
 import type { GameRenderer } from '../../scene/Renderer';
@@ -35,6 +35,10 @@ export interface IDirectorContext {
     scene?: THREE.Scene;
     /** Invader type for a formation slot (comes from the current StageQueue's row roster). */
     getInvaderTypeForSlot: (col: number, row: number) => InvaderTypeId;
+}
+
+export interface IRepeatingPatternDirectorContext extends IDirectorContext {
+    maxSetIterations?: number;
 }
 
 /** Per-type invader data: which instanced mesh to use, score and durability. */
@@ -88,6 +92,8 @@ export interface IPathPattern {
     readonly id?: AttackPatternId;
     /** Index of the path segment active at normalised time t (patterns without segments omit this). */
     getSegmentIndex?(t: number): number;
+    /** Progress (0..1) through the segment active at normalised time t. */
+    getSegmentProgress?(t: number): number;
     sampleSpinRate(t: number): number;
     samplePosition(t: number, out: THREE.Vector3): THREE.Vector3;
     sampleTangent(t: number, out: THREE.Vector3): THREE.Vector3;
@@ -101,8 +107,10 @@ export interface IPathPattern {
  * Shared contract for every pattern builder used by InvaderRepathDirector subclasses.
  */
 export interface IPatternBuilder {
-    build(origin: THREE.Vector3, side: number, duration: Vector3): MultiSegmentPattern;
+    build(origin: THREE.Vector3, side: number, duration: number, path?: number): MultiSegmentPattern;
     duration(): number;
+    overlap(): number;
+
 }
 
 /**
@@ -331,23 +339,40 @@ export interface IWeaponConfig {
     power: number;
 }
 
-/** Per-weapon tuning for weapons dropped or fired by invaders. */
-export interface IInvaderWeaponConfig {
+/**
+ * One value for each entry of a weapon's allowedSegments: perSegment[patternId][i] belongs to
+ * allowedSegments[patternId][i]. Every pattern id in allowedSegments needs an array of the same length.
+ */
+export type PerAllowedSegment<T> = Partial<Record<AttackPatternId, readonly T[]>>;
+
+/** Settings shared by every invader weapon. */
+export interface IInvaderWeaponBaseConfig {
     assetKey: string;
     /** Pool size: the most of this weapon that can be live at once. */
     maxCount: number;
-    /** Chance of a drop per frame at 60 fps while an invader is eligible (scaled by dt at other frame rates). */
-    dropChancePerFrame: number;
-    /** An invader only releases the weapon while its own X is within this world range, so drops bunch toward the middle. */
-    releaseXRange: { min: number; max: number };
-    /** Most of this weapon one invader can drop per attack; reset when it returns to the formation. */
-    maxPerAttack: number;
     /** Invader types that can use this weapon. */
     allowedInvaderTypes: readonly InvaderTypeId[];
     /** Pattern id -> indices of the path segments during which the weapon may be used. */
     allowedSegments: Partial<Record<AttackPatternId, readonly number[]>>;
     /** World units past the player's back edge at which the weapon is recycled. */
     despawnMarginPastPlayer: number;
+    /** World-unit radius used when the weapon sweeps against the player. */
+    collisionRadius: number;
+    castShadow: boolean;
+    /**
+     * Per allowed segment: chance per frame at 60 fps (scaled by dt at other frame rates) that an eligible
+     * invader releases the weapon. 1 = always release at the first opportunity; lower values make the release time random.
+     */
+    dropChancePerFrame: PerAllowedSegment<number>;
+}
+
+/** A mine: dropped at random, drifts toward the player and can be shot to pieces. */
+export interface IMineWeaponConfig extends IInvaderWeaponBaseConfig {
+    kind: 'mine';
+    /** An invader only releases the weapon while its own X is within this world range, so drops bunch toward the middle. */
+    releaseXRange: { min: number; max: number };
+    /** Most of this weapon one invader can drop per attack; reset when it returns to the formation. */
+    maxPerAttack: number;
     /** Rotation about the weapon's local Z axis while it flies (radians per second; sign sets direction). */
     spinRateRadPerSec: number;
     /** Hits (by total player weapon power) needed to destroy it. */
@@ -356,9 +381,93 @@ export interface IInvaderWeaponConfig {
     knockbackDistance: number;
     /** Initial speed of that push (units/s); it decelerates to zero over the distance, then the weapon resumes its course. */
     knockbackSpeed: number;
-    /** World-unit radius used when the weapon sweeps against the player. */
-    collisionRadius: number;
-    castShadow: boolean;
+    /** Initial velocity of the weapon when released. */
+    velocity: Vector3;
+    /** Asset keys of damaged models: after the nth hit that does not destroy the weapon it shows hitMeshes[n - 1]. Each must be in INSTANCED_ASSETS. */
+    hitMeshes?: readonly string[];
+}
+
+/** How a lazer is aimed when released. */
+export type LazerAimConfig =
+    /** Flies the way the invader is travelling, with the invader's orientation. */
+    | {
+        mode: 'inheritHeading';
+        /** Lazers released per attack. */
+        shots: number;
+        /** Pause between consecutive shots (seconds). */
+        intervalSec: number;
+    }
+    /** The invader yaws to face the player, fires one lazer along that line, then yaws back to its path orientation. */
+    | {
+        mode: 'atPlayer';
+        /** Seconds to turn from the path heading to face the player. */
+        turnInSec: number;
+        /** Longest (seconds) to wait, once fully turned, for the model to settle on the player before giving up without firing. */
+        faceTimeoutSec: number;
+        /** Seconds the invader holds the aim after firing. */
+        holdSec: number;
+        /** Seconds to turn back to the path heading. */
+        turnOutSec: number;
+        /** The invader counts as facing the player within this angle (radians). */
+        facingToleranceRad: number;
+        /** Random error added to the lazer's direction: it leaves within a cone of this half-angle (radians) around the line to the player. 0 = perfect aim. */
+        aimNoiseRad: number;
+        /** Where to aim when there is no player at all (e.g. the demo). A player who is merely respawning does not count. */
+        noPlayerTarget: IVector3Like;
+    };
+
+/** An invader lazer: indestructible, flies in a straight line at a fixed speed. */
+export interface ILazerWeaponConfig extends IInvaderWeaponBaseConfig {
+    kind: 'lazer';
+    /** Per allowed segment: flight speed (world units per second). */
+    speed: PerAllowedSegment<number>;
+    aim: LazerAimConfig;
+    /** Per allowed segment: progress (0..1) through the segment at which releasing (or turning to aim) starts. */
+    segmentProgress: PerAllowedSegment<number>;
+    /** Puts the lazers on the bloom layer, like the player's shots. */
+    glow: boolean;
+}
+
+/** Per-weapon tuning for weapons dropped or fired by invaders. */
+export type IInvaderWeaponConfig = IMineWeaponConfig | ILazerWeaponConfig;
+
+/**
+ * Settings a stage can replace for one weapon type; anything left out keeps the INVADER_WEAPONS value.
+ * Per-segment tables use the same shape as the config: a pattern id may be left out, but one that is given needs
+ * one value per entry of that pattern's allowedSegments.
+ */
+export interface IInvaderWeaponOverrideBase {
+    dropChancePerFrame?: PerAllowedSegment<number>;
+}
+
+export interface IMineWeaponOverride extends IInvaderWeaponOverrideBase {
+    maxPerAttack?: number;
+}
+
+export interface ILazerWeaponOverride extends IInvaderWeaponOverrideBase { }
+
+/** Per-stage weapon tuning, set on a Stage so every director gets it. */
+export interface IWeaponOverrides {
+    Mine?: IMineWeaponOverride;
+    LazerA?: ILazerWeaponOverride;
+    LazerB?: ILazerWeaponOverride;
+}
+
+/** The override of one weapon type, as handed to its trigger. */
+export type IInvaderWeaponOverride = NonNullable<IWeaponOverrides[InvaderWeaponType]>;
+
+/** World limits that end a lazer's flight sideways or toward +Z (the -Z limit is the weapon's despawnZ). */
+export interface ILazerDespawnBounds {
+    minX: number;
+    maxX: number;
+    maxZ: number;
+}
+
+/** Where and how a weapon leaves its invader; filled by a WeaponTrigger and reused every frame. */
+export interface IWeaponLaunch {
+    origin: Vector3;
+    velocity: Vector3;
+    orientation: Quaternion;
 }
 
 /** Bloom tuning for the selective glow pass. */

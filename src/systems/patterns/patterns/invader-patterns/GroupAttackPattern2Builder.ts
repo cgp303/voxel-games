@@ -28,12 +28,16 @@ export class GroupAttackPattern2Builder implements IPatternBuilder {
     private static readonly ALLOW_INVERSION = [false, false];
     private static readonly ORIENTATION_SMOOTHING = [1, 1];
     private static readonly DURATION = 6; // example duration in seconds
+    private static readonly OVERLAP = 0;
 
     duration(): number {
         return GroupAttackPattern2Builder.DURATION;
     }
+    overlap(): number {
+        return GroupAttackPattern2Builder.OVERLAP;
+    }
 
-    build(origin: Vector3, side: number, endPosition: Vector3): MultiSegmentPattern {
+    build(origin: Vector3, side: number, endPosition: Vector3, path: number = 0): MultiSegmentPattern {
         const start = origin.clone();
         const last = GroupAttackPattern2Builder.SEGMENTS.length - 1;
 
@@ -59,7 +63,7 @@ export class GroupAttackPattern2Builder implements IPatternBuilder {
             );
         });
 
-        return new MultiSegmentPattern(segments, GroupAttackPattern2Builder.RANGES, GroupAttackPattern2Builder.DURATION, 0, 'groupAttack2');
+        return new MultiSegmentPattern(segments, GroupAttackPattern2Builder.RANGES, GroupAttackPattern2Builder.DURATION, GroupAttackPattern2Builder.OVERLAP, 'groupAttack2');
     }
 
 }

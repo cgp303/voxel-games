@@ -15,6 +15,7 @@ export abstract class ColumnTriggerDirector extends InvaderRepathDirector {
     protected spawnType: ColumnSpawnType = 'LeftRightPairs';
     protected currentIndex = 0;
     protected triggerTime = 0;
+    protected overlap = 0;
 
     /** Seconds between triggers — set by each concrete director. */
     protected abstract readonly msBetweenTriggers: number;
@@ -32,6 +33,7 @@ export abstract class ColumnTriggerDirector extends InvaderRepathDirector {
         this.currentIndex = 0;
         this.triggerTime = 0;
         this.completionCooldown = 0;
+        this.overlap = this.builder.overlap();
     }
 
     public update(dt: number): void {
@@ -77,7 +79,7 @@ export abstract class ColumnTriggerDirector extends InvaderRepathDirector {
     }
 
     /** Re-paths whichever invaders in the current trigger group are available. Returns true if any launched. */
-    private trigger(): boolean {
+    protected trigger(): boolean {
         const group = this.triggerOrder[this.currentIndex];
 
         switch (this.spawnType) {

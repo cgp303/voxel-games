@@ -10,7 +10,7 @@ export class GameScene {
   constructor() {
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x0a0a0a);
-    this.scene.fog = new THREE.Fog(0x0a0a0a, 200, 1000);
+    this.scene.fog = new THREE.Fog(0x0a0a0a, 200, 750);
 
     // Hemisphere light for natural ambient lighting
     const hemiLight = new THREE.HemisphereLight(0xffffff, 0xffffff, 2.5);

@@ -44,9 +44,11 @@ export abstract class InvaderRepathDirector extends BasePatternDirector {
      * Look up the invader at a slot, build it a fresh path from its own position, and set it flying.
      * Returns false (and does nothing) when the slot has no available invader — missing slots,
      * destroyed invaders and invaders already mid-attack are normal, not errors.
+     * @param path The path index to use when building the new pattern. allows selecting among multiple predefined paths.
      */
     protected buildAndApply(slotKey: string, side: number): boolean {
         const invader = this.invaders?.getInvaderAtSlot(slotKey);
+        const path = this.config.path ?? 0;
         if (!invader || !invader.active) return false;
 
         // Parse the column and row from the slot key. ANNOYING!
@@ -59,7 +61,7 @@ export abstract class InvaderRepathDirector extends BasePatternDirector {
         // Safe: an invader registered at this slot implies the slot exists in the formation.
         const predictedEndPosition = this.formation?.getPredictedEndPosition(col, row, duration);
 
-        this.applyPattern(invader, this.builder.build(invader.position, side, predictedEndPosition));
+        this.applyPattern(invader, this.builder.build(invader.position, side, predictedEndPosition, path));
         return true;
     }
 

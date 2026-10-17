@@ -15,6 +15,7 @@ import type { IGameContext } from '../config/interfaces/interfaces';
 import { EntityManager } from '../entities/EntityManager';
 import { Invader } from '../entities/Invader';
 import { InvaderWeapon } from '../entities/InvaderWeapon';
+import { MineWeapon } from '../entities/MineWeapon';
 import { Player } from '../entities/Player';
 import { Projectile } from '../entities/Projectile';
 import { Weapon } from '../entities/Weapon';
@@ -25,7 +26,7 @@ import { DebrisSystem } from './fx/DebrisSystem';
 import { SparkSystem } from './fx/SparkSystem';
 import { EntryPatternDirector } from './patterns/directors/EntryPatternDirector';
 import { FormationController } from './FormationController';
-import type { IPatternDirector, IPlaySessionStartOptions, ICollisionHit, ICollisionMover, ICollisionTarget } from '../config/interfaces/interfaces';
+import type { IPatternDirector, IPlaySessionStartOptions, ICollisionHit, ICollisionMover, ICollisionTarget, IWeaponLaunch } from '../config/interfaces/interfaces';
 import { Stage } from './stages/Stage';
 import { StageQueue } from './stages/StageQueue';
 import { Level } from './stages/Level';
@@ -70,7 +71,12 @@ export class PlaySession {
     private sparks: SparkSystem | null = null;
     private readonly sparkOrigin = new Vector3();
     private readonly debrisVelocity = new Vector3();
-    private readonly weaponVelocity = new Vector3();
+    /** Reused by the invaders' weapon triggers to describe the weapon being released. */
+    private readonly weaponLaunch: IWeaponLaunch = {
+        origin: new Vector3(),
+        velocity: new Vector3(),
+        orientation: new Quaternion(),
+    };
     private frameDt = 0;
     /** Seconds until a destroyed player respawns (the length of their explosion). */
     private respawnCountdown = 0;
@@ -277,7 +283,7 @@ export class PlaySession {
         this.weaponPool?.update(dt);
         this.invaders?.update(dt);
         this.frameDt = dt;
-        this.updateInvaderWeaponDrops(dt);
+        this.updateInvaderWeapons(dt);
         this.debris?.update(dt);
         this.sparks?.update(dt);
         this.updateCollisions();
@@ -375,8 +381,10 @@ export class PlaySession {
         }
         for (const type of INVADER_WEAPON_TYPES) {
             const invaderWeapon = INVADER_WEAPONS[type];
-            // The player is swept by the weapon; the weapon is swept by player shots.
+            // The player is swept by the weapon.
             this.player.collisionModels.get(invaderWeapon.collisionRadius);
+            // Only mines are swept by player shots and break into debris.
+            if (invaderWeapon.kind !== 'mine') continue;
             ctx.assets.getCollisionModels(invaderWeapon.assetKey).get(weaponConfig.collisionRadius);
             ctx.assets.getVoxelCloud(invaderWeapon.assetKey);
         }
@@ -408,10 +416,11 @@ export class PlaySession {
             targets.push(entity);
             if (this.player?.collisionEnabled) movers.push(entity);
         }
-        // Non-shootable weapons are filtered out of the target list by the collision rules.
+        // Only mines can be hit; lazers are movers only.
         this.weaponPool?.forEachLive((weapon) => {
             if (!weapon.collisionEnabled) return;
-            targets.push(weapon);
+            // Non-shootable mines are filtered out of the target list by the collision rules.
+            if (weapon instanceof MineWeapon) targets.push(weapon);
             if (this.player?.collisionEnabled) movers.push(weapon);
         });
         if (this.player) targets.push(this.player);
@@ -436,7 +445,7 @@ export class PlaySession {
             if (!target.collisionEnabled) return;
             if (mover instanceof Projectile) this.projectilePool?.release(mover);
             this.destroyInvader(target);
-        } else if (target instanceof InvaderWeapon) {
+        } else if (target instanceof MineWeapon) {
             if (!target.collisionEnabled) return;
             if (mover instanceof Projectile) {
                 this.projectilePool?.release(mover);
@@ -466,40 +475,41 @@ export class PlaySession {
     }
 
     private destroyInvaderWeapon(weapon: InvaderWeapon): void {
-        this.debrisVelocity.copy(weapon.velocity);
-        this.explode('invader', INVADER_WEAPONS[weapon.type].assetKey, weapon.position, identityOrientation, this.debrisVelocity);
+        // Only mines break apart; a lazer that hits the player just disappears.
+        if (weapon instanceof MineWeapon) {
+            this.debrisVelocity.copy(weapon.velocity);
+            this.explode('invader', INVADER_WEAPONS[weapon.type].assetKey, weapon.position, identityOrientation, this.debrisVelocity);
+        }
         this.weaponPool?.release(weapon);
     }
 
     /**
-     * Rolls each eligible diving invader's drop chance for every invader weapon. Weapons start at the invader's
-     * position and then travel with the terrain scroll (straight toward the player).
+     * Asks every diving invader's weapon triggers whether to release a weapon this frame and spawns the ones
+     * that do. Lazers that aim at the player need the player's position (null while the player is out of play).
      */
-    private updateInvaderWeaponDrops(dt: number): void {
+    private updateInvaderWeapons(dt: number): void {
         const pool = this.weaponPool;
         const invaders = this.invaders;
-        const ctx = this.ctx;
-        if (!pool || !invaders || !ctx || dt <= 0) return;
+        if (!pool || !invaders || dt <= 0) return;
 
-        this.weaponVelocity.set(0, 0, ctx.playField.getGroundScrollVelocityZ());
-        const layer = this.invaderWeaponLayer();
+        const playerPresent = this.player !== null;
+        const target = this.player?.collisionEnabled ? this.player.position : null;
+        const launch = this.weaponLaunch;
+        const overrides = this.currentStage?.weaponOverrides;
 
         for (const entity of invaders.getAll()) {
             if (!(entity instanceof Invader)) continue;
             for (const type of INVADER_WEAPON_TYPES) {
-                const config = INVADER_WEAPONS[type];
-                if (!entity.canDropWeapon(type, config)) continue;
-                // Frame-rate independent: dropChancePerFrame is the chance per frame at 60 fps.
-                const chance = 1 - Math.pow(1 - config.dropChancePerFrame, dt * 60);
-                if (Math.random() >= chance) continue;
-                if (pool.spawn(type, entity.position, this.weaponVelocity, layer)) {
-                    entity.registerWeaponDrop(type);
+                if (!entity.pollWeaponRelease(type, dt, target, launch, playerPresent, overrides?.[type])) continue;
+                const layer = INVADER_WEAPONS[type].kind === 'mine' ? this.invaderWeaponLayer() : CollisionLayer.INVADER_WEAPON;
+                if (pool.spawn(type, launch.origin, launch.velocity, launch.orientation, layer)) {
+                    entity.commitWeaponRelease(type);
                 }
             }
         }
     }
 
-    /** Invader weapons can be shot only when the player's current weapon destroys them. */
+    /** Mines can be shot only when the player's current weapon destroys them; lazers can never be shot. */
     private invaderWeaponLayer(): CollisionLayerFlag {
         return WEAPONS[PLAYER.weapon].destroysMines
             ? CollisionLayer.INVADER_WEAPON_SHOOTABLE

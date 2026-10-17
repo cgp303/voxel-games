@@ -40,9 +40,14 @@ export class ColumnVerticalPatternBuilder implements IPatternBuilder {
     ];
     private static readonly ORIENTATION_SMOOTHING = [1, 1, 0.4, 1,];
     private static readonly DURATION = 4; // example duration in seconds
+    private static readonly OVERLAP = 0;
 
     duration(): number {
         return ColumnVerticalPatternBuilder.DURATION;
+    }
+
+    overlap(): number {
+        return ColumnVerticalPatternBuilder.OVERLAP;
     }
 
     build(origin: Vector3, side: number, endPosition: Vector3): MultiSegmentPattern {
@@ -107,7 +112,7 @@ export class ColumnVerticalPatternBuilder implements IPatternBuilder {
             );
         });
 
-        return new MultiSegmentPattern(segments, ColumnVerticalPatternBuilder.RANGES, ColumnVerticalPatternBuilder.DURATION, 1);
+        return new MultiSegmentPattern(segments, ColumnVerticalPatternBuilder.RANGES, ColumnVerticalPatternBuilder.DURATION, ColumnVerticalPatternBuilder.OVERLAP, 'columnVertical');
     }
 
     updateXValue(controls, start) {

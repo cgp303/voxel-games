@@ -1,0 +1,187 @@
+import { Stage } from '../Stage';
+import { StageQueue } from '../StageQueue';
+import { LazerBAttackPatternDirector } from '../../patterns/directors/LazerBAttackPatternDirector';
+
+import { EntryPatternDirector } from '../../patterns/directors/EntryPatternDirector';
+import { FigureEightDirector } from '../../patterns/directors/FigureEightDirector';
+import { ColumnDivesDirector } from '../../patterns/directors/ColumnDivesDirector';
+import { ColumnVerticalDirector } from '../../patterns/directors/ColumnVerticalDirector';
+import { makeGridFormation, makeVFormation, makeXFormation, makeDiamondFormation, makeCircleFormation, makeStaggeredFormation, makeThreeRingCircleFormation, makeSpiralFormation } from '../../patterns/formations/formationBuilders';
+import { GroupAttackPatternDirector } from '../../patterns/directors/GroupAttackPatternDirector';
+import type { IFormationDescriptor } from '../../../config/interfaces/interfaces';
+import type { InvaderRowRoster, PatternType } from '../../../config/types/types';
+
+/** Default roster for a 6-row formation (row 0 = nearest the player). */
+const DEFAULT_ROW_ROSTER: InvaderRowRoster = ['scout', 'scout', 'fighter', 'fighter', 'elite', 'elite'];
+
+export function createLevel1_2(
+    formation: IFormationDescriptor = makeGridFormation(10, 6, 12),
+    rowRoster: InvaderRowRoster = DEFAULT_ROW_ROSTER,
+    patternType: PatternType = "Grid"
+): StageQueue {
+    return new StageQueue(
+        [
+            new Stage(
+                "Entry",
+                new EntryPatternDirector(),
+                { orientation: "front" },
+                0.5,
+                1.0
+            ),
+
+            new Stage(
+                "Group Attack",
+                new GroupAttackPatternDirector([[`group2x2${patternType}`, 1, 0]]),
+                { orientation: "front" },
+                1.4,
+                1.6,
+                null,
+                {
+                    Mine: {
+                        dropChancePerFrame: { groupAttack1: [0.07, 0.06, 0.08] },
+                        maxPerAttack: 8,
+                    },
+                }
+            ),
+
+            new Stage(
+                "Column Vertical",
+                new ColumnVerticalDirector(),
+                { orientation: "front" },
+                1.0,
+                1.2
+            ),
+
+
+            // new Stage(
+            //     "lazerBAttack",
+            //     new LazerBAttackPatternDirector(),
+            //     { orientation: "front", maxSetIterations: 3 },
+            //     1.2,
+            //     1.4
+            // ),
+
+            // new Stage(
+            //     "Figure Eight Again",
+            //     new FigureEightDirector(),
+            //     { orientation: "front" },
+            //     1.2,
+            //     1.4
+            // ),
+
+            // new Stage(
+            //     "Column Vertical",
+            //     new ColumnVerticalDirector(),
+            //     { orientation: "front" },
+            //     1.0,
+            //     1.2
+            // ),
+            // new Stage(
+            //     "Group Attack",
+            //     new GroupAttackPatternDirector([[`groupXs${patternType}`, 8, 0]]),
+            //     { orientation: "front" },
+            //     1.4,
+            //     1.6
+            // ),
+            // new Stage(
+            //     "Column Dives",
+            //     new ColumnDivesDirector(),
+            //     { orientation: "front" },
+            //     1.0,
+            //     1.2
+            // ),
+
+            // new Stage(
+            //     "Column Vertical",
+            //     new ColumnVerticalDirector(),
+            //     { orientation: "front" },
+            //     1.0,
+            //     1.2
+            // ),
+
+            // new Stage(
+            //     "Column Dives",
+            //     new ColumnDivesDirector(),
+            //     { orientation: "front" },
+            //     1.0,
+            //     1.2
+            // ),
+
+            // new Stage(
+            //     "Group Attack",
+            //     new GroupAttackPatternDirector([[`groupXs${patternType}`, 8, 0]]),
+            //     { orientation: "front" },
+            //     1.4,
+            //     1.6
+            // ),
+
+            // new Stage(
+            //     "Column Vertical",
+            //     new ColumnVerticalDirector(),
+            //     { orientation: "front" },
+            //     1.0,
+            //     1.2
+            // ),
+
+            // new Stage(
+            //     "Group Attack",
+            //     new GroupAttackPatternDirector([[`group2x2${patternType}`, 2, 1]]),
+            //     { orientation: "front" },
+            //     1.4,
+            //     1.6
+            // ),
+
+            // new Stage(
+            //     "Group Attack",
+            //     new GroupAttackPatternDirector([[`groupXs${patternType}`, 2, 0]]),
+            //     { orientation: "front" },
+            //     1.4,
+            //     1.6
+            // ),
+
+            // new Stage(
+            //     "Column Dives",
+            //     new ColumnDivesDirector(),
+            //     { orientation: "front" },
+            //     1.0,
+            //     1.2
+            // ),
+
+            // new Stage(
+            //     "Group Attack",
+            //     new GroupAttackPatternDirector([[`groupDiamonds${patternType}`, 2, 1]]),
+            //     { orientation: "front" },
+            //     1.4,
+            //     1.6
+            // ),
+
+            // new Stage(
+            //     "Figure Eight Again",
+            //     new FigureEightDirector(),
+            //     { orientation: "front" },
+            //     1.2,
+            //     1.4
+            // ),
+
+            // new Stage(
+            //     "Group Attack",
+            //     new GroupAttackPatternDirector([[`groupCrosses${patternType}`, 2, 0]]),
+            //     { orientation: "front" },
+            //     1.4,
+            //     1.6
+            // ),
+
+            // new Stage(
+            //     "Column Vertical",
+            //     new ColumnVerticalDirector(),
+            //     { orientation: "front" },
+            //     1.0,
+            //     1.2
+            // ),
+        ],
+        1, // loopStartIndex
+        formation,
+        rowRoster
+    );
+}
+

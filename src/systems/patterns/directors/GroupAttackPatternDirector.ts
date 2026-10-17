@@ -68,7 +68,7 @@ export class GroupAttackPatternDirector extends InvaderRepathDirector {
         ////////////////////////////////////////////
 
         // return if not active
-        if (!this.running || this.cancelled) return;
+        if (!this.running || this.cancelled || this._isComplete) return;
 
         // return if in completion cooldown
         if (this.tickCooldown(dt)) return;
@@ -91,10 +91,11 @@ export class GroupAttackPatternDirector extends InvaderRepathDirector {
         }
 
         if (!group) {
-            // No usable group left in this set: move straight on to the next set (or finish).
+            // No usable group left in this set: move straight on to the next set (or finish). The last launch
+            // is already (duration - overlap) ago, so there is nothing left to wait for.
             this.currentInvaderGroup = undefined;
             this.triggerDelay = 0;
-            this.endCurrentSet();
+            this.endCurrentSet(0);
             return;
         }
         this.currentInvaderGroup = group;
@@ -116,9 +117,9 @@ export class GroupAttackPatternDirector extends InvaderRepathDirector {
         const predictedEndPosition = this.formation.getAdjustedPositionForGroupReturn(this.centralPosition, duration);
 
         const pattern = this.builder.build(this.centralPosition, side, predictedEndPosition);
-        // update trigger delay for this pattern.
-        this.triggerDelay = pattern.duration - pattern.durationOverlap;
-        this.coolDownPeriod = pattern.duration;
+        // The next launch, and the move on to the next stage, happen once the pattern is overlap seconds from finishing.
+        this.triggerDelay = duration - this.builder.overlap();
+        this.coolDownPeriod = this.triggerDelay;
 
         for (const invaderKey of availableKeys) {
             const invader = this.invaders?.getInvaderAtSlot(invaderKey);
@@ -141,13 +142,17 @@ export class GroupAttackPatternDirector extends InvaderRepathDirector {
         return group.filter((key) => this.invaders?.getInvaderAtSlot(key)?.active);
     }
 
-    /** Current set is finished: start the next set, or begin the stage's completion cooldown. */
-    private endCurrentSet(): void {
+    /** Current set is finished: start the next set, or complete the stage after `wait` seconds. */
+    private endCurrentSet(wait: number = this.coolDownPeriod): void {
         this.currentGroupSetIndex++;
 
         if (this.currentGroupSetIndex >= this.numGroups) {
-            // end stage here:
-            this.completionCooldown = this.coolDownPeriod;
+            // end stage here. tickCooldown() ignores a wait of 0 or less, so complete directly in that case.
+            if (wait > 0) {
+                this.completionCooldown = wait;
+            } else {
+                this._isComplete = true;
+            }
             return;
         }
 

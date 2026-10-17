@@ -3,7 +3,7 @@ import type { DemoAttractPanel } from '../config/types/types';
 import { DEMO } from '../config/data/constants';
 import { PlaySession } from '../systems/PlaySession';
 import type { PlayScreen } from './PlayScreen';
-import { createDemoStages } from '../systems/stages/stages-basic';
+import { createDemoStages } from '../systems/stages/levels/stages-basic';
 
 /** Attract panels cycled on the demo screen */
 

@@ -46,12 +46,16 @@ export class GroupAttackPattern1Builder implements IPatternBuilder {
     private static readonly ALLOW_INVERSION = [false, false, false, false, false];
     private static readonly ORIENTATION_SMOOTHING = [1, 1, 1, 1, 1];
     private static readonly DURATION = 9.5; // example duration in seconds
+    private static readonly OVERLAP = 6;
 
     duration(): number {
         return GroupAttackPattern1Builder.DURATION;
     }
+    overlap(): number {
+        return GroupAttackPattern1Builder.OVERLAP;
+    }
 
-    build(origin: Vector3, side: number, endPosition: Vector3): MultiSegmentPattern {
+    build(origin: Vector3, side: number, endPosition: Vector3, path: number = 0): MultiSegmentPattern {
         const start = origin.clone();
         const last = GroupAttackPattern1Builder.SEGMENTS.length - 1;
         let prevControls: ICubicBezierControls;
@@ -82,7 +86,7 @@ export class GroupAttackPattern1Builder implements IPatternBuilder {
             );
         });
 
-        return new MultiSegmentPattern(segments, GroupAttackPattern1Builder.RANGES, GroupAttackPattern1Builder.DURATION, 0, 'groupAttack1');
+        return new MultiSegmentPattern(segments, GroupAttackPattern1Builder.RANGES, GroupAttackPattern1Builder.DURATION, GroupAttackPattern1Builder.OVERLAP, 'groupAttack1');
     }
 
     smoothSegmentJoins(prevSegment) {
