@@ -1,10 +1,7 @@
-import type { InstancedMesh, MeshStandardMaterial, Vector3 } from 'three';
+import type { InstancedMesh, Vector3 } from 'three';
 import { Projectile } from '../entities/Projectile';
-import { FX } from '../config/data/constants';
+import { applyShotGlow } from './fx/ShotGlow';
 import type { IWeaponConfig } from '../config/interfaces/interfaces';
-
-/** Meshes whose FX material has already been prepared (the mesh is cached across sessions). */
-const fxPreparedMeshes = new WeakSet<InstancedMesh>();
 
 /**
  * Fixed-size pool of projectiles sharing one InstancedMesh.
@@ -18,16 +15,7 @@ export class ProjectilePool {
     constructor(mesh: InstancedMesh, config: IWeaponConfig) {
         this.mesh = mesh;
 
-        if (FX.enabled && !fxPreparedMeshes.has(mesh)) {
-            fxPreparedMeshes.add(mesh);
-            // Only the FX layer is blooms; the material is cloned so invaders sharing the source material do not glow.
-            mesh.layers.set(FX.layer);
-            const material = (mesh.material as MeshStandardMaterial).clone();
-            material.emissive.setRGB(1, 1, 1);
-            material.emissiveIntensity = FX.shotEmissiveIntensity;
-            mesh.material = material;
-        }
-
+        applyShotGlow(mesh);
         // The mesh is cached and defaults to casting shadows, so apply the weapon's setting every time.
         mesh.castShadow = config.castShadow;
 

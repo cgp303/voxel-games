@@ -1,6 +1,7 @@
 // systems/stages/Stage.ts
 
-import { IPatternDirector } from "../../config/interfaces/interfaces";
+import { IPatternDirector, IWeaponOverrides } from "../../config/interfaces/interfaces";
+import { checkWeaponOverrides } from "../weapons/WeaponTriggers";
 
 export class Stage {
     name: string;
@@ -9,6 +10,8 @@ export class Stage {
     fireRate: number;
     missileStrength: number;
     backgroundAsset: string | null;
+    /** Replaces INVADER_WEAPONS settings (drop chance per segment, maxPerAttack, ...) while this stage runs. */
+    weaponOverrides: IWeaponOverrides;
 
     constructor(
         name: string,
@@ -16,13 +19,16 @@ export class Stage {
         directorConfig: Record<string, any> = {},
         fireRate: number = 1.0,
         missileStrength: number = 1.0,
-        backgroundAsset: string | null = null
+        backgroundAsset: string | null = null,
+        weaponOverrides: IWeaponOverrides = {}
     ) {
+        checkWeaponOverrides(weaponOverrides);
         this.name = name;
         this.director = director;
         this.directorConfig = directorConfig;
         this.fireRate = fireRate;
         this.missileStrength = missileStrength;
         this.backgroundAsset = backgroundAsset;
+        this.weaponOverrides = weaponOverrides;
     }
 }

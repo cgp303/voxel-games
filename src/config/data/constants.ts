@@ -32,6 +32,10 @@ export const INSTANCED_ASSETS: { key: string; maxCount: number }[] = [
     { key: 'player', maxCount: 1 },
     { key: 'lazer', maxCount: 32 },
     { key: 'mine', maxCount: 32 },
+    { key: 'minehit1', maxCount: 32 },
+    { key: 'minehit2', maxCount: 32 },
+    { key: 'invlazer1', maxCount: 32 },
+    { key: 'invlazer2', maxCount: 32 },
 ];
 
 /** Per-type invader data: instanced mesh key, score value and hit points. */
@@ -115,20 +119,55 @@ export const WEAPONS: Record<WeaponType, IWeaponConfig> = {
  */
 export const INVADER_WEAPONS: Record<InvaderWeaponType, IInvaderWeaponConfig> = {
     Mine: {
+        kind: 'mine',
         assetKey: 'mine',
         maxCount: 32,
-        dropChancePerFrame: 0.02,
+        dropChancePerFrame: { groupAttack1: [0.1, 0.07, 0.05] },
         releaseXRange: { min: -70, max: 70 },
         maxPerAttack: 5,
         allowedInvaderTypes: ['scout', 'fighter', 'elite', 'tie'],
         allowedSegments: { groupAttack1: [1, 2, 3] },
-        despawnMarginPastPlayer: 20,
-        spinRateRadPerSec: Math.PI * 2,
+        despawnMarginPastPlayer: 50,
+        spinRateRadPerSec: Math.PI * 4,
         hitPoints: 3,
         knockbackDistance: 24,
         knockbackSpeed: 90,
         collisionRadius: 2,
         castShadow: true,
+        velocity: new THREE.Vector3(0, 0, -36),
+        hitMeshes: ['minehit1', 'minehit2'],
+    },
+    /** Two lazers per column-vertical attack, each flying the way the invader was heading. */
+    LazerA: {
+        kind: 'lazer',
+        assetKey: 'invlazer1',
+        maxCount: 32,
+        allowedInvaderTypes: ['scout', 'fighter', 'elite', 'tie'],
+        allowedSegments: { columnVertical: [2], columnDives: [1] },
+        despawnMarginPastPlayer: 50,
+        collisionRadius: 2,
+        castShadow: false,
+        speed: { columnVertical: [220], columnDives: [220] },
+        aim: { mode: 'inheritHeading', shots: 1, intervalSec: 0.25 },
+        segmentProgress: { columnVertical: [0.4], columnDives: [0.4] },
+        dropChancePerFrame: { columnVertical: [0.2], columnDives: [0.2] },
+        glow: true,
+    },
+    /** One lazer per attack: the invader yaws to face the player, fires at them, then yaws back to its path. */
+    LazerB: {
+        kind: 'lazer',
+        assetKey: 'invlazer2',
+        maxCount: 32,
+        allowedInvaderTypes: ['scout', 'fighter', 'elite', 'tie'],
+        allowedSegments: { lazerBAttack: [0, 2] },
+        despawnMarginPastPlayer: 50,
+        collisionRadius: 2,
+        castShadow: false,
+        speed: { lazerBAttack: [120, 120] },
+        aim: { mode: 'atPlayer', turnInSec: 0.1, faceTimeoutSec: 0.2, holdSec: 0.2, turnOutSec: 0.2, facingToleranceRad: 0.05, aimNoiseRad: 0.5, noPlayerTarget: { x: 0, y: 20, z: -160 } },
+        segmentProgress: { lazerBAttack: [0.7, 0.1] },
+        dropChancePerFrame: { lazerBAttack: [0.025, 0.025] },
+        glow: true,
     },
 };
 
@@ -370,15 +409,15 @@ export const VIEW = {
     bezelColor: '#0a0a0a',
 } as const;
 
+export const CAMERA = {
+    isoAngleDeg: 16,
+    distanceFactor: 0.35,
+} as const;
+
 // export const CAMERA = {
-//     isoAngleDeg: 20,
+//     isoAngleDeg: 35,
 //     distanceFactor: 0.325,
 // } as const;
-
-export const CAMERA = {
-    isoAngleDeg: 35,
-    distanceFactor: 0.325,
-} as const;
 
 
 /** Demo attract mode: info panel ↔ high scores */

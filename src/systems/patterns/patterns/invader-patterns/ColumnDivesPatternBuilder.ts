@@ -17,12 +17,17 @@ export class ColumnDivesPatternBuilder implements IPatternBuilder {
         { start: 0, end: 0.27 }, { start: 0.27, end: 0.54 }, { start: 0.54, end: 0.8 }, { start: 0.8, end: 1 },
     ];
     private static readonly DURATION = 5; // example duration in seconds
+    private static readonly OVERLAP = 0;
 
     duration(): number {
         return ColumnDivesPatternBuilder.DURATION;
     }
 
-    build(origin: Vector3, side: number, endPosition: Vector3): MultiSegmentPattern {
+    overlap(): number {
+        return ColumnDivesPatternBuilder.OVERLAP;
+    }
+
+    build(origin: Vector3, side: number, endPosition: Vector3, path: number = 0): MultiSegmentPattern {
         const start = origin.clone();
         const last = ColumnDivesPatternBuilder.SEGMENTS.length - 1;
 
@@ -43,6 +48,6 @@ export class ColumnDivesPatternBuilder implements IPatternBuilder {
             return new CubicBezierSegment(controls, ColumnDivesPatternBuilder.SPIN_RATES[i], false);
         });
 
-        return new MultiSegmentPattern(segments, ColumnDivesPatternBuilder.RANGES, ColumnDivesPatternBuilder.DURATION);
+        return new MultiSegmentPattern(segments, ColumnDivesPatternBuilder.RANGES, ColumnDivesPatternBuilder.DURATION, ColumnDivesPatternBuilder.OVERLAP, 'columnDives');
     }
 }

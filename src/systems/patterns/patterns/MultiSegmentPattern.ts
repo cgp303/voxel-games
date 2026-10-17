@@ -27,6 +27,11 @@ export class MultiSegmentPattern implements IPathPattern {
         return this.findSegmentIndex(t);
     }
 
+    public getSegmentProgress(t: number): number {
+        const idx = this.findSegmentIndex(t);
+        return Math.min(1, Math.max(0, this.remapToLocalT(t, idx)));
+    }
+
     private findSegmentIndex(t: number): number {
         for (let i = 0; i < this.ranges.length; i++) {
             const r = this.ranges[i];

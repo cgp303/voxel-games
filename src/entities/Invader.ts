@@ -8,14 +8,16 @@
 } from 'three';
 import * as THREE from 'three';
 import type {
+    AttackPatternId,
     EntrySide,
     InvaderMode,
     InvaderTypeId,
     InvaderWeaponType,
 } from '../config/types/types';
-import type { IPathPattern, IEntryConfig, IFormationSlot, IInvaderInitConfig, IInvaderWeaponConfig, ICubicBezierControls, ICollisionMover, ICollisionTarget } from '../config/interfaces/interfaces';
-import { ENTRY, COLLISION } from '../config/data/constants';
+import type { IPathPattern, IEntryConfig, IFormationSlot, IInvaderInitConfig, IInvaderWeaponOverride, IWeaponLaunch, ICubicBezierControls, ICollisionMover, ICollisionTarget } from '../config/interfaces/interfaces';
+import { ENTRY, COLLISION, INVADER_WEAPONS, INVADER_WEAPON_TYPES } from '../config/data/constants';
 import type { FormationController } from '../systems/FormationController';
+import { createWeaponTrigger, type WeaponTrigger } from '../systems/weapons/WeaponTriggers';
 import { Entity } from './Entity';
 import { CollisionLayer } from '../config/types/types';
 import type { CollisionModelSet } from '../systems/collision/CollisionModel';
@@ -68,6 +70,7 @@ export class Invader extends Entity implements ICollisionTarget, ICollisionMover
     private pathPattern: IPathPattern | null = null;
     private pathDuration: number = ENTRY.pathDuration;
     private pathT = 0;
+    private lastSegmentIndex = -1;
 
     private bankGain: number = ENTRY.bankGain;
     private maxBankRad: number = ENTRY.maxBankRad;
@@ -105,8 +108,20 @@ export class Invader extends Entity implements ICollisionTarget, ICollisionMover
 
     private _attackOffset: Vector3 = new Vector3(0, 0, 0);
 
-    /** Weapons dropped during the current attack; cleared when a new attack starts or the invader docks. */
-    private readonly weaponsDropped: Partial<Record<InvaderWeaponType, number>> = {};
+    /** One release trigger per weapon type; each tracks what this invader has done during the current attack. */
+    private readonly weaponTriggers = new Map<InvaderWeaponType, WeaponTrigger>(
+        INVADER_WEAPON_TYPES.map((type) => [type, createWeaponTrigger(INVADER_WEAPONS[type])]),
+    );
+
+    /** 0..1: how far the invader's heading is turned from its path direction toward aimPoint (weapons that aim at the player). */
+    private aimWeight = 0;
+    private readonly aimPoint = new Vector3();
+    private readonly aimFrom = new Vector3();
+    private readonly aimTo = new Vector3();
+    private readonly aimQuat = new Quaternion();
+    private readonly aimBlendQuat = new Quaternion();
+    private readonly facingScratch = new Vector3();
+
     constructor() {
         super(null);                       // no private mesh any more
         this.integrateVelocity = false;
@@ -141,7 +156,7 @@ export class Invader extends Entity implements ICollisionTarget, ICollisionMover
         this.previousPosition.copy(cfg.spawn);
         this.mode = 'entering';
         this.active = true;
-        this.resetWeaponDrops();
+        this.resetWeaponState();
         this.roll = 0;
         this.spinAngle = 0;
         this.hasPrevForward = false;
@@ -173,31 +188,88 @@ export class Invader extends Entity implements ICollisionTarget, ICollisionMover
         this.mode = 'diving';
         this.pathT = 0;
         this.spinAngle = 0;
-        this.resetWeaponDrops();
+        this.resetWeaponState();
         this.attackOffset = cfg.attackOffset ?? new Vector3(0, 0, 0);
     }
 
-    /** True when this invader's type, pattern, segment and per-attack drop count permit using the weapon right now. */
-    public canDropWeapon(type: InvaderWeaponType, config: IInvaderWeaponConfig): boolean {
-        if (!this.active || this.mode !== 'diving') return false;
-        if (!config.allowedInvaderTypes.includes(this.typeId)) return false;
-        if (this.position.x < config.releaseXRange.min || this.position.x > config.releaseXRange.max) return false;
-        if ((this.weaponsDropped[type] ?? 0) >= config.maxPerAttack) return false;
-
-        const pattern = this.pathPattern;
-        if (!pattern?.id || !pattern.getSegmentIndex) return false;
-        const segments = config.allowedSegments[pattern.id];
-        return segments !== undefined && segments.includes(pattern.getSegmentIndex(this.pathT));
+    /** Id of the pattern being flown (undefined when it has none). */
+    public get patternId(): AttackPatternId | undefined {
+        return this.pathPattern?.id;
     }
 
-    public registerWeaponDrop(type: InvaderWeaponType): void {
-        this.weaponsDropped[type] = (this.weaponsDropped[type] ?? 0) + 1;
+    /** Index of the path segment being flown, or -1 when the pattern has no segments. */
+    public get segmentIndex(): number {
+        return this.pathPattern?.getSegmentIndex?.(this.pathT) ?? -1;
     }
 
-    private resetWeaponDrops(): void {
-        for (const key of Object.keys(this.weaponsDropped) as InvaderWeaponType[]) {
-            this.weaponsDropped[key] = 0;
-        }
+    /** Progress (0..1) through the segment being flown. */
+    public get segmentProgress(): number {
+        return this.pathPattern?.getSegmentProgress?.(this.pathT) ?? 0;
+    }
+
+    /** Unit vector of the direction of travel this frame (falls back to the model's facing when not moving). */
+    public getHeading(out: Vector3): Vector3 {
+        out.subVectors(this.position, this.previousPosition);
+        if (out.lengthSq() < 1e-10) out.set(0, 0, 1).applyQuaternion(this.displayQuat);
+        return out.normalize();
+    }
+
+    /** Angle (radians) between where the model is facing and the direction to the point. */
+    public facingAngleTo(point: Vector3): number {
+        const facing = this.facingScratch.set(0, 0, 1).applyQuaternion(this.displayQuat);
+        const toPoint = this.aimTo.subVectors(point, this.position).normalize();
+        return facing.angleTo(toPoint);
+    }
+
+    /**
+     * Turns the invader's heading from its path direction toward a point by `weight` (0..1).
+     * A null point keeps the previous one, so the turn can be eased back after the player has gone.
+     */
+    public setAim(weight: number, point: Vector3 | null): void {
+        this.aimWeight = weight;
+        if (point) this.aimPoint.copy(point);
+    }
+
+    public clearAim(): void {
+        this.aimWeight = 0;
+    }
+
+    /**
+     * Asks the trigger of this weapon type whether the weapon should be released now (filling `out` if so).
+     * `target` is the player's position, or null while the player is not in play; `playerPresent` is false when
+     * there is no player at all (the demo).
+     */
+    public pollWeaponRelease(
+        type: InvaderWeaponType,
+        dt: number,
+        target: Vector3 | null,
+        out: IWeaponLaunch,
+        playerPresent: boolean,
+        override?: IInvaderWeaponOverride,
+    ): boolean {
+        const trigger = this.weaponTriggers.get(type);
+        if (!trigger) return false;
+        trigger.setTuning(override);
+        return trigger.poll(this, dt, target, out, playerPresent);
+    }
+
+    /** The weapon of this type that pollWeaponRelease() asked for has been spawned. */
+    public commitWeaponRelease(type: InvaderWeaponType): void {
+        this.weaponTriggers.get(type)?.commit();
+    }
+
+    private resetWeaponState(): void {
+        for (const trigger of this.weaponTriggers.values()) trigger.reset();
+        this.clearAim();
+        this.lastSegmentIndex = this.segmentIndex;
+    }
+
+    /** Lets the weapon triggers re-arm when the pattern moves on to its next segment. */
+    private notifySegmentChange(): void {
+        const index = this.segmentIndex;
+        if (index === this.lastSegmentIndex) return;
+        this.lastSegmentIndex = index;
+        for (const trigger of this.weaponTriggers.values()) trigger.onSegmentChanged();
     }
 
     public get attackOffset(): Vector3 {
@@ -255,12 +327,14 @@ export class Invader extends Entity implements ICollisionTarget, ICollisionMover
             this.pathT = 1;
             this.position.copy(this.homeScratch);
             this.mode = 'formation';
-            this.resetWeaponDrops();
+            this.resetWeaponState();
             this.roll = 0;
             this.hasPrevForward = false;
             // Keep current flight orientation; formation slerps to rest.
             return;
         }
+
+        this.notifySegmentChange();
 
         if (pattern) {
             pattern.samplePosition(this.pathT, this.position);
@@ -272,8 +346,19 @@ export class Invader extends Entity implements ICollisionTarget, ICollisionMover
         if (this.tangentScratch.lengthSq() < 1e-8) {
             this.tangentScratch.subVectors(this.homeScratch, this.position);
         }
+        if (this.aimWeight > 0) this.blendHeadingTowardAimPoint(this.tangentScratch);
 
         this.applyFlightOrientation(this.tangentScratch, segmentSpecificSmoothing, dt);
+    }
+
+    /** Rotates the path heading toward the aim point by aimWeight (the path itself, i.e. position, is unaffected). */
+    private blendHeadingTowardAimPoint(forward: Vector3): void {
+        const from = this.aimFrom.copy(forward).normalize();
+        const to = this.aimTo.subVectors(this.aimPoint, this.position);
+        if (to.lengthSq() < 1e-8) return;
+        this.aimQuat.setFromUnitVectors(from, to.normalize());
+        this.aimBlendQuat.identity().slerp(this.aimQuat, this.aimWeight);
+        forward.copy(from).applyQuaternion(this.aimBlendQuat);
     }
 
     private normaliseSpinAngle(): void {

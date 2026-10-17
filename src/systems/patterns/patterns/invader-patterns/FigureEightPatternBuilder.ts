@@ -34,14 +34,17 @@ export class FigureEightPatternBuilder implements IPatternBuilder {
         false, false, false,
     ];
     private static readonly ORIENTATION_SMOOTHING = [1, 1, 1,];
-    private static readonly DURATION = 4;
-    private static readonly DURATION_OVERLAP = 1;
+    private static readonly DURATION = 5;
+    private static readonly OVERLAP = 1;
+
 
     duration(): number {
         return FigureEightPatternBuilder.DURATION;
     }
-
-    build(origin: Vector3, side: number, endPosition: Vector3): MultiSegmentPattern {
+    overlap(): number {
+        return FigureEightPatternBuilder.OVERLAP;
+    }
+    build(origin: Vector3, side: number, endPosition: Vector3, path: number = 0): MultiSegmentPattern {
         const start = origin.clone();
         const last = FigureEightPatternBuilder.SEGMENTS.length - 1;
 
@@ -70,7 +73,8 @@ export class FigureEightPatternBuilder implements IPatternBuilder {
             segments,
             FigureEightPatternBuilder.RANGES,
             FigureEightPatternBuilder.DURATION,
-            FigureEightPatternBuilder.DURATION_OVERLAP
+            FigureEightPatternBuilder.OVERLAP,
+            'figureEight'
         );
     }
 }

@@ -23,10 +23,14 @@ export class SimpleLoopFormationPatternBuilder implements IPatternBuilder {
     private static readonly RANGES = [
         { start: 0, end: 0.5 }, { start: 0.5, end: 1 },
     ];
-    private static readonly DURATION = 30; // example duration in seconds
+    private static readonly DURATION = 20; // example duration in seconds
+    private static readonly OVERLAP = 0;
 
     duration(): number {
         return SimpleLoopFormationPatternBuilder.DURATION;
+    }
+    overlap(): number {
+        return SimpleLoopFormationPatternBuilder.OVERLAP;
     }
 
     build(origin: Vector3, side: number, endPosition: Vector3 = new Vector3(0, 0, 0)): MultiSegmentPattern {
@@ -45,6 +49,6 @@ export class SimpleLoopFormationPatternBuilder implements IPatternBuilder {
             return new CubicBezierSegment(controls, SimpleLoopFormationPatternBuilder.SPIN_RATES[i], false);
         });
 
-        return new MultiSegmentPattern(segments, SimpleLoopFormationPatternBuilder.RANGES, SimpleLoopFormationPatternBuilder.DURATION);
+        return new MultiSegmentPattern(segments, SimpleLoopFormationPatternBuilder.RANGES, SimpleLoopFormationPatternBuilder.DURATION, SimpleLoopFormationPatternBuilder.OVERLAP);
     }
 }
