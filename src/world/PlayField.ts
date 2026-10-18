@@ -34,7 +34,7 @@ export class PlayField implements IGroundSampler {
     private heightField: HeightField | null = null;
     private scrollSpeedZ: number = TERRAIN.scrollSpeedZ;
     private scrollEnabled: boolean = TERRAIN.scrollEnabledDefault;
-    private gameCamera: GameCamera | null = null;
+
 
     constructor() {
         this.root = new THREE.Group();
@@ -161,7 +161,6 @@ export class PlayField implements IGroundSampler {
 
     private wrapTile(mesh: THREE.Mesh): void {
         const depth = this.tileDepth;
-        const quarterDepth = depth / 1.8;
         const wrapPoint = -307.19 / 1.9;
         // Positive scroll (+Z): when tile goes past the far end of the 2-tile span,
         // jump it back by 2*depth so it leads again.
@@ -264,7 +263,6 @@ export class PlayField implements IGroundSampler {
         camera.controls.target.set(0, -50, 0);
         camera.controls.update();
 
-        this.gameCamera = camera;
     }
 
     public get invaderCount(): number {

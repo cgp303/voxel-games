@@ -218,7 +218,6 @@ export class VoxelGeometry {
     }
 
     public static createMaterial(
-        colorPalette: Array<{ r: number; g: number; b: number; a: number }>,
     ): THREE.Material {
         return INVADER_MESH_MATERIAL;
     }

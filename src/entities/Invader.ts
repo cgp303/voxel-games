@@ -4,7 +4,6 @@
     Object3D,
     Quaternion,
     Vector3,
-    type Object3D as Object3DType,
 } from 'three';
 import * as THREE from 'three';
 import type {
@@ -14,18 +13,13 @@ import type {
     InvaderTypeId,
     InvaderWeaponType,
 } from '../config/types/types';
-import type { IPathPattern, IEntryConfig, IFormationSlot, IInvaderInitConfig, IInvaderWeaponOverride, IWeaponLaunch, ICubicBezierControls, ICollisionMover, ICollisionTarget } from '../config/interfaces/interfaces';
+import type { IPathPattern, IEntryConfig, IFormationSlot, IInvaderInitConfig, IInvaderWeaponOverride, IWeaponLaunch, ICollisionMover, ICollisionTarget } from '../config/interfaces/interfaces';
 import { ENTRY, COLLISION, INVADER_WEAPONS, INVADER_WEAPON_TYPES } from '../config/data/constants';
 import type { FormationController } from '../systems/FormationController';
 import { createWeaponTrigger, type WeaponTrigger } from '../systems/weapons/WeaponTriggers';
 import { Entity } from './Entity';
 import { CollisionLayer } from '../config/types/types';
 import type { CollisionModelSet } from '../systems/collision/CollisionModel';
-
-
-
-/** Shared flag so only one debug arrow exists across invaders. */
-let debugArrowClaimed = false;
 
 // Put these outside the class or as static/private readonly
 const tempMatrix = new THREE.Matrix4();
@@ -66,7 +60,6 @@ export class Invader extends Entity implements ICollisionTarget, ICollisionMover
     private instancedMesh: THREE.InstancedMesh | null = null;
 
     private formation: FormationController | null = null;
-    private controls: ICubicBezierControls | null = null;
     private pathPattern: IPathPattern | null = null;
     private pathDuration: number = ENTRY.pathDuration;
     private pathT = 0;
@@ -361,13 +354,6 @@ export class Invader extends Entity implements ICollisionTarget, ICollisionMover
         forward.copy(from).applyQuaternion(this.aimBlendQuat);
     }
 
-    private normaliseSpinAngle(): void {
-        // keep spinAngle [0, 2π)
-        this.spinAngle = ((this.spinAngle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
-
-    }
-
-
     private updateFormation(dt: number): void {
         const formation = this.formation;
         if (!formation) return;
@@ -516,19 +502,6 @@ export class Invader extends Entity implements ICollisionTarget, ICollisionMover
         return false;
     }
 
-    /**
-     * Stub — returns kill + score payload shape for later EventBus wiring.
-     */
-    public hit(damage = 1): { killed: boolean; score: number } {
-        void damage;
-        if (this.mode === 'dying' || !this.active) {
-            return { killed: false, score: 0 };
-        }
-        this.mode = 'dying';
-        this.active = false;
-        return { killed: true, score: this.scoreValue };
-    }
-
     public isEntering(): boolean {
         return this.mode === 'entering';
     }
@@ -557,7 +530,6 @@ export class Invader extends Entity implements ICollisionTarget, ICollisionMover
         this.active = false;
         this.mode = 'inactive';
         this.formation = null;
-        this.controls = null;
 
         // Hide the instance
         if (this.instanceId >= 0 && this.instancedMesh) {
@@ -595,6 +567,5 @@ export class Invader extends Entity implements ICollisionTarget, ICollisionMover
         this.debugArrow.removeFromParent();
         this.debugArrow.dispose();
         this.debugArrow = null;
-        debugArrowClaimed = false;
     }
 }

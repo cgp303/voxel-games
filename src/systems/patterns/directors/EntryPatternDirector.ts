@@ -1,11 +1,9 @@
-import { Object3D, Vector3 } from 'three';
+import { Vector3 } from 'three';
 import type { EntrySide } from '../../../config/types/types';
 import type { IEntryConfig, IFormationSlot } from '../../../config/interfaces/interfaces';
 import { ENTRY, INVADER_TYPES } from '../../../config/data/constants';
-import { EntityManager } from '../../../entities/EntityManager';
 import { Invader } from '../../../entities/Invader';
 import type { PlayField } from '../../../world/PlayField';
-import type { FormationController } from '../../FormationController';
 import { buildEntryControlsFromConfig } from '../../path/cubicBezier';
 import { BezierEntryPattern } from '../patterns/invader-patterns/BezierEntryPattern';
 import { CubicBezierSegment } from '../segments/CubicBezierSegment';
@@ -28,7 +26,6 @@ type QueueJob =
  */
 export class EntryPatternDirector extends BasePatternDirector {
     private playField: PlayField | null = null;
-    private template: Object3D | null = null;
     private entry: IEntryConfig = { ...ENTRY };
 
     private queue: QueueJob[] = [];
@@ -140,7 +137,6 @@ export class EntryPatternDirector extends BasePatternDirector {
         const formation = this.formation!;
         const invaders = this.invaders!;
         const playField = this.playField!;
-        const template = this.template!;
         const entry = this.entry;
 
         formation.getWorldHomeSlot(slot, this.homeScratch);

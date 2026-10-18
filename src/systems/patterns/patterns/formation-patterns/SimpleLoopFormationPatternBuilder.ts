@@ -33,9 +33,7 @@ export class SimpleLoopFormationPatternBuilder implements IPatternBuilder {
         return SimpleLoopFormationPatternBuilder.OVERLAP;
     }
 
-    build(origin: Vector3, side: number, endPosition: Vector3 = new Vector3(0, 0, 0)): MultiSegmentPattern {
-        const start = origin.clone();
-        const last = SimpleLoopFormationPatternBuilder.SEGMENTS.length - 1;
+    build(): MultiSegmentPattern {
 
         const segments = SimpleLoopFormationPatternBuilder.SEGMENTS.map((canonical, i) => {
             // side 1 = canonical (right); side 0 = mirrored across the formation centerline (x=0)

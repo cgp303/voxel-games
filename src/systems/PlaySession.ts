@@ -1,6 +1,5 @@
 ﻿import { Vector3, Quaternion } from 'three';
 import type {
-    IFormationConfig,
     IIntroStartedPayload,
     IStageCancelledPayload,
     ILevelDescriptor,
@@ -89,7 +88,6 @@ export class PlaySession {
     private waveClearRemaining = 0;
 
     private ctx: IGameContext | null = null;
-    private formationOverride: Partial<IFormationConfig> = {};
     private started = false;
 
     private stageQueue: StageQueue | null = null;
@@ -111,8 +109,6 @@ export class PlaySession {
         this.ctx = ctx;
 
         this.invaders = new EntityManager(ctx.assets);
-
-        this.formationOverride = options.formation ?? {};
 
         for (const { key, maxCount } of INSTANCED_ASSETS) {
             ctx.assets.getOrCreateInstancedMesh(key, maxCount);
@@ -666,7 +662,7 @@ export class PlaySession {
         }
 
         const patternBuilder = new SimpleLoopFormationPatternBuilder();
-        const pattern = patternBuilder.build(new Vector3(0, 20, 0), 1);
+        const pattern = patternBuilder.build();
         this.formation.setPattern(pattern);
 
         this.formation.setup(ctx.playField.bounds.height, formationDescription);

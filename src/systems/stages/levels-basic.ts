@@ -6,15 +6,12 @@ import { createLevel1_2 } from './levels/level1_2';
 import { createLevel1_3 } from './levels/level1_3';
 import {
     makeGridFormation,
-    makeVFormation,
     makeDiamondFormation,
-    makeStaggeredFormation,
     makeXFormation,
 } from '../patterns/formations/formationBuilders';
 
 
 // Row index 0 is nearest the player; the highest row is at the top of the screen.
-const CLASSIC_ROSTER: InvaderRowRoster = ['scout', 'scout', 'fighter', 'fighter', 'elite', 'elite'];
 const ELITE_HEAVY_ROSTER: InvaderRowRoster = ['scout', 'scout', 'scout', 'tie', 'tie', 'tie'];
 const TIE_BOMBERS: InvaderRowRoster = ['tie', 'tie', 'tie', 'tie', 'tie', 'tie'];
 const FIGHTER_BOMBERS: InvaderRowRoster = ['fighter', 'fighter', 'fighter', 'fighter', 'fighter', 'fighter'];

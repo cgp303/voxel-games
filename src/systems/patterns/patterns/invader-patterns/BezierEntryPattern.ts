@@ -7,9 +7,6 @@ export class BezierEntryPattern implements IPathPattern {
     public readonly duration: number;
     private readonly segment: IPathSegment;
 
-    private readonly posScratch = new Vector3();
-    private readonly tanScratch = new Vector3();
-
     constructor(segment: CubicBezierSegment, duration: number) {
         this.segment = segment;
         this.duration = duration;
@@ -31,11 +28,11 @@ export class BezierEntryPattern implements IPathPattern {
         return this.segment.sampleTargetSpin(t);
     }
 
-    public allowInversion(t: number): boolean {
+    public allowInversion(): boolean {
         return this.segment.allowInversion;
     }
 
-    public sampleOrientationSmoothing(t: number): number {
+    public sampleOrientationSmoothing(): number {
 
         return this.segment.sampleOrientationSmoothing();
     }

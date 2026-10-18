@@ -6,7 +6,6 @@ import {
     PointsMaterial,
     Vector3,
     ArrowHelper,
-    Color,
 } from 'three';
 
 import * as THREE from 'three';

@@ -9,15 +9,6 @@
 import { IFormationDescriptor } from '../../../config/interfaces/interfaces';
 import type { SlotMap } from '../../../config/types/types';
 
-
-
-/**
- * Utility: make a "col,row" key
- */
-function key(col: number, row: number): string {
-    return `${col},${row}`;
-}
-
 /**
  * 1. Standard centered grid formation
  */

@@ -25,16 +25,29 @@ export class EntityManager {
     }
 
     public add(entity: Entity): void {
+        if (entity.managerIndex >= 0) return;
 
+        entity.managerIndex = this.entities.length;
         this.entities.push(entity);
         // only register invaders in the formation map
         if (entity instanceof Invader) this.registerInvaderInFormation(entity);
     }
 
-
+    /**
+     * Removes an entity (O(1) swap-remove, so list order is not preserved). Safe to call twice.
+     * Do not call from inside an entity's own update(): the list is being iterated.
+     */
     public remove(entity: Entity): void {
-        const i = this.entities.indexOf(entity);
-        if (i >= 0) this.entities.splice(i, 1);
+        const i = entity.managerIndex;
+        if (i < 0 || this.entities[i] !== entity) return;
+
+        const last = this.entities.pop()!;
+        if (last !== entity) {
+            this.entities[i] = last;
+            last.managerIndex = i;
+        }
+        entity.managerIndex = -1;
+
         if (entity instanceof Invader) {
             this.unregisterInvaderFromFormation(entity);
             this.releaseToPool(entity, entity.poolAssetKey);
@@ -44,21 +57,11 @@ export class EntityManager {
     }
 
     public update(dt: number): void {
-        for (const e of this.entities) {
+        // Inactive entities are never listed: remove() is the only way out of the list.
+        const entities = this.entities;
+        for (let i = 0; i < entities.length; i++) {
+            const e = entities[i];
             if (e.active) e.update(dt);
-        }
-        // Drop inactive
-        for (let i = this.entities.length - 1; i >= 0; i--) {
-            if (!this.entities[i].active) {
-                const e = this.entities[i];
-                if (e instanceof Invader) {
-                    this.unregisterInvaderFromFormation(e);
-                    this.releaseToPool(e, e.poolAssetKey);
-                } else {
-                    e.dispose();
-                }
-                this.entities.splice(i, 1);
-            }
         }
 
         // Mark InstancedMesh(es) as needing update
@@ -68,6 +71,7 @@ export class EntityManager {
     public clear(): void {
         for (const e of this.entities) {
             e.dispose();
+            e.managerIndex = -1;
         }
         this.entities.length = 0;
         this.invadersBySlot.clear();

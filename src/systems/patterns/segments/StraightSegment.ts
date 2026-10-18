@@ -12,12 +12,12 @@ export class StraightSegment extends BasePathSegment {
         this.b = line.end;
     }
 
-    samplePosition(t: number, out: Vector3): Vector3 {
+    samplePosition(out: Vector3, t: number): Vector3 {
         out.copy(this.a).lerp(this.b, t);
         return out;
     }
 
-    sampleTangent(t: number, out: Vector3): Vector3 {
+    sampleTangent(out: Vector3): Vector3 {
         out.subVectors(this.b, this.a).normalize();
         return out;
     }

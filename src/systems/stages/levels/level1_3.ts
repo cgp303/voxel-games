@@ -1,11 +1,10 @@
 import { Stage } from '../Stage';
 import { StageQueue } from '../StageQueue';
-import { LazerBAttackPatternDirector } from '../../patterns/directors/LazerBAttackPatternDirector';
 
 import { EntryPatternDirector } from '../../patterns/directors/EntryPatternDirector';
 import { ColumnVerticalDirector } from '../../patterns/directors/ColumnVerticalDirector';
-import { makeGridFormation, makeVFormation, makeXFormation, makeDiamondFormation, makeCircleFormation, makeStaggeredFormation, makeThreeRingCircleFormation, makeSpiralFormation } from '../../patterns/formations/formationBuilders';
-import { GroupAttackPatternDirector } from '../../patterns/directors/GroupAttackPatternDirector';
+import { makeGridFormation } from '../../patterns/formations/formationBuilders';
+
 import type { IFormationDescriptor } from '../../../config/interfaces/interfaces';
 import type { InvaderRowRoster, PatternType } from '../../../config/types/types';
 

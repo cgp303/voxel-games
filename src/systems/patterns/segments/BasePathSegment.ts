@@ -26,7 +26,7 @@ export class BasePathSegment implements IPathSegment {
         return this.orientationSmoothing;
     }
 
-    public sampleSpinRate(t: number): number {
+    public sampleSpinRate(): number {
         return this.spinRate;
     }
 

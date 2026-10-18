@@ -1,5 +1,4 @@
-﻿import * as THREE from 'three';
-import { TerrainGenerator } from '../voxel-landscape/TerrainGenerator';
+﻿import { TerrainGenerator } from '../voxel-landscape/TerrainGenerator';
 import type { ITerrainConfig } from '../config/interfaces/interfaces';
 import { VoxelWorld } from '../voxel/VoxelWorld';
 import { VoxParser } from '../voxel/VoxParser';

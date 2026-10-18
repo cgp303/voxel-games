@@ -91,7 +91,7 @@ export class AssetManager {
     // Reuse the same geometry + material that the old template used
     // const template = this.getOrCreateMeshTemplate(assetKey);
     const geometry = VoxelGeometry.createGeometry(world, model.colors, true);
-    const material = VoxelGeometry.createMaterial(model.colors);
+    const material = VoxelGeometry.createMaterial();
 
     mesh = new THREE.InstancedMesh(geometry, material, maxCount);
     mesh.castShadow = true;

@@ -6,6 +6,8 @@ import { Vector3, type Object3D } from 'three';
  */
 export class Entity {
     public active = true;
+    /** Position in EntityManager's list (-1 when not listed); lets the manager remove in O(1). */
+    public managerIndex = -1;
     public readonly object3d: Object3D | null;
 
     /** World-space source of truth for translation */
