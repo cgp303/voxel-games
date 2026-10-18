@@ -3,8 +3,8 @@
 import { Vector3 } from 'three';
 import { GroupAttackPattern1Builder } from '../patterns/invader-patterns/GroupAttackPattern1Builder';
 import { GroupAttackPattern2Builder } from '../patterns/invader-patterns/GroupAttackPattern2Builder';
-import type { IDirectorContext, IInvaderGroup } from '../../../config/interfaces/interfaces';
-import type { GroupType } from '../../../config/types/types';
+import type { IDirectorContext, ISlotGroup } from '../../../config/interfaces/interfaces';
+import type { GroupType, SlotKey } from '../../../config/types/types';
 import { groupAttackSets as GroupAttackSets } from '../../../config/pattern-config/GroupAttackSets';
 import { InvaderRepathDirector } from './InvaderRepathDirector';
 
@@ -26,10 +26,12 @@ export class GroupAttackPatternDirector extends InvaderRepathDirector {
     private maxSetIterations: number = 0;
     private numGroups: number;
     private groupAttackType: string = "";
-    private currentInvaderGroup: IInvaderGroup | undefined;
+    private currentInvaderGroup: ISlotGroup | undefined;
     private setIterations: number = 0;
 
-    private centralPosition: Vector3 = new Vector3();
+    // Scratch reused for every launch so group attacks allocate nothing.
+    private readonly centralPosition = new Vector3();
+    private readonly availableKeys: SlotKey[] = [];
 
     constructor(groupAttackSet: [string, number, number][]) {
         super();
@@ -83,11 +85,13 @@ export class GroupAttackPatternDirector extends InvaderRepathDirector {
         // Pick the group to launch: the current one if any of its invaders are still available,
         // otherwise the next shuffled group that has some. Missing/destroyed slots are simply left out.
         let group = this.currentInvaderGroup;
-        let availableKeys = group ? this.getAvailableKeys(group.group) : [];
+        const availableKeys = this.availableKeys;
+        availableKeys.length = 0;
+        if (group) this.collectAvailableKeys(group.group, availableKeys);
         while (availableKeys.length === 0) {
             group = this.invaderGroups.pop();
             if (!group) break;
-            availableKeys = this.getAvailableKeys(group.group);
+            this.collectAvailableKeys(group.group, availableKeys);
         }
 
         if (!group) {
@@ -114,7 +118,8 @@ export class GroupAttackPatternDirector extends InvaderRepathDirector {
 
         const duration = this.builder.duration();
 
-        const predictedEndPosition = this.formation.getAdjustedPositionForGroupReturn(this.centralPosition, duration);
+        // The builder copies the end position, so one scratch vector serves every launch.
+        const predictedEndPosition = this.formation.getAdjustedPositionForGroupReturn(this.centralPosition, duration, this.endPositionScratch);
 
         const pattern = this.builder.build(this.centralPosition, side, predictedEndPosition);
         // The next launch, and the move on to the next stage, happen once the pattern is overlap seconds from finishing.
@@ -137,9 +142,12 @@ export class GroupAttackPatternDirector extends InvaderRepathDirector {
         }
     }
 
-    /** Slot keys from a group that currently hold an active formation invader. */
-    private getAvailableKeys(group: string[]): string[] {
-        return group.filter((key) => this.invaders?.getInvaderAtSlot(key)?.active);
+    /** Fills `out` with the slot keys from a group that currently hold an active formation invader. */
+    private collectAvailableKeys(group: readonly SlotKey[], out: SlotKey[]): void {
+        out.length = 0;
+        for (const key of group) {
+            if (this.invaders?.getInvaderAtSlot(key)?.active) out.push(key);
+        }
     }
 
     /** Current set is finished: start the next set, or complete the stage after `wait` seconds. */
@@ -191,41 +199,36 @@ export class GroupAttackPatternDirector extends InvaderRepathDirector {
         this.currentInvaderGroup = this.invaderGroups.pop();
     }
 
-    setAttackOffsets(attackGroup: string[] | undefined): void {
+    setAttackOffsets(attackGroup: readonly SlotKey[]): void {
         // Calculate and set the offsets for each invader in the group relative to the central position
 
-        this.centralPosition = this.getCentralPosition(attackGroup ?? []);
-        attackGroup?.forEach(invaderKey => {
-            const invader = this.invaders?.getInvaderAtSlot(invaderKey);
-            if (invader) {
-                invader.attackOffset = {
-                    x: invader.position.x - this.centralPosition.x,
-                    y: invader.position.y - this.centralPosition.y,
-                    z: invader.position.z - this.centralPosition.z,
-                };
-            }
-        });
+        this.updateCentralPosition(attackGroup);
+        for (const key of attackGroup) {
+            const invader = this.invaders?.getInvaderAtSlot(key);
+            if (invader) invader.attackOffset.subVectors(invader.position, this.centralPosition);
+        }
     }
 
-    getCentralPosition(attackGroup: string[]): Vector3 {
+    /** Writes the average position of the group's invaders into this.centralPosition. */
+    updateCentralPosition(attackGroup: readonly SlotKey[]): Vector3 {
         let sumX = 0, sumY = 0, sumZ = 0;
         let count = 0;
-        attackGroup.forEach(invaderKey => {
-            const invader = this.invaders?.getInvaderAtSlot(invaderKey);
+        for (const key of attackGroup) {
+            const invader = this.invaders?.getInvaderAtSlot(key);
             if (invader) {
                 sumX += invader.position.x;
                 sumY += invader.position.y;
                 sumZ += invader.position.z;
                 count++;
             }
-        });
+        }
         // Average over the invaders actually found, not the group size.
-        if (count === 0) return new Vector3();
-        return new Vector3(sumX / count, sumY / count, sumZ / count);
+        if (count === 0) return this.centralPosition.set(0, 0, 0);
+        return this.centralPosition.set(sumX / count, sumY / count, sumZ / count);
     }
 
     // Fisher-Yates shuffle
-    shuffleArray(arrayA: IInvaderGroup[]): IInvaderGroup[] {
+    shuffleArray(arrayA: ISlotGroup[]): ISlotGroup[] {
         // 1. Fast shallow clone (A remains untouched)
         const B = [...arrayA];
 

@@ -1,7 +1,8 @@
 import { Vector3 } from 'three';
-import { FORMATION, SLOT_KEY_STRIDE } from '../config/data/constants';
-import type { SlotOffset } from '../config/types/types';
+import { FORMATION } from '../config/data/constants';
+import type { SlotKey } from '../config/types/types';
 import type { IFormationSlot, IFormationConfig, IFormationDescriptor, IPathPattern } from '../config/interfaces/interfaces';
+import { slotKey } from './patterns/formations/slotKey';
 
 /**
  * Logical flock root + slot grid.
@@ -23,20 +24,14 @@ export class FormationController {
     private pattern: IPathPattern | null = null;
     private patternT = 0;
 
-    private tempVec3 = new Vector3();
-
-    /** Numeric-keyed copy of descriptor.map, built in setup(). */
-    private readonly slotLookup = new Map<number, SlotOffset>();
-
+    // Scratch vectors so per-attack lookups below allocate nothing.
+    private readonly tempVec3 = new Vector3();
+    private readonly slotOffsetScratch = new Vector3();
+    private readonly formationCenterNow = new Vector3();
+    private readonly formationCenterLater = new Vector3();
 
     public setup(terrainHeight: number, descriptor: IFormationDescriptor): void {
         this.descriptor = descriptor;
-
-        this.slotLookup.clear();
-        for (const [key, offset] of descriptor.map) {
-            const [col, row] = key.split(',').map(Number);
-            this.slotLookup.set(col * SLOT_KEY_STRIDE + row, offset);
-        }
 
         // keep root motion config
         this.hoverY = terrainHeight + this.config.hoverPadding;
@@ -97,7 +92,7 @@ export class FormationController {
         const patternDuration = this.pattern.duration;
         const tLanding = (this.patternT + diveDuration / patternDuration) % 1;
         const centerAtLanding = this.pattern.samplePosition(tLanding, this.tempVec3);
-        const offset = this.slotOffset(col, row);
+        const offset = this.slotOffset(col, row, this.slotOffsetScratch);
         return out.copy(centerAtLanding).add(offset);
     }
 
@@ -106,15 +101,12 @@ export class FormationController {
             return out.copy(groupCenterPosition);
         }
 
-        // Store current formation center
-        const currentFormationCenter = new Vector3().copy(this.rootPosition);
-
-        // Predict where formation center will be after attackDuration
+        // Predict where the formation center will be after attackDuration
         const tLanding = (this.patternT + attackDuration / this.pattern.duration) % 1;
-        const futureFormationCenter = this.pattern.samplePosition(tLanding, new Vector3());
+        const futureFormationCenter = this.pattern.samplePosition(tLanding, this.formationCenterLater);
 
-        // Calculate how far formation moved
-        const offset = futureFormationCenter.sub(currentFormationCenter);
+        // How far the formation will have moved
+        const offset = futureFormationCenter.sub(this.formationCenterNow.copy(this.rootPosition));
 
         // Apply offset to group center position
         return out.copy(groupCenterPosition).add(offset);
@@ -147,7 +139,7 @@ export class FormationController {
 
     //
     public slotOffset(col: number, row: number, out = new Vector3()): Vector3 {
-        const s = this.slotLookup.get(col * SLOT_KEY_STRIDE + row);
+        const s = this.descriptor?.map.get(slotKey(col, row));
         if (!s) {
             throw new Error(`FormationController: missing slot offset for key ${col},${row}`);
         }
@@ -166,7 +158,7 @@ export class FormationController {
         return this.getWorldHome(slot.col, slot.row, out);
     }
 
-    public getSpawnOrder(): string[][] {
+    public getSpawnOrder(): SlotKey[][] {
         return this.descriptor!.spawnOrder;
     }
 

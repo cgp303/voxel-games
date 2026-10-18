@@ -3,6 +3,7 @@ import { StageQueue } from '../StageQueue';
 
 import { EntryPatternDirector } from '../../patterns/directors/EntryPatternDirector';
 import { ColumnVerticalDirector } from '../../patterns/directors/ColumnVerticalDirector';
+import { FigureEightDirector } from '../../patterns/directors/FigureEightDirector';
 import { makeGridFormation } from '../../patterns/formations/formationBuilders';
 
 import type { IFormationDescriptor } from '../../../config/interfaces/interfaces';
@@ -24,6 +25,14 @@ export function createLevel1_3(
                 { orientation: "front" },
                 0.5,
                 1.0
+            ),
+
+            new Stage(
+                "Figure Eight Again",
+                new FigureEightDirector(),
+                { orientation: "front" },
+                1.2,
+                1.4
             ),
 
             new Stage(

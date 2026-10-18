@@ -87,7 +87,7 @@ export class Invader extends Entity implements ICollisionTarget, ICollisionMover
     private readonly localForward = new Vector3(0, 0, 1);
     private readonly lookDummy = new Object3D();
     private readonly worldUp = new Vector3(0, 1, 0);
-    private prevUp: Vector3 = new Vector3(0, 1, 0);
+    private readonly prevUp = new Vector3(0, 1, 0);
     private rightScratch: Vector3 = new Vector3();
     private isDoingHalfLoop = false;   // or drive it from the path pattern
 
@@ -182,7 +182,8 @@ export class Invader extends Entity implements ICollisionTarget, ICollisionMover
         this.pathT = 0;
         this.spinAngle = 0;
         this.resetWeaponState();
-        this.attackOffset = cfg.attackOffset ?? new Vector3(0, 0, 0);
+        if (cfg.attackOffset) this._attackOffset.copy(cfg.attackOffset);
+        else this._attackOffset.set(0, 0, 0);
     }
 
     /** Id of the pattern being flown (undefined when it has none). */
@@ -391,9 +392,6 @@ export class Invader extends Entity implements ICollisionTarget, ICollisionMover
         if (allowInversion) {
             // Free mode – do NOT force world-up so the ship can stay inverted.
             // Use the previous up vector as a continuous reference.
-            if (!this.prevUp) {
-                this.prevUp = new Vector3(0, 1, 0); // first-time fallback
-            }
             this.lookDummy.up.copy(this.prevUp);
             this.lookDummy.lookAt(forward.x, forward.y, forward.z);
 
@@ -413,7 +411,6 @@ export class Invader extends Entity implements ICollisionTarget, ICollisionMover
         }
 
         // Remember the up we just used for the next frame
-        if (!this.prevUp) this.prevUp = new Vector3();
         this.prevUp.copy(this.lookDummy.up);
 
         this.targetFlightQuat.copy(this.lookDummy.quaternion);

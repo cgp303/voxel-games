@@ -413,12 +413,15 @@ export class PlaySession {
             if (this.player?.collisionEnabled) movers.push(entity);
         }
         // Only mines can be hit; lazers are movers only.
-        this.weaponPool?.forEachLive((weapon) => {
-            if (!weapon.collisionEnabled) return;
-            // Non-shootable mines are filtered out of the target list by the collision rules.
-            if (weapon instanceof MineWeapon) targets.push(weapon);
-            if (this.player?.collisionEnabled) movers.push(weapon);
-        });
+        const weapons = this.weaponPool?.liveWeapons;
+        if (weapons) {
+            for (const weapon of weapons) {
+                if (!weapon.collisionEnabled) continue;
+                // Non-shootable mines are filtered out of the target list by the collision rules.
+                if (weapon instanceof MineWeapon) targets.push(weapon);
+                if (this.player?.collisionEnabled) movers.push(weapon);
+            }
+        }
         if (this.player) targets.push(this.player);
 
         if (movers.length > 0) {

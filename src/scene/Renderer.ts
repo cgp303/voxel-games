@@ -47,13 +47,10 @@ export class GameRenderer {
     private readonly uiRoot: HTMLElement;
     private fxaaPass: ShaderPass | null = null;
 
-    // Selective bloom (only active when FX.enabled).
+    // Selective bloom (only active when FX.enabled): the bloom pass draws just the FX layer.
     private bloomComposer: EffectComposer | null = null;
     private bloomRenderPass: RenderPass | null = null;
     private bloomMixPass: ShaderPass | null = null;
-    private readonly darkMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
-    private readonly darkenedMeshes: THREE.Mesh[] = [];
-    private readonly darkenedMaterials: THREE.Material[] = [];
 
     constructor(scene: GameScene, camera: GameCamera | null = null) {
         this.scene = scene;
@@ -174,12 +171,18 @@ export class GameRenderer {
     }
 
     /**
-     * Renders glow sources into the bloom buffer: non-FX meshes are drawn black,
-     * and the background and fog are removed so only emissive FX meshes add light.
+     * Renders the glow sources into the bloom buffer. Only the FX layer is drawn: the camera is limited to it
+     * for this pass, so terrain, invaders and the player are neither drawn nor swapped to a dark material.
+     * Three's shadow pass also honours the camera's layers, so the shadow map is not redrawn for this pass either.
+     * The background and fog are removed so only the FX meshes add light.
      */
     private renderBloomBuffer(bloomComposer: EffectComposer, mixPass: ShaderPass): void {
+        const camera = this.camera?.camera;
+        if (!camera) return;
         const scene = this.scene.scene;
-        this.darkenNonFxMeshes(scene);
+
+        const layerMask = camera.layers.mask;
+        camera.layers.set(FX.layer);
 
         const background = scene.background;
         const fog = scene.fog;
@@ -189,26 +192,8 @@ export class GameRenderer {
         scene.background = background;
         scene.fog = fog;
 
-        this.restoreMaterials();
+        camera.layers.mask = layerMask;
         mixPass.uniforms.tBloom.value = bloomComposer.readBuffer.texture;
-    }
-
-    private darkenNonFxMeshes(root: THREE.Object3D): void {
-        root.traverse((obj) => {
-            const mesh = obj as THREE.Mesh;
-            if (!mesh.isMesh || mesh.layers.isEnabled(FX.layer)) return;
-            this.darkenedMeshes.push(mesh);
-            this.darkenedMaterials.push(mesh.material as THREE.Material);
-            mesh.material = this.darkMaterial;
-        });
-    }
-
-    private restoreMaterials(): void {
-        for (let i = this.darkenedMeshes.length - 1; i >= 0; i--) {
-            this.darkenedMeshes[i].material = this.darkenedMaterials[i];
-        }
-        this.darkenedMeshes.length = 0;
-        this.darkenedMaterials.length = 0;
     }
 
     /**

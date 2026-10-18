@@ -5,7 +5,7 @@ import type { EntityManager } from '../../entities/EntityManager';
 import type { Object3D, Quaternion, Vector3 } from 'three';
 import * as THREE from 'three';
 import type { MultiSegmentPattern } from '../../systems/patterns/patterns/MultiSegmentPattern';
-import type { MovementPath, InvaderTypeId, EntrySide, AttackPatternId, InvaderWeaponType } from '../types/types';
+import type { MovementPath, InvaderTypeId, EntrySide, AttackPatternId, InvaderWeaponType, SlotKey } from '../types/types';
 import type { GameScene } from '../../scene/Scene';
 import type { GameCamera } from '../../scene/Camera';
 import type { GameRenderer } from '../../scene/Renderer';
@@ -187,11 +187,11 @@ export interface IFormationConfig {
 
 // Formation layout descriptor for invader spawn patterns
 export interface IFormationDescriptor {
-    /** Map of "col,row" → world‑space offset { x, z } */
-    map: Map<string, { x: number; z: number }>;
+    /** Map of slot key (see slotKey()) → world‑space offset { x, z } */
+    map: Map<SlotKey, { x: number; z: number }>;
 
-    /** Ordered list of lists of slot keys ("col,row") describing EXACT spawn order */
-    spawnOrder: string[][];
+    /** Ordered list of lists of slot keys describing EXACT spawn order */
+    spawnOrder: SlotKey[][];
 
     /**
      * How the director should consume spawnOrder:
@@ -222,8 +222,15 @@ export interface IInvaderKilledPayload {
 }
 
 
+/** A group attack as authored (and written by the group-attack-set tool): slot keys as "col,row" text. */
 export interface IInvaderGroup {
     group: string[];
+    path: MovementPath;
+}
+
+/** A group attack at runtime: the authored text converted once to numeric slot keys. */
+export interface ISlotGroup {
+    group: SlotKey[];
     path: MovementPath;
 }
 

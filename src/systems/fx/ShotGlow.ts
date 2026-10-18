@@ -13,5 +13,14 @@ export function applyShotGlow(mesh: InstancedMesh): void {
     const material = (mesh.material as MeshStandardMaterial).clone();
     material.emissive.setRGB(1, 1, 1);
     material.emissiveIntensity = FX.shotEmissiveIntensity;
+    // Shot colours come from vertex colours, so material.color is white. Scale the emissive by the final
+    // diffuse colour in the shader so the glow keeps the shot's hue instead of washing out to white.
+    material.onBeforeCompile = (shader) => {
+        shader.fragmentShader = shader.fragmentShader.replace(
+            '#include <emissivemap_fragment>',
+            '#include <emissivemap_fragment>\n\ttotalEmissiveRadiance *= diffuseColor.rgb;',
+        );
+    };
+    material.customProgramCacheKey = () => 'shotGlowTinted';
     mesh.material = material;
 }

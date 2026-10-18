@@ -1,7 +1,8 @@
 
 
-import type { IInvaderGroup } from '../../config/interfaces/interfaces';
+import type { IInvaderGroup, ISlotGroup } from '../../config/interfaces/interfaces';
 import type { GroupType } from '../types/types';
+import { slotKeyFromText } from '../../systems/patterns/formations/slotKey';
 
 const group2x2Grid: IInvaderGroup[] = [
     // Row block 0
@@ -287,8 +288,8 @@ const groupDiamondsX: IInvaderGroup[] = [
 
 
 
-// Change string[][] to InvaderGroup[]
-export const groupAttackSets = new Map<GroupType, IInvaderGroup[]>([
+// Authored as readable "col,row" text; converted to numeric slot keys once below.
+const authoredGroupAttackSets = new Map<GroupType, IInvaderGroup[]>([
     // Grid formations
     ["group2x2Grid", group2x2Grid],
     ["group3x3Grid", group3x3Grid],
@@ -318,5 +319,13 @@ export const groupAttackSets = new Map<GroupType, IInvaderGroup[]>([
     ["groupTsX", groupTsX],
     ["groupDiamondsX", groupDiamondsX],
 ]);
+
+/** Runtime form of the sets above, converted once at load so attacks never parse slot text. */
+export const groupAttackSets = new Map<GroupType, ISlotGroup[]>(
+    Array.from(authoredGroupAttackSets, ([type, groups]): [GroupType, ISlotGroup[]] => [
+        type,
+        groups.map(({ group, path }) => ({ group: group.map(slotKeyFromText), path })),
+    ]),
+);
 
 // export const groupAttackSets = [groups2x2, groups3x3, groupCrosses, groupXs, groupTs, groupDiamonds] as const; 

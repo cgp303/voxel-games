@@ -1,8 +1,11 @@
 // systems/patterns/directors/InvaderRepathDirector.ts
 
+import { Vector3 } from 'three';
 import type { IDirectorContext, IPatternBuilder } from '../../../config/interfaces/interfaces';
+import type { SlotKey } from '../../../config/types/types';
 import type { MultiSegmentPattern } from '../patterns/MultiSegmentPattern';
 import type { Invader } from '../../../entities/Invader';
+import { slotCol, slotRow } from '../formations/slotKey';
 import { BasePatternDirector } from './BasePatternDirector';
 
 /**
@@ -21,6 +24,9 @@ export abstract class InvaderRepathDirector extends BasePatternDirector {
     protected coolDownPeriod = 4;
 
     protected currentDuration = 0;
+
+    /** Scratch for the predicted dock position; builders copy it, so one vector serves every launch. */
+    protected readonly endPositionScratch = new Vector3();
 
     protected override captureCommon(ctx: IDirectorContext): void {
         super.captureCommon(ctx);
@@ -46,20 +52,18 @@ export abstract class InvaderRepathDirector extends BasePatternDirector {
      * destroyed invaders and invaders already mid-attack are normal, not errors.
      * @param path The path index to use when building the new pattern. allows selecting among multiple predefined paths.
      */
-    protected buildAndApply(slotKey: string, side: number): boolean {
-        const invader = this.invaders?.getInvaderAtSlot(slotKey);
+    protected buildAndApply(slot: SlotKey, side: number): boolean {
+        const invader = this.invaders?.getInvaderAtSlot(slot);
         const path = this.config.path ?? 0;
         if (!invader || !invader.active) return false;
-
-        // Parse the column and row from the slot key. ANNOYING!
-        const [col, row] = slotKey.split(",").map(Number);
 
         // Get the duration for the new pattern from the builder.
         const duration = this.builder.duration();
 
         // Predict the end position of the invader based on the formation and the new pattern duration.
         // Safe: an invader registered at this slot implies the slot exists in the formation.
-        const predictedEndPosition = this.formation?.getPredictedEndPosition(col, row, duration);
+        // The builder copies the end position, so one scratch vector serves every launch.
+        const predictedEndPosition = this.formation?.getPredictedEndPosition(slotCol(slot), slotRow(slot), duration, this.endPositionScratch);
 
         this.applyPattern(invader, this.builder.build(invader.position, side, predictedEndPosition, path));
         return true;

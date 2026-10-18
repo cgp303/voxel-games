@@ -217,11 +217,11 @@ export const COLLISION = {
 export const FX: IFxSettings = {
     enabled: true,
     layer: 1,
-    shotEmissiveIntensity: 0.125,
+    shotEmissiveIntensity: 0.75,
     bloom: {
-        strength: 0.5,
-        radius: 0.4,
-        resolutionScale: 0.25,
+        strength: 1,
+        radius: 0.25,
+        resolutionScale: 0.5,
     },
 };
 
@@ -251,7 +251,7 @@ export const EXPLOSION: IDebrisConfig = {
             inheritVelocity: 0.5,
             spin: [4, 16],
             life: [0.5, 1],
-            glow: { color: [1, 0.85, 0.55], intensity: 2, durationSec: 0.8 },
+            glow: { color: [1, 0.85, 0.55], intensity: 3, durationSec: 1.3 },
         },
         player: {
             speed: [20, 52],
@@ -260,7 +260,7 @@ export const EXPLOSION: IDebrisConfig = {
             inheritVelocity: 0.5,
             spin: [4, 18],
             life: [1, 2.5],
-            glow: { color: [0.6, 0.85, 1], intensity: 2, durationSec: 0.8 },
+            glow: { color: [0.6, 0.85, 1], intensity: 3, durationSec: 1.3 },
         },
     },
 };

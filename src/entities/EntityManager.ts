@@ -1,6 +1,7 @@
 import type { Entity } from './Entity';
-import type { IFormationSlot } from '../config/interfaces/interfaces';
+import type { SlotKey } from '../config/types/types';
 import { Invader } from './Invader';
+import { slotKey } from '../systems/patterns/formations/slotKey';
 import type { AssetManager } from '../assets/AssetManager';
 
 
@@ -15,8 +16,8 @@ export class EntityManager {
 
     private static readonly MAX_POOL_PER_TYPE = 80;
 
-    // Map of invaders by their formation slot for quick lookup.
-    private invadersBySlot = new Map<string, Invader>();
+    // Invaders in formation by slot, keyed by slotKey(col, row) (an integer, so lookups build no strings).
+    private invadersBySlot = new Map<SlotKey, Invader>();
 
     private assets: AssetManager;
 
@@ -86,19 +87,15 @@ export class EntityManager {
     }
 
     // Helpers for using the invadersBySlot map.
-    private slotKey(slot: IFormationSlot): string {
-        return `${slot.col},${slot.row}`;
-    }
-
     public registerInvaderInFormation(invader: Invader): void {
-        this.invadersBySlot.set(this.slotKey(invader.slot), invader);
+        this.invadersBySlot.set(slotKey(invader.slot.col, invader.slot.row), invader);
     }
 
     public unregisterInvaderFromFormation(invader: Invader): void {
-        this.invadersBySlot.delete(this.slotKey(invader.slot));
+        this.invadersBySlot.delete(slotKey(invader.slot.col, invader.slot.row));
     }
 
-    public getInvaderAtSlot(key: string): Invader | null {
+    public getInvaderAtSlot(key: SlotKey): Invader | null {
         const inv = this.invadersBySlot.get(key);
         if (!inv) return null;
         return inv.mode === 'formation' ? inv : null;

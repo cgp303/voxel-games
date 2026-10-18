@@ -99,7 +99,9 @@ export type GroupType =
 
 // for formationBuilders.ts
 export type SlotOffset = { x: number; z: number };
-export type SlotMap = Map<string, SlotOffset>;
+/** One integer per formation slot (col, row); build and read it with slotKey() / slotCol() / slotRow(). */
+export type SlotKey = number;
+export type SlotMap = Map<SlotKey, SlotOffset>;
 
 // for engine.ts
 export type EngineTick = (time: Time) => void;

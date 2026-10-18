@@ -2,7 +2,9 @@
 
 import { LazerBAttackPatternBuilder } from '../patterns/invader-patterns/LazerBAttackPatternBulder';
 import type { IPatternBuilder, IRepeatingPatternDirectorContext } from '../../../config/interfaces/interfaces';
+import type { SlotKey } from '../../../config/types/types';
 import { ColumnTriggerDirector } from './ColumnTriggerDirector';
+import { slotKey } from '../formations/slotKey';
 
 export class LazerBAttackPatternDirector extends ColumnTriggerDirector {
     protected readonly msBetweenTriggers = 1.0;
@@ -28,15 +30,15 @@ export class LazerBAttackPatternDirector extends ColumnTriggerDirector {
     }
 
     /** Random mirrored pair that still has at least one invader in formation, or null if none remain. */
-    protected pickAvailablePair(): string[] | null {
+    protected pickAvailablePair(): SlotKey[] | null {
         const maxCol = this.formation.maxCol;
         const maxRow = this.formation.maxRow;
-        const candidates: string[][] = [];
+        const candidates: SlotKey[][] = [];
         for (let col = 0; col <= maxCol; col++) {
             const mirrorCol = maxCol - col;
             for (let row = 0; row <= maxRow; row++) {
-                const leftKey = `${col},${row}`;
-                const rightKey = `${mirrorCol},${row}`;
+                const leftKey = slotKey(col, row);
+                const rightKey = slotKey(mirrorCol, row);
                 if (this.invaders?.getInvaderAtSlot(leftKey) || this.invaders?.getInvaderAtSlot(rightKey)) {
                     candidates.push([leftKey, rightKey]);
                 }

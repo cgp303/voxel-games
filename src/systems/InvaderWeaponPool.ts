@@ -15,7 +15,8 @@ interface IWeaponBucket {
     /** Intact model first, then (for mines) one mesh per config.hitMeshes entry; every weapon owns the same slot in each. */
     meshes: InstancedMesh[];
     free: InvaderWeapon[];
-    live: InvaderWeapon[];
+    /** How many weapons of this type are in the pool's live list; lets update() skip uploading idle meshes. */
+    liveCount: number;
 }
 
 /**
@@ -25,6 +26,10 @@ interface IWeaponBucket {
  */
 export class InvaderWeaponPool {
     private readonly buckets = new Map<InvaderWeaponType, IWeaponBucket>();
+    // Same buckets as an array, so per-frame loops need no Map iterator.
+    private readonly bucketList: IWeaponBucket[] = [];
+    /** Every live weapon of every type in one flat array, so collision can read it without a callback. */
+    private readonly live: InvaderWeapon[] = [];
 
     constructor(assets: AssetManager) {
         // Weapons fly toward -Z and are recycled a configured distance behind the player's back edge.
@@ -57,7 +62,9 @@ export class InvaderWeaponPool {
                 );
             }
             for (const mesh of meshes) mesh.instanceMatrix.needsUpdate = true;
-            this.buckets.set(type, { meshes, free, live: [] });
+            const bucket: IWeaponBucket = { meshes, free, liveCount: 0 };
+            this.buckets.set(type, bucket);
+            this.bucketList.push(bucket);
         }
     }
 
@@ -73,15 +80,17 @@ export class InvaderWeaponPool {
         const weapon = bucket?.free.pop();
         if (!bucket || !weapon) return false;
         weapon.launch(origin, velocity, orientation, layer);
-        bucket.live.push(weapon);
+        bucket.liveCount++;
+        this.live.push(weapon);
         return true;
     }
 
-    /** Visits every live weapon of every type (including ones about to be recycled); used by collision. */
-    public forEachLive(visit: (weapon: InvaderWeapon) => void): void {
-        for (const bucket of this.buckets.values()) {
-            for (const weapon of bucket.live) visit(weapon);
-        }
+    /**
+     * Every live weapon of every type, including ones about to be recycled; used by collision.
+     * This is the pool's own array: read it, do not modify it, and do not hold it across update().
+     */
+    public get liveWeapons(): readonly InvaderWeapon[] {
+        return this.live;
     }
 
     /** Removes a weapon from play immediately (e.g. it hit something). It is recycled on the next update(). */
@@ -92,31 +101,35 @@ export class InvaderWeaponPool {
     }
 
     public update(dt: number): void {
-        for (const bucket of this.buckets.values()) {
-            const live = bucket.live;
-            if (live.length === 0) continue;
+        const live = this.live;
+        if (live.length === 0) return;
 
-            // Iterate backwards so swap-remove does not skip entries.
-            for (let i = live.length - 1; i >= 0; i--) {
-                const weapon = live[i];
-                if (weapon.update(dt)) continue;
-                live[i] = live[live.length - 1];
-                live.pop();
-                bucket.free.push(weapon);
-            }
-            this.flagMeshes(bucket);
+        // A bucket's meshes are uploaded if it had live weapons at the start of the frame, as they may be recycled below.
+        for (const bucket of this.bucketList) {
+            if (bucket.liveCount > 0) this.flagMeshes(bucket);
+        }
+
+        // Iterate backwards so swap-remove does not skip entries.
+        for (let i = live.length - 1; i >= 0; i--) {
+            const weapon = live[i];
+            if (weapon.update(dt)) continue;
+            live[i] = live[live.length - 1];
+            live.pop();
+            const bucket = this.buckets.get(weapon.type)!;
+            bucket.liveCount--;
+            bucket.free.push(weapon);
         }
     }
 
     /** Hides and recycles every live weapon. */
     public clear(): void {
-        for (const bucket of this.buckets.values()) {
-            if (bucket.live.length === 0) continue;
-            for (let w = bucket.live.pop(); w; w = bucket.live.pop()) {
-                w.hide();
-                bucket.free.push(w);
-            }
-            this.flagMeshes(bucket);
+        for (const bucket of this.bucketList) {
+            if (bucket.liveCount > 0) this.flagMeshes(bucket);
+            bucket.liveCount = 0;
+        }
+        for (let w = this.live.pop(); w; w = this.live.pop()) {
+            w.hide();
+            this.buckets.get(w.type)!.free.push(w);
         }
     }
 
