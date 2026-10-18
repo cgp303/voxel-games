@@ -308,7 +308,7 @@ export const LEVEL = {
 /** Dev/test helpers. Disable (or remove) before shipping. */
 export const DEBUG = {
     /** When true the player ignores collisions (no life lost, no removal) so the game can be tested freely. */
-    invinciblePlayer: false,
+    invinciblePlayer: true,
     /** Skip to the next wave by disposing all active invaders. */
     enableWaveSkip: true,
     /** KeyboardEvent.key values that trigger the wave skip (both cases so Shift/Caps Lock still work). */

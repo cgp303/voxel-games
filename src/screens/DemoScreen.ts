@@ -3,7 +3,8 @@ import type { DemoAttractPanel } from '../config/types/types';
 import { DEMO } from '../config/data/constants';
 import { PlaySession } from '../systems/PlaySession';
 import type { PlayScreen } from './PlayScreen';
-import { createDemoStages } from '../systems/stages/levels/stages-basic';
+import { createWave } from '../systems/stages/WaveFactory';
+import { WAVE_DEMO } from '../systems/stages/levels/waves';
 
 /** Attract panels cycled on the demo screen */
 
@@ -42,7 +43,7 @@ export class DemoScreen implements IScreen {
     this.session?.dispose();
     this.session = new PlaySession();
     this.session.start(ctx, {
-      stageQueue: createDemoStages()
+      stageQueue: createWave(WAVE_DEMO)
     });
 
     this.ensureOverlay();

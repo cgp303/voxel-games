@@ -210,7 +210,7 @@ const groupCrossesDiamond: IInvaderGroup[] = [
     { group: ["6,0", "5,1", "6,1", "7,1", "6,2"], path: "center" },
 ];
 
-const groupDiamond: IInvaderGroup[] = [
+const groupXsDiamond: IInvaderGroup[] = [
     { group: ["2,3", "4,3", "3,4", "2,5", "4,5"], path: "center" },
     { group: ["5,3", "7,3", "6,4", "5,5", "7,5"], path: "center" },
     { group: ["2,0", "4,0", "3,1", "2,2", "4,2"], path: "center" },
@@ -308,7 +308,7 @@ const authoredGroupAttackSets = new Map<GroupType, IInvaderGroup[]>([
     ["group2x2Diamond", group2x2Diamond],
     ["group3x3Diamond", group3x3Diamond],
     ["groupCrossesDiamond", groupCrossesDiamond],
-    ["groupXsDiamond", groupDiamond],
+    ["groupXsDiamond", groupXsDiamond],
     ["groupTsDiamond", groupTsDiamond],
     ["groupDiamondsDiamond", groupDiamondsDiamond],
     // X formations

@@ -119,6 +119,9 @@ export type DemoAttractPanel = 'info' | 'highscores';
 
 export type PatternType = "Grid" | "V" | "X" | "Diamond";
 
+/** Group shape names; a GroupType is one of these followed by a PatternType (e.g. "groupDiamonds" + "Grid"). */
+export type GroupKind = "group2x2" | "group3x3" | "groupCrosses" | "groupXs" | "groupTs" | "groupDiamonds";
+
 // weapons and projectiles
 /** Weapon kinds; add Missile, SmartBomb etc. when implemented. */
 export type WeaponType = 'Laser';
