@@ -1,7 +1,8 @@
 
 
-import type { IInvaderGroup } from '../../config/interfaces/interfaces';
+import type { IInvaderGroup, ISlotGroup } from '../../config/interfaces/interfaces';
 import type { GroupType } from '../types/types';
+import { slotKeyFromText } from '../../systems/patterns/formations/slotKey';
 
 const group2x2Grid: IInvaderGroup[] = [
     // Row block 0
@@ -209,7 +210,7 @@ const groupCrossesDiamond: IInvaderGroup[] = [
     { group: ["6,0", "5,1", "6,1", "7,1", "6,2"], path: "center" },
 ];
 
-const groupDiamond: IInvaderGroup[] = [
+const groupXsDiamond: IInvaderGroup[] = [
     { group: ["2,3", "4,3", "3,4", "2,5", "4,5"], path: "center" },
     { group: ["5,3", "7,3", "6,4", "5,5", "7,5"], path: "center" },
     { group: ["2,0", "4,0", "3,1", "2,2", "4,2"], path: "center" },
@@ -287,8 +288,8 @@ const groupDiamondsX: IInvaderGroup[] = [
 
 
 
-// Change string[][] to InvaderGroup[]
-export const groupAttackSets = new Map<GroupType, IInvaderGroup[]>([
+// Authored as readable "col,row" text; converted to numeric slot keys once below.
+const authoredGroupAttackSets = new Map<GroupType, IInvaderGroup[]>([
     // Grid formations
     ["group2x2Grid", group2x2Grid],
     ["group3x3Grid", group3x3Grid],
@@ -307,7 +308,7 @@ export const groupAttackSets = new Map<GroupType, IInvaderGroup[]>([
     ["group2x2Diamond", group2x2Diamond],
     ["group3x3Diamond", group3x3Diamond],
     ["groupCrossesDiamond", groupCrossesDiamond],
-    ["groupXsDiamond", groupDiamond],
+    ["groupXsDiamond", groupXsDiamond],
     ["groupTsDiamond", groupTsDiamond],
     ["groupDiamondsDiamond", groupDiamondsDiamond],
     // X formations
@@ -318,5 +319,13 @@ export const groupAttackSets = new Map<GroupType, IInvaderGroup[]>([
     ["groupTsX", groupTsX],
     ["groupDiamondsX", groupDiamondsX],
 ]);
+
+/** Runtime form of the sets above, converted once at load so attacks never parse slot text. */
+export const groupAttackSets = new Map<GroupType, ISlotGroup[]>(
+    Array.from(authoredGroupAttackSets, ([type, groups]): [GroupType, ISlotGroup[]] => [
+        type,
+        groups.map(({ group, path }) => ({ group: group.map(slotKeyFromText), path })),
+    ]),
+);
 
 // export const groupAttackSets = [groups2x2, groups3x3, groupCrosses, groupXs, groupTs, groupDiamonds] as const; 

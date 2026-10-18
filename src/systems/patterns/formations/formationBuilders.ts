@@ -7,7 +7,8 @@
 // () => makeGridFormation(10, 6, 12)  
 
 import { IFormationDescriptor } from '../../../config/interfaces/interfaces';
-import type { SlotMap } from '../../../config/types/types';
+import type { SlotKey, SlotMap } from '../../../config/types/types';
+import { slotKey } from './slotKey';
 
 /**
  * 1. Standard centered grid formation
@@ -28,12 +29,12 @@ export function makeGridFormation(
         for (let col = 0; col < cols; col++) {
             const x = (col - midX) * spacing;
             const z = (row - midZ) * spacing;
-            map.set(`${col},${row}`, { x, z });
+            map.set(slotKey(col, row), { x, z });
         }
     }
 
     // Build spawnOrder (LeftRightPairs)
-    const spawnOrder: string[][] = [];
+    const spawnOrder: SlotKey[][] = [];
     const maxCol = cols - 1;
     const maxRow = rows - 1;
 
@@ -41,8 +42,8 @@ export function makeGridFormation(
         for (let colLeft = 0; colLeft <= maxCol / 2; colLeft++) {
             const colRight = maxCol - colLeft;
 
-            const leftKey = `${colLeft},${row}`;
-            const rightKey = `${colRight},${row}`;
+            const leftKey = slotKey(colLeft, row);
+            const rightKey = slotKey(colRight, row);
 
             if (map.has(leftKey) && map.has(rightKey)) {
                 spawnOrder.push([leftKey, rightKey]);
@@ -87,12 +88,12 @@ export function makeXFormation(
             const x = baseX + direction * spread;
             const z = (row - midZ) * spacing;
 
-            map.set(`${col},${row}`, { x, z });
+            map.set(slotKey(col, row), { x, z });
         }
     }
 
     // Build spawnOrder (LeftRightPairs)
-    const spawnOrder: string[][] = [];
+    const spawnOrder: SlotKey[][] = [];
     const maxCol = cols - 1;
     const maxRow = rows - 1;
 
@@ -100,8 +101,8 @@ export function makeXFormation(
         for (let colLeft = 0; colLeft <= maxCol / 2; colLeft++) {
             const colRight = maxCol - colLeft;
 
-            const leftKey = `${colLeft},${row}`;
-            const rightKey = `${colRight},${row}`;
+            const leftKey = slotKey(colLeft, row);
+            const rightKey = slotKey(colRight, row);
 
             if (map.has(leftKey) && map.has(rightKey)) {
                 spawnOrder.push([leftKey, rightKey]);
@@ -132,7 +133,7 @@ export function makeVFormation(
     const midX = (cols - 1) / 2;
 
     const map: SlotMap = new Map();
-    const spawnOrder: string[][] = [];
+    const spawnOrder: SlotKey[][] = [];
     const spawnType = "LeftRightPairs";
     const maxCol = cols - 1;
     const maxRow = rows - 1;
@@ -156,10 +157,10 @@ export function makeVFormation(
             const x = baseX + direction * spread;
             const z = row * spacing;
 
-            map.set(`${col},${row}`, { x, z });
+            map.set(slotKey(col, row), { x, z });
 
             if (col < _maxCol / 2) {
-                const releasePair = [`${col},${_maxRow - row}`, `${_maxCol - col},${_maxRow - row}`];
+                const releasePair = [slotKey(col, _maxRow - row), slotKey(_maxCol - col, _maxRow - row)];
                 spawnOrder.push(releasePair);
             }
 
@@ -184,19 +185,19 @@ export function makeCircleFormation(
         const z = Math.sin(a) * radius;
 
         // flatten into row 0
-        map.set(`${i},0`, { x, z });
+        map.set(slotKey(i, 0), { x, z });
     }
 
     // Build spawnOrder (LeftRightPairs)
-    const spawnOrder: string[][] = [];
+    const spawnOrder: SlotKey[][] = [];
     const maxCol = count - 1;
     const maxRow = 0; // circle has only one abstract row
 
     for (let colLeft = 0; colLeft <= maxCol / 2; colLeft++) {
         const colRight = maxCol - colLeft;
 
-        const leftKey = `${colLeft},0`;
-        const rightKey = `${colRight},0`;
+        const leftKey = slotKey(colLeft, 0);
+        const rightKey = slotKey(colRight, 0);
 
         if (map.has(leftKey) && map.has(rightKey)) {
             spawnOrder.push([leftKey, rightKey]);
@@ -240,12 +241,12 @@ export function makeDiamondFormation(
         for (let col = minCol; col <= maxCol; col++) {
             const x = (col - midX) * spacing;
             const z = (row - midZ) * spacing;
-            map.set(`${col},${row}`, { x, z });
+            map.set(slotKey(col, row), { x, z });
         }
     }
 
     // Build spawnOrder (LeftRightPairs)
-    const spawnOrder: string[][] = [];
+    const spawnOrder: SlotKey[][] = [];
     const maxCol = cols - 1;
     const maxRow = rows - 1;
 
@@ -253,8 +254,8 @@ export function makeDiamondFormation(
         for (let colLeft = 0; colLeft <= maxCol / 2; colLeft++) {
             const colRight = maxCol - colLeft;
 
-            const leftKey = `${colLeft},${row}`;
-            const rightKey = `${colRight},${row}`;
+            const leftKey = slotKey(colLeft, row);
+            const rightKey = slotKey(colRight, row);
 
             if (map.has(leftKey) && map.has(rightKey)) {
                 spawnOrder.push([leftKey, rightKey]);
@@ -298,12 +299,12 @@ export function makeStaggeredFormation(
             const x = (col - midX) * spacing + stagger;
             const z = (row - midZ) * spacing;
 
-            map.set(`${col},${row}`, { x, z });
+            map.set(slotKey(col, row), { x, z });
         }
     }
 
     // Build spawnOrder (LeftRightPairs)
-    const spawnOrder: string[][] = [];
+    const spawnOrder: SlotKey[][] = [];
     const maxCol = cols - 1;
     const maxRow = rows - 1;
 
@@ -311,8 +312,8 @@ export function makeStaggeredFormation(
         for (let colLeft = 0; colLeft <= maxCol / 2; colLeft++) {
             const colRight = maxCol - colLeft;
 
-            const leftKey = `${colLeft},${row}`;
-            const rightKey = `${colRight},${row}`;
+            const leftKey = slotKey(colLeft, row);
+            const rightKey = slotKey(colRight, row);
 
             if (map.has(leftKey) && map.has(rightKey)) {
                 spawnOrder.push([leftKey, rightKey]);
@@ -346,7 +347,7 @@ export function makeThreeRingCircleFormation(
         const a = (i / innerCount) * Math.PI * 2;
         const x = Math.cos(a) * innerRadius;
         const z = Math.sin(a) * innerRadius;
-        map.set(`${i},0`, { x, z });
+        map.set(slotKey(i, 0), { x, z });
     }
 
     // --- Ring 1: Middle ---
@@ -354,7 +355,7 @@ export function makeThreeRingCircleFormation(
         const a = (i / middleCount) * Math.PI * 2;
         const x = Math.cos(a) * middleRadius;
         const z = Math.sin(a) * middleRadius;
-        map.set(`${i},1`, { x, z });
+        map.set(slotKey(i, 1), { x, z });
     }
 
     // --- Ring 2: Outer ---
@@ -362,11 +363,11 @@ export function makeThreeRingCircleFormation(
         const a = (i / outerCount) * Math.PI * 2;
         const x = Math.cos(a) * outerRadius;
         const z = Math.sin(a) * outerRadius;
-        map.set(`${i},2`, { x, z });
+        map.set(slotKey(i, 2), { x, z });
     }
 
     // --- Build spawnOrder (LeftRightPairs per ring) ---
-    const spawnOrder: string[][] = [];
+    const spawnOrder: SlotKey[][] = [];
 
     const ringCounts = [innerCount, middleCount, outerCount];
     const maxRow = 2;
@@ -379,8 +380,8 @@ export function makeThreeRingCircleFormation(
         for (let colLeft = 0; colLeft <= lastCol / 2; colLeft++) {
             const colRight = lastCol - colLeft;
 
-            const leftKey = `${colLeft},${row}`;
-            const rightKey = `${colRight},${row}`;
+            const leftKey = slotKey(colLeft, row);
+            const rightKey = slotKey(colRight, row);
 
             if (map.has(leftKey) && map.has(rightKey)) {
                 spawnOrder.push([leftKey, rightKey]);
@@ -415,19 +416,19 @@ export function makeSpiralFormation(
         const z = Math.sin(angle) * radius;
 
         // flatten into row 0
-        map.set(`${i},0`, { x, z });
+        map.set(slotKey(i, 0), { x, z });
     }
 
     // Build spawnOrder (LeftRightPairs)
-    const spawnOrder: string[][] = [];
+    const spawnOrder: SlotKey[][] = [];
     const maxCol = count - 1;
     const maxRow = 0;
 
     for (let colLeft = 0; colLeft <= maxCol / 2; colLeft++) {
         const colRight = maxCol - colLeft;
 
-        const leftKey = `${colLeft},0`;
-        const rightKey = `${colRight},0`;
+        const leftKey = slotKey(colLeft, 0);
+        const rightKey = slotKey(colRight, 0);
 
         if (map.has(leftKey) && map.has(rightKey)) {
             spawnOrder.push([leftKey, rightKey]);

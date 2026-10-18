@@ -99,7 +99,9 @@ export type GroupType =
 
 // for formationBuilders.ts
 export type SlotOffset = { x: number; z: number };
-export type SlotMap = Map<string, SlotOffset>;
+/** One integer per formation slot (col, row); build and read it with slotKey() / slotCol() / slotRow(). */
+export type SlotKey = number;
+export type SlotMap = Map<SlotKey, SlotOffset>;
 
 // for engine.ts
 export type EngineTick = (time: Time) => void;
@@ -116,6 +118,9 @@ export type FitRect = {
 export type DemoAttractPanel = 'info' | 'highscores';
 
 export type PatternType = "Grid" | "V" | "X" | "Diamond";
+
+/** Group shape names; a GroupType is one of these followed by a PatternType (e.g. "groupDiamonds" + "Grid"). */
+export type GroupKind = "group2x2" | "group3x3" | "groupCrosses" | "groupXs" | "groupTs" | "groupDiamonds";
 
 // weapons and projectiles
 /** Weapon kinds; add Missile, SmartBomb etc. when implemented. */

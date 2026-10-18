@@ -3,7 +3,8 @@
 import type { IDirectorContext, IPatternBuilder } from '../../../config/interfaces/interfaces';
 import { InvaderRepathDirector } from './InvaderRepathDirector';
 
-import type { ColumnSpawnType } from '../../../config/types/types';
+import type { ColumnSpawnType, SlotKey } from '../../../config/types/types';
+import { slotKey } from '../formations/slotKey';
 
 /**
  * Walks a precomputed trigger order at a fixed cadence, re-pathing the
@@ -11,7 +12,7 @@ import type { ColumnSpawnType } from '../../../config/types/types';
  * they differ only in trigger-order shape, cadence, and which builder they use.
  */
 export abstract class ColumnTriggerDirector extends InvaderRepathDirector {
-    protected triggerOrder: string[][] = [];
+    protected triggerOrder: SlotKey[][] = [];
     protected spawnType: ColumnSpawnType = 'LeftRightPairs';
     protected currentIndex = 0;
     protected triggerTime = 0;
@@ -64,15 +65,15 @@ export abstract class ColumnTriggerDirector extends InvaderRepathDirector {
     }
 
     /** Back-row-to-front, mirrored-column walk. Override for a different shape (e.g. FigureEight's row pairing). */
-    protected makeTriggerOrder(): string[][] {
-        const order: string[][] = [];
+    protected makeTriggerOrder(): SlotKey[][] {
+        const order: SlotKey[][] = [];
         const maxCol = this.formation.maxCol;
         const maxRow = this.formation.maxRow;
         const halfCol = maxCol / 2;
         for (let colLeft = 0; colLeft <= halfCol; colLeft++) {
             const colRight = maxCol - colLeft;
             for (let rowBack = maxRow; rowBack >= 0; rowBack--) {
-                order.push([`${colLeft},${rowBack}`, `${colRight},${rowBack}`]);
+                order.push([slotKey(colLeft, rowBack), slotKey(colRight, rowBack)]);
             }
         }
         return order;

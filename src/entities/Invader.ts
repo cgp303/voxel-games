@@ -1,5 +1,4 @@
 ﻿import {
-    ArrowHelper,
     MathUtils,
     Object3D,
     Quaternion,
@@ -87,7 +86,7 @@ export class Invader extends Entity implements ICollisionTarget, ICollisionMover
     private readonly localForward = new Vector3(0, 0, 1);
     private readonly lookDummy = new Object3D();
     private readonly worldUp = new Vector3(0, 1, 0);
-    private prevUp: Vector3 = new Vector3(0, 1, 0);
+    private readonly prevUp = new Vector3(0, 1, 0);
     private rightScratch: Vector3 = new Vector3();
     private isDoingHalfLoop = false;   // or drive it from the path pattern
 
@@ -96,8 +95,6 @@ export class Invader extends Entity implements ICollisionTarget, ICollisionMover
     private hasPrevForward = false;
     private roll = 0;
     private spinAngle = 0;
-
-    private debugArrow: ArrowHelper | null = null;
 
     private _attackOffset: Vector3 = new Vector3(0, 0, 0);
 
@@ -155,12 +152,8 @@ export class Invader extends Entity implements ICollisionTarget, ICollisionMover
         this.hasPrevForward = false;
         this.flightQuat.identity();
         this.prevUp.set(0, 1, 0);
-        //     this.object3d.visible = true;
-        // }
-
         this.displayQuat.copy(this.baseQuat);
-        // const wantArrow = entry?.debugForwardArrow ?? ENTRY.debugForwardArrow;
-        // this.setupDebugArrow(wantArrow);
+
         this.syncTransform();
     }
 
@@ -182,7 +175,8 @@ export class Invader extends Entity implements ICollisionTarget, ICollisionMover
         this.pathT = 0;
         this.spinAngle = 0;
         this.resetWeaponState();
-        this.attackOffset = cfg.attackOffset ?? new Vector3(0, 0, 0);
+        if (cfg.attackOffset) this._attackOffset.copy(cfg.attackOffset);
+        else this._attackOffset.set(0, 0, 0);
     }
 
     /** Id of the pattern being flown (undefined when it has none). */
@@ -296,9 +290,8 @@ export class Invader extends Entity implements ICollisionTarget, ICollisionMover
                 // diving / returning / dying — later phases
                 break;
         }
-        // this.normaliseSpinAngle();
         this.syncTransform();
-        this.updateDebugArrow();
+
     }
 
     private updatePath(dt: number): void {
@@ -391,9 +384,6 @@ export class Invader extends Entity implements ICollisionTarget, ICollisionMover
         if (allowInversion) {
             // Free mode – do NOT force world-up so the ship can stay inverted.
             // Use the previous up vector as a continuous reference.
-            if (!this.prevUp) {
-                this.prevUp = new Vector3(0, 1, 0); // first-time fallback
-            }
             this.lookDummy.up.copy(this.prevUp);
             this.lookDummy.lookAt(forward.x, forward.y, forward.z);
 
@@ -413,7 +403,6 @@ export class Invader extends Entity implements ICollisionTarget, ICollisionMover
         }
 
         // Remember the up we just used for the next frame
-        if (!this.prevUp) this.prevUp = new Vector3();
         this.prevUp.copy(this.lookDummy.up);
 
         this.targetFlightQuat.copy(this.lookDummy.quaternion);
@@ -526,7 +515,6 @@ export class Invader extends Entity implements ICollisionTarget, ICollisionMover
     }
 
     public override dispose(): void {
-        this.clearDebugArrow();
         this.active = false;
         this.mode = 'inactive';
         this.formation = null;
@@ -537,35 +525,5 @@ export class Invader extends Entity implements ICollisionTarget, ICollisionMover
             this.instancedMesh.instanceMatrix.needsUpdate = true;
             this.instanceId = -1;
         }
-    }
-
-    // private setupDebugArrow(enabled: boolean): void {
-    //     this.clearDebugArrow();
-    //     if (!enabled || !this.object3d || debugArrowClaimed) return;
-
-    //     debugArrowClaimed = true;
-    //     this.debugArrow = new ArrowHelper(
-    //         new Vector3(0, 0, 1),
-    //         new Vector3(0, 0, 0),
-    //         6,
-    //         0xff3344,
-    //         1.5,
-    //         1,
-    //     );
-    //     this.debugArrow.name = 'InvaderDebugForward';
-    //     this.object3d.add(this.debugArrow);
-    // }
-
-    private updateDebugArrow(): void {
-        if (!this.debugArrow) return;
-        // Local +Z helper for mesh-axis verification (toggle ENTRY.debugForwardArrow).
-        this.debugArrow.setDirection(this.localForward);
-    }
-
-    private clearDebugArrow(): void {
-        if (!this.debugArrow) return;
-        this.debugArrow.removeFromParent();
-        this.debugArrow.dispose();
-        this.debugArrow = null;
     }
 }

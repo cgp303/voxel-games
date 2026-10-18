@@ -7,6 +7,7 @@ import type { PlayField } from '../../../world/PlayField';
 import { buildEntryControlsFromConfig } from '../../path/cubicBezier';
 import { BezierEntryPattern } from '../patterns/invader-patterns/BezierEntryPattern';
 import { CubicBezierSegment } from '../segments/CubicBezierSegment';
+import { slotCol, slotRow } from '../formations/slotKey';
 import { defaultOrientationConfig } from '../../../config/pattern-config/defaultOrientationConfig';
 import type { IDirectorContext } from '../../../config/interfaces/interfaces';
 import { BasePatternDirector } from './BasePatternDirector';
@@ -56,22 +57,18 @@ export class EntryPatternDirector extends BasePatternDirector {
         switch (spawnType) {
             case "LeftRightPairs":
                 for (const [leftKey, rightKey] of spawnOrder) {
-                    const [lcol, lrow] = leftKey.split(',').map(Number);
-                    const [rcol, rrow] = rightKey.split(',').map(Number);
-
                     this.queue.push({
                         kind: 'pair',
-                        left: { col: lcol, row: lrow },
-                        right: { col: rcol, row: rrow }
+                        left: { col: slotCol(leftKey), row: slotRow(leftKey) },
+                        right: { col: slotCol(rightKey), row: slotRow(rightKey) }
                     });
                 }
                 break;
             case "Single":
                 for (const [key] of spawnOrder) {
-                    const [col, row] = key.split(',').map(Number);
                     this.queue.push({
                         kind: 'single',
-                        slot: { col, row }
+                        slot: { col: slotCol(key), row: slotRow(key) }
                     });
                 }
                 break;

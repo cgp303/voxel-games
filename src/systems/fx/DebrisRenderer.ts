@@ -16,6 +16,17 @@ export class DebrisRenderer {
     constructor(capacity: number) {
         const geometry = new THREE.BoxGeometry(1, 1, 1);
         const material = new THREE.MeshStandardMaterial({ roughness: 0.5, metalness: 0 });
+        // The bloom pass has no lights (lights are not on the FX layer), so lit colour alone renders black there.
+        // Emit the part of the instance colour above 1 (the hot glow): it survives without lights and blooms,
+        // while cooled debris (colour <= 1) adds nothing and keeps its normal shading.
+        material.emissive.setRGB(1, 1, 1);
+        material.onBeforeCompile = (shader) => {
+            shader.fragmentShader = shader.fragmentShader.replace(
+                '#include <emissivemap_fragment>',
+                '#include <emissivemap_fragment>\n\ttotalEmissiveRadiance = max(diffuseColor.rgb - 1.0, 0.0);',
+            );
+        };
+        material.customProgramCacheKey = () => 'debrisHotEmissive';
 
         this.mesh = new THREE.InstancedMesh(geometry, material, capacity);
         this.mesh.name = 'Debris';

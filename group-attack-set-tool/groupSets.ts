@@ -1,5 +1,6 @@
 import type { IFormationDescriptor } from '../src/config/interfaces/interfaces';
 import type { MovementPath } from '../src/config/types/types';
+import { slotCol, slotRow } from '../src/systems/patterns/formations/slotKey';
 
 export interface GroupSet {
     id: number;
@@ -44,9 +45,11 @@ export function sortSlotKeys(keys: Iterable<string>): string[] {
 
 export function createFormationModel(descriptor: IFormationDescriptor): FormationModel {
     const slots: FormationSlot[] = [];
-    for (const [key, pos] of descriptor.map) {
-        const { col, row } = parseSlotKey(key);
-        slots.push({ key, col, row, x: pos.x, z: pos.z });
+    for (const [slot, pos] of descriptor.map) {
+        const col = slotCol(slot);
+        const row = slotRow(slot);
+        // The tool works in the readable "col,row" form that GroupAttackSets.ts is written in.
+        slots.push({ key: `${col},${row}`, col, row, x: pos.x, z: pos.z });
     }
     slots.sort((a, b) => a.row - b.row || a.col - b.col);
 

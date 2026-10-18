@@ -217,13 +217,29 @@ export const COLLISION = {
 export const FX: IFxSettings = {
     enabled: true,
     layer: 1,
-    shotEmissiveIntensity: 0.125,
+    shotEmissiveIntensity: 0.75,
     bloom: {
-        strength: 0.5,
-        radius: 0.4,
-        resolutionScale: 0.25,
+        strength: 1,
+        radius: 0.25,
+        resolutionScale: 0.5,
     },
 };
+
+/**
+ * Directional-light shadow map. The ortho frustum should cover only the playable ground, and the map size
+ * is chosen for about 3 texels per world unit on both axes (see Scene.createLights).
+ */
+export const SHADOW = {
+    mapWidth: 1024,
+    mapHeight: 2048,
+    /** Half-extent of the frustum on the light's vertical axis (about 0.9 x world Z). */
+    halfExtentZ: 300,
+    /** World Z the shadow frustum is centred on (the play area runs from the camera at about -170 to z 320). */
+    centerZ: 80,
+    near: 400,
+    far: 1300,
+    bias: -0.001,
+} as const;
 
 /**
  * Explosion debris: a destroyed model breaks into one cube per voxel that flies out, tumbles, falls
@@ -251,7 +267,7 @@ export const EXPLOSION: IDebrisConfig = {
             inheritVelocity: 0.5,
             spin: [4, 16],
             life: [0.5, 1],
-            glow: { color: [1, 0.85, 0.55], intensity: 2, durationSec: 0.8 },
+            glow: { color: [1, 0.85, 0.55], intensity: 3, durationSec: 1.3 },
         },
         player: {
             speed: [20, 52],
@@ -260,7 +276,7 @@ export const EXPLOSION: IDebrisConfig = {
             inheritVelocity: 0.5,
             spin: [4, 18],
             life: [1, 2.5],
-            glow: { color: [0.6, 0.85, 1], intensity: 2, durationSec: 0.8 },
+            glow: { color: [0.6, 0.85, 1], intensity: 3, durationSec: 1.3 },
         },
     },
 };
@@ -292,11 +308,12 @@ export const LEVEL = {
 /** Dev/test helpers. Disable (or remove) before shipping. */
 export const DEBUG = {
     /** When true the player ignores collisions (no life lost, no removal) so the game can be tested freely. */
-    invinciblePlayer: false,
+    invinciblePlayer: true,
     /** Skip to the next wave by disposing all active invaders. */
     enableWaveSkip: true,
     /** KeyboardEvent.key values that trigger the wave skip (both cases so Shift/Caps Lock still work). */
     skipWaveKeys: ['l', 'L'],
+
 } as const;
 
 /** Voxel mesh generation options (see VoxelGeometry). */
