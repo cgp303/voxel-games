@@ -72,23 +72,19 @@ export class GameRenderer {
         // Canvas behind UI root inside the framed stage
         this.gameFrame.insertBefore(this.renderer.domElement, this.uiRoot);
 
-        this.composer = new EffectComposer(this.renderer);
-        const renderPass = new RenderPass(
-            this.scene.scene,
-            this.camera?.camera || new THREE.Camera(),
-        );
-        this.composer.addPass(renderPass);
-
         if (FX.enabled) {
+            this.composer = new EffectComposer(this.renderer);
+            this.composer.addPass(new RenderPass(this.scene.scene, this.camera?.camera || new THREE.Camera()));
+            this.buildBloomPasses();
+            this.fxaaPass = new ShaderPass(FXAAShader);
+            this.fxaaPass = new ShaderPass(FXAAShader);
+            this.fxaaPass.uniforms['resolution'].value.x = 1 / VIEW.internalWidth;
+            this.fxaaPass.uniforms['resolution'].value.y = 1 / VIEW.internalHeight;
+            this.composer.addPass(this.fxaaPass);
+
+            this.composer.setSize(VIEW.internalWidth, VIEW.internalHeight);
             this.buildBloomPasses();
         }
-
-        this.fxaaPass = new ShaderPass(FXAAShader);
-        this.fxaaPass.uniforms['resolution'].value.x = 1 / VIEW.internalWidth;
-        this.fxaaPass.uniforms['resolution'].value.y = 1 / VIEW.internalHeight;
-        this.composer.addPass(this.fxaaPass);
-
-        this.composer.setSize(VIEW.internalWidth, VIEW.internalHeight);
 
         if (this.camera) this.prepareCamera(this.camera.camera);
 
@@ -128,12 +124,15 @@ export class GameRenderer {
     }
 
     public render() {
-        if (this.camera) {
-            this.camera.update();
+        if (!this.camera) return;
+        this.camera.update();
+        if (this.composer) {
             if (this.bloomComposer && this.bloomMixPass) {
                 this.renderBloomBuffer(this.bloomComposer, this.bloomMixPass);
             }
-            this.composer?.render();
+            this.composer.render();
+        } else {
+            this.renderer.render(this.scene.scene, this.camera.camera);
         }
     }
 
@@ -196,17 +195,17 @@ export class GameRenderer {
         mixPass.uniforms.tBloom.value = bloomComposer.readBuffer.texture;
     }
 
-    /**
-     * @deprecated Prefer core/Engine for the game loop (Phase 0+).
-     * Kept for legacy/debug; App must not call this alongside Engine.
-     */
-    public startAnimation() {
-        const animate = () => {
-            this.animationId = requestAnimationFrame(animate);
-            this.render();
-        };
-        animate();
-    }
+    // /**
+    //  * @deprecated Prefer core/Engine for the game loop (Phase 0+).
+    //  * Kept for legacy/debug; App must not call this alongside Engine.
+    //  */
+    // public startAnimation() {
+    //     const animate = () => {
+    //         this.animationId = requestAnimationFrame(animate);
+    //         this.render();
+    //     };
+    //     animate();
+    // }
 
     public stopAnimation() {
         if (this.animationId !== null) {

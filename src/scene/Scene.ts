@@ -1,4 +1,5 @@
 ﻿import * as THREE from 'three';
+import { SHADOW } from '../config/data/constants';
 
 export class GameScene {
   public scene: THREE.Scene;
@@ -34,18 +35,20 @@ export class GameScene {
     }
 
     this.directionalLight = new THREE.DirectionalLight(0xffffff, 1.6);
-    this.directionalLight.position.set(0, 800, 400);
-    this.directionalLight.target.position.set(0, 0, 0);
+    this.directionalLight.position.set(0, 800, 400 + SHADOW.centerZ);
+    this.directionalLight.target.position.set(0, 0, SHADOW.centerZ);
     this.directionalLight.castShadow = true;
 
-    this.directionalLight.shadow.mapSize.width = 2048;
-    this.directionalLight.shadow.mapSize.height = 4096;
-    this.directionalLight.shadow.camera.left = -this.terrainDimensions.w / 1.5;
-    this.directionalLight.shadow.camera.right = this.terrainDimensions.w / 1.5;
-    this.directionalLight.shadow.camera.top = this.terrainDimensions.h * 100;
-    this.directionalLight.shadow.camera.bottom = -this.terrainDimensions.h * 100;
-    this.directionalLight.shadow.camera.far = 1000;
-    this.directionalLight.shadow.bias = -0.001;
+    const shadow = this.directionalLight.shadow;
+    shadow.mapSize.width = SHADOW.mapWidth;
+    shadow.mapSize.height = SHADOW.mapHeight;
+    shadow.camera.left = -this.terrainDimensions.w / 1.5;
+    shadow.camera.right = this.terrainDimensions.w / 1.5;
+    shadow.camera.top = SHADOW.halfExtentZ;
+    shadow.camera.bottom = -SHADOW.halfExtentZ;
+    shadow.camera.near = SHADOW.near;
+    shadow.camera.far = SHADOW.far;
+    shadow.bias = SHADOW.bias;
 
     // const shadowHelper = new THREE.CameraHelper(this.directionalLight.shadow.camera);
     // this.scene.add(shadowHelper);

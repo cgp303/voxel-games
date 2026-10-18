@@ -226,6 +226,22 @@ export const FX: IFxSettings = {
 };
 
 /**
+ * Directional-light shadow map. The ortho frustum should cover only the playable ground, and the map size
+ * is chosen for about 3 texels per world unit on both axes (see Scene.createLights).
+ */
+export const SHADOW = {
+    mapWidth: 1024,
+    mapHeight: 2048,
+    /** Half-extent of the frustum on the light's vertical axis (about 0.9 x world Z). */
+    halfExtentZ: 300,
+    /** World Z the shadow frustum is centred on (the play area runs from the camera at about -170 to z 320). */
+    centerZ: 80,
+    near: 400,
+    far: 1300,
+    bias: -0.001,
+} as const;
+
+/**
  * Explosion debris: a destroyed model breaks into one cube per voxel that flies out, tumbles, falls
  * under gravity and bounces off the (scrolling) terrain. See systems/fx.
  */
@@ -297,6 +313,7 @@ export const DEBUG = {
     enableWaveSkip: true,
     /** KeyboardEvent.key values that trigger the wave skip (both cases so Shift/Caps Lock still work). */
     skipWaveKeys: ['l', 'L'],
+
 } as const;
 
 /** Voxel mesh generation options (see VoxelGeometry). */

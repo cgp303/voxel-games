@@ -1,5 +1,4 @@
 ﻿import {
-    ArrowHelper,
     MathUtils,
     Object3D,
     Quaternion,
@@ -97,8 +96,6 @@ export class Invader extends Entity implements ICollisionTarget, ICollisionMover
     private roll = 0;
     private spinAngle = 0;
 
-    private debugArrow: ArrowHelper | null = null;
-
     private _attackOffset: Vector3 = new Vector3(0, 0, 0);
 
     /** One release trigger per weapon type; each tracks what this invader has done during the current attack. */
@@ -155,12 +152,8 @@ export class Invader extends Entity implements ICollisionTarget, ICollisionMover
         this.hasPrevForward = false;
         this.flightQuat.identity();
         this.prevUp.set(0, 1, 0);
-        //     this.object3d.visible = true;
-        // }
-
         this.displayQuat.copy(this.baseQuat);
-        // const wantArrow = entry?.debugForwardArrow ?? ENTRY.debugForwardArrow;
-        // this.setupDebugArrow(wantArrow);
+
         this.syncTransform();
     }
 
@@ -297,9 +290,8 @@ export class Invader extends Entity implements ICollisionTarget, ICollisionMover
                 // diving / returning / dying — later phases
                 break;
         }
-        // this.normaliseSpinAngle();
         this.syncTransform();
-        this.updateDebugArrow();
+
     }
 
     private updatePath(dt: number): void {
@@ -523,7 +515,6 @@ export class Invader extends Entity implements ICollisionTarget, ICollisionMover
     }
 
     public override dispose(): void {
-        this.clearDebugArrow();
         this.active = false;
         this.mode = 'inactive';
         this.formation = null;
@@ -534,35 +525,5 @@ export class Invader extends Entity implements ICollisionTarget, ICollisionMover
             this.instancedMesh.instanceMatrix.needsUpdate = true;
             this.instanceId = -1;
         }
-    }
-
-    // private setupDebugArrow(enabled: boolean): void {
-    //     this.clearDebugArrow();
-    //     if (!enabled || !this.object3d || debugArrowClaimed) return;
-
-    //     debugArrowClaimed = true;
-    //     this.debugArrow = new ArrowHelper(
-    //         new Vector3(0, 0, 1),
-    //         new Vector3(0, 0, 0),
-    //         6,
-    //         0xff3344,
-    //         1.5,
-    //         1,
-    //     );
-    //     this.debugArrow.name = 'InvaderDebugForward';
-    //     this.object3d.add(this.debugArrow);
-    // }
-
-    private updateDebugArrow(): void {
-        if (!this.debugArrow) return;
-        // Local +Z helper for mesh-axis verification (toggle ENTRY.debugForwardArrow).
-        this.debugArrow.setDirection(this.localForward);
-    }
-
-    private clearDebugArrow(): void {
-        if (!this.debugArrow) return;
-        this.debugArrow.removeFromParent();
-        this.debugArrow.dispose();
-        this.debugArrow = null;
     }
 }
