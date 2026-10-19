@@ -1,9 +1,9 @@
 import * as THREE from 'three';
 import { FX } from '../../config/data/constants';
-import type { DebrisSimulation } from './DebrisSimulation';
+import type { IParticleBuffers } from '../../config/interfaces/interfaces';
 
 /**
- * Draws a DebrisSimulation as one InstancedMesh of unit cubes (a single draw call).
+ * Draws a particle source (a DebrisSimulation, a VoxelAssembler...) as one InstancedMesh of unit cubes (a single draw call).
  * Each particle's colour is its voxel's palette colour, written per instance. The mesh sits on the FX layer
  * so the selective bloom picks it up; colours above 1 (the initial glow) bloom hardest.
  */
@@ -45,7 +45,7 @@ export class DebrisRenderer {
     }
 
     /** Copies the simulation's live particles into the instance buffers and uploads only that range. */
-    public sync(sim: DebrisSimulation): void {
+    public sync(sim: IParticleBuffers): void {
         const count = sim.count;
         this.mesh.count = count;
         if (count === 0) return;

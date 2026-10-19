@@ -16,3 +16,15 @@ export const ASSET_PATHS = {
 } as const;
 
 export type AssetKey = keyof typeof ASSET_PATHS;
+
+/** Font glyphs by character (letters are lower case; look them up with `fontGlyphPath`). All glyphs are white. */
+export const FONT_PATHS: Readonly<Record<string, string>> = Object.fromEntries([
+    ...'0123456789abcdefghijklmnopqrstuvwxyz'.split('').map((c) => [c, `assets/vox/font/${c}.vox`]),
+    [':', 'assets/vox/font/colon.vox'],
+    ['.', 'assets/vox/font/period.vox'],
+]);
+
+/** .vox path for a character, or undefined when the font has no glyph for it (for example a space). */
+export function fontGlyphPath(char: string): string | undefined {
+    return FONT_PATHS[char.toLowerCase()];
+}

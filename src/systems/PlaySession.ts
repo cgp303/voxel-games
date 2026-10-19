@@ -9,7 +9,7 @@ import type {
 } from '../config/interfaces/interfaces';
 import { GameEvents, CollisionLayer } from '../config/types/types';
 import type { InvaderTypeId, ExplosionKind, CollisionLayerFlag } from '../config/types/types';
-import { INSTANCED_ASSETS, INVADER_ASSET_KEYS, INVADER_WEAPONS, INVADER_WEAPON_TYPES, LEVEL, PLAYER, WEAPONS, COLLISION, DEBUG } from '../config/data/constants';
+import { INSTANCED_ASSETS, INVADER_ASSET_KEYS, INVADER_WEAPONS, INVADER_WEAPON_TYPES, LEVEL, PLAYER, WEAPONS, COLLISION, DEBUG, GAME_OVER } from '../config/data/constants';
 import type { IGameContext } from '../config/interfaces/interfaces';
 import { EntityManager } from '../entities/EntityManager';
 import { Invader } from '../entities/Invader';
@@ -274,6 +274,7 @@ export class PlaySession {
         }
 
         // Player first: invaders.update() flags all instanced meshes dirty once, at the end.
+        this.respawnCountdown = Math.max(0, this.respawnCountdown - dt);
         this.updatePlayer(dt);
         this.projectilePool?.update(dt);
         this.weaponPool?.update(dt);
@@ -290,7 +291,7 @@ export class PlaySession {
             return;
         }
 
-        if (this.director?.isComplete()) {
+        if (this.director?.isComplete() && !this.gameOver) {
             this.advanceStage();
         }
         this.checkWaveCleared();
@@ -564,6 +565,47 @@ export class PlaySession {
         this.playerWeapon = null;
     }
 
+    /**
+     * Ends play: the ship is removed and no more invaders spawn, but everything already on the field (invaders,
+     * their weapons, the player's explosion) keeps updating until the session is disposed.
+     */
+    private beginGameOver(): void {
+        this.removePlayer();
+        this.director?.cancel();
+        this.gameOver = true;
+    }
+
+    /** Seconds left in the destroyed player's explosion (0 when there is none). */
+    public get playerExplosionSecondsLeft(): number {
+        return this.respawnCountdown;
+    }
+
+    /** True while any debris (explosions) is still flying. */
+    public get hasActiveDebris(): boolean {
+        return (this.debris?.activeCount ?? 0) > 0;
+    }
+
+    /** Invaders still on the field. */
+    public get invaderCount(): number {
+        return this.invaders?.count ?? 0;
+    }
+
+    /** Blows up one random invader (as if shot, but with no score). Returns false when there are none left. */
+    public explodeRandomInvader(): boolean {
+        const entities = this.invaders?.getAll();
+        if (!entities || entities.length === 0) return false;
+
+        const start = Math.floor(Math.random() * entities.length);
+        for (let n = 0; n < entities.length; n++) {
+            const entity = entities[(start + n) % entities.length];
+            if (entity instanceof Invader) {
+                this.destroyInvader(entity);
+                return true;
+            }
+        }
+        return false;
+    }
+
     private updatePlayer(dt: number): void {
         const player = this.player;
         const input = this.ctx?.input;
@@ -571,15 +613,15 @@ export class PlaySession {
 
         const anyDown = (keys: readonly string[]): number => (keys.some((k) => input.isDown(k)) ? 1 : 0);
 
-        // A destroyed ship stays out of play until its explosion has finished.
+        // A destroyed ship stays out of play until its explosion has finished. The countdown runs on its own
+        // so the explosion's remaining time can still be read after the ship is removed.
         if (player.isDown) {
-            this.respawnCountdown -= dt;
-            if (this.respawnCountdown > 0) return;
             if (this.gameOverPending) {
-                this.removePlayer();
-                this.gameOver = true;
+                // The game over screen takes over GAME_OVER.overlapSeconds before the explosion ends.
+                if (this.respawnCountdown <= GAME_OVER.overlapSeconds) this.beginGameOver();
                 return;
             }
+            if (this.respawnCountdown > 0) return;
             // Respawns flashing and protected.
             player.respawn();
         }

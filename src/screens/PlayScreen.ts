@@ -77,7 +77,7 @@ export class PlayScreen implements IScreen {
     this.refreshBanner();
 
     if (this.session?.gameOver) {
-      void ctx.screens.set(this.gameOverScreen);
+      this.handOverToGameOver(ctx);
       return;
     }
     // Quit play → Demo: session disposed on exit; Demo enter starts a fresh intro
@@ -94,8 +94,21 @@ export class PlayScreen implements IScreen {
     // Placeholder player-death / game-over path
     if (ctx.input.wasPressed('g') || ctx.input.wasPressed('G')) {
       this.session?.onPlayerDeath();
-      void ctx.screens.set(this.gameOverScreen);
+      this.handOverToGameOver(ctx);
     }
+  }
+
+  /**
+   * Switches to the game over screen, which takes over the running session so the player's explosion and the
+   * remaining invaders stay on screen (it disposes the session when it exits).
+   */
+  private handOverToGameOver(ctx: IGameContext): void {
+    const gameOver = this.gameOverScreen;
+    const session = this.session;
+    if (!gameOver || !session) return;
+    this.session = null;
+    gameOver.adoptSession(session);
+    void ctx.screens.set(gameOver);
   }
 
   private ensureHud(): void {

@@ -6,7 +6,8 @@ import { GameScene } from './Scene';
 import { GameCamera } from './Camera';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { FXAAShader } from 'three/examples/jsm/shaders/FXAAShader.js';
-import { FX, VIEW } from '../config/data/constants';
+import { FX, TEXT, VIEW } from '../config/data/constants';
+import { bloomPass } from '../systems/fx/bloomPass';
 import {
     applyFitRect,
     applyUiScale,
@@ -162,16 +163,17 @@ export class GameRenderer {
         this.composer?.addPass(this.bloomMixPass);
     }
 
-    /** Lets the camera see the FX layer (shots live there when FX is on). */
+    /** Lets the camera see the FX and text layers (shots, debris and text live there when FX is on). */
     private prepareCamera(camera: THREE.Camera): void {
         if (FX.enabled) {
             camera.layers.enable(FX.layer);
+            camera.layers.enable(TEXT.layer);
         }
     }
 
     /**
-     * Renders the glow sources into the bloom buffer. Only the FX layer is drawn: the camera is limited to it
-     * for this pass, so terrain, invaders and the player are neither drawn nor swapped to a dark material.
+     * Renders the glow sources into the bloom buffer. Only the FX and text layers are drawn: the camera is limited
+     * to them for this pass, so terrain, invaders and the player are neither drawn nor swapped to a dark material.
      * Three's shadow pass also honours the camera's layers, so the shadow map is not redrawn for this pass either.
      * The background and fog are removed so only the FX meshes add light.
      */
@@ -182,12 +184,15 @@ export class GameRenderer {
 
         const layerMask = camera.layers.mask;
         camera.layers.set(FX.layer);
+        camera.layers.enable(TEXT.layer);
 
         const background = scene.background;
         const fog = scene.fog;
         scene.background = null;
         scene.fog = null;
+        bloomPass.active = true;
         bloomComposer.render();
+        bloomPass.active = false;
         scene.background = background;
         scene.fog = fog;
 

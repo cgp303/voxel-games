@@ -6,6 +6,7 @@ import { Engine } from '../core/Engine';
 import { Input } from '../core/Input';
 import { EventBus } from '../core/EventBus';
 import { AssetManager } from '../assets/AssetManager';
+import { VoxelFont } from '../systems/text/VoxelFont';
 import type { AssetKey } from '../assets/manifests';
 import { ScreenManager } from '../screens/ScreenManager';
 import { DemoScreen } from '../screens/DemoScreen';
@@ -33,6 +34,7 @@ export class App {
     private readonly input = new Input();
     private readonly events = new EventBus();
     private readonly assets = new AssetManager();
+    private readonly font = new VoxelFont();
     private readonly game = new Game();
     private readonly screens = new ScreenManager();
     private readonly terrainService = new TerrainService();
@@ -64,6 +66,7 @@ export class App {
             input: this.input,
             events: this.events,
             assets: this.assets,
+            font: this.font,
             game: this.game,
             playField: this.playField,
             screens: this.screens,
@@ -126,6 +129,7 @@ export class App {
         for (const { key } of INSTANCED_ASSETS) {
             await this.assets.loadManifestAsset(key as AssetKey);
         }
+        await this.font.load(this.assets);
         // Cache mesh template for EntryDirector / PlaySession (Phase 5+).
         // Combat invaders are not pre-placed; Demo/Play intro spawns them off-stage.
 

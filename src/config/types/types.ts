@@ -137,7 +137,7 @@ export type ProjectileState = 'Idle' | 'Flying' | 'Fading';
 
 // explosions
 /** What exploded; selects the debris profile in EXPLOSION.profiles. */
-export type ExplosionKind = 'invader' | 'player';
+export type ExplosionKind = 'invader' | 'player' | 'text';
 
 // collision
 /**

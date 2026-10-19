@@ -12,6 +12,7 @@ import type { GameRenderer } from '../../scene/Renderer';
 import type { Input } from '../../core/Input';
 import type { EventBus } from '../../core/EventBus';
 import type { AssetManager } from '../../assets/AssetManager';
+import type { VoxelFont } from '../../systems/text/VoxelFont';
 import type { PlayField } from '../../world/PlayField';
 import type { Game } from '../../app/Game';
 import type { ScreenManager } from '../../screens/ScreenManager';
@@ -256,6 +257,41 @@ export interface IInvaderInitConfig {
     poolAssetKey?: string;
 }
 
+/** How a piece of voxel text looks. */
+export interface IVoxelTextStyle {
+    /** sRGB colour, e.g. 0x39ff14. */
+    color: number;
+    /** World units per voxel. */
+    scale: number;
+    /** Multiplier on the colour the text is drawn with on screen (1 = the full colour; lower is dimmer). */
+    brightness: number;
+    /**
+     * Glow strength: scales the text colour in the bloom pass only, independently of `brightness`.
+     * 1 blooms as brightly as the full colour; lower is subtler; 0 is no glow.
+     */
+    glowIntensity: number;
+    /** Empty voxels between glyphs (default TEXT.letterGap). */
+    letterGap?: number;
+    /** Whether the text casts a shadow on the terrain (default true). */
+    castShadow?: boolean;
+}
+
+/** A text display: what it says, how it looks, and where it floats relative to the (locked) camera. */
+export interface ITextDisplay extends IVoxelTextStyle {
+    text: string;
+    /** How far in front of the camera the text floats (world units). */
+    cameraDistance: number;
+    /** Shift along the camera's right axis (world units; + is right). */
+    offsetX: number;
+    /** Shift along the camera's up axis (world units; + is up). */
+    offsetY: number;
+    /**
+     * Tilt of the text in degrees. Leave undefined to face the camera squarely. A number stands the text
+     * on the world instead: 0 is upright, 90 lies it flat face-up, both still reading left to right for the camera.
+     */
+    pitch?: number;
+}
+
 /**
  * Shared dependencies injected into every screen on enter().
  */
@@ -266,6 +302,8 @@ export interface IGameContext {
     input: Input;
     events: EventBus;
     assets: AssetManager;
+    /** Voxel font for on-screen text; filled during the App's world bootstrap. */
+    font: VoxelFont;
     game: Game;
     /** Shared play field (terrain + invaders), built at App start */
     playField: PlayField;
@@ -665,6 +703,42 @@ export interface IVoxelCloud {
     readonly r: Float32Array;
     readonly g: Float32Array;
     readonly b: Float32Array;
+}
+
+/** Per-particle output a DebrisRenderer draws: positions, orientation, edge length and colour (first `count` entries). */
+export interface IParticleBuffers {
+    readonly count: number;
+    readonly px: Float32Array;
+    readonly py: Float32Array;
+    readonly pz: Float32Array;
+    readonly qx: Float32Array;
+    readonly qy: Float32Array;
+    readonly qz: Float32Array;
+    readonly qw: Float32Array;
+    readonly size: Float32Array;
+    readonly cr: Float32Array;
+    readonly cg: Float32Array;
+    readonly cb: Float32Array;
+}
+
+/** Voxels swooping in from off-screen to build a piece of voxel text (see systems/text/VoxelAssembler). */
+export interface IVoxelAssemblyConfig {
+    /** Seconds from the start until the last voxel lands. */
+    assembleSeconds: number;
+    /** Flight time of one voxel (s); each voxel gets a random share of 70-100% of this and a random start delay. */
+    travelSeconds: number;
+    /** Distance range (world units) from the text centre at which voxels start; they come from the upper hemisphere. */
+    spawnRadius: readonly [number, number];
+    /** Lowest start elevation above the text's horizontal plane (degrees), so no voxel starts below it. */
+    minElevationDeg: number;
+    /** How far a path bows sideways, as a fraction of its length. */
+    curve: number;
+    /** Tumbles a voxel makes before settling. */
+    spinTurns: number;
+    /** Seconds a landed voxel's flash takes to fade. */
+    flashSeconds: number;
+    /** Light added to the voxel's colour at the moment it lands (above 1 blooms). */
+    flashIntensity: number;
 }
 
 

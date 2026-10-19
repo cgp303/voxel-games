@@ -1,4 +1,4 @@
-import type { IGroundSampler, IQuaternionLike, IVector3Like, IVoxelCloud } from '../../config/interfaces/interfaces';
+import type { IDebrisConfig, IGroundSampler, IQuaternionLike, IVector3Like, IVoxelCloud } from '../../config/interfaces/interfaces';
 import type { ExplosionKind } from '../../config/types/types';
 import { EXPLOSION } from '../../config/data/constants';
 import { DebrisSimulation } from './DebrisSimulation';
@@ -14,9 +14,9 @@ export class DebrisSystem {
     private readonly simulation: DebrisSimulation;
     private readonly renderer: DebrisRenderer;
 
-    constructor(ground: IGroundSampler) {
-        this.simulation = new DebrisSimulation(EXPLOSION, ground);
-        this.renderer = new DebrisRenderer(EXPLOSION.maxParticles);
+    constructor(ground: IGroundSampler, config: IDebrisConfig = EXPLOSION) {
+        this.simulation = new DebrisSimulation(config, ground);
+        this.renderer = new DebrisRenderer(config.maxParticles);
         this.mesh = this.renderer.mesh;
     }
 

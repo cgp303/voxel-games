@@ -1,6 +1,6 @@
 ﻿import * as THREE from 'three';
 import type { InvaderTypeId, InvaderWeaponType, WeaponType } from '../types/types';
-import type { IFxSettings, IInvaderTypeDefinition, IInvaderWeaponConfig, IWeaponConfig, ICollisionSystemConfig, IDebrisConfig, ISparkConfig } from '../interfaces/interfaces';
+import type { IFxSettings, IInvaderTypeDefinition, IInvaderWeaponConfig, IWeaponConfig, ICollisionSystemConfig, IDebrisConfig, ISparkConfig, ITextDisplay, IVoxelAssemblyConfig } from '../interfaces/interfaces';
 import { CollisionLayer } from '../types/types';
 /** Shared gameplay / layout constants (expand in later phases) */
 export const GAME = {
@@ -278,6 +278,15 @@ export const EXPLOSION: IDebrisConfig = {
             life: [1, 2.5],
             glow: { color: [0.6, 0.85, 1], intensity: 3, durationSec: 1.3 },
         },
+        text: {
+            speed: [20, 52],
+            upward: [10, 40],
+            scatter: 8,
+            inheritVelocity: 0,
+            spin: [4, 16],
+            life: [0.8, 1.6],
+            glow: { color: [0.5, 1, 0.4], intensity: 1.5, durationSec: 0.8 },
+        },
     },
 };
 
@@ -308,7 +317,7 @@ export const LEVEL = {
 /** Dev/test helpers. Disable (or remove) before shipping. */
 export const DEBUG = {
     /** When true the player ignores collisions (no life lost, no removal) so the game can be tested freely. */
-    invinciblePlayer: true,
+    invinciblePlayer: false,
     /** Skip to the next wave by disposing all active invaders. */
     enableWaveSkip: true,
     /** KeyboardEvent.key values that trigger the wave skip (both cases so Shift/Caps Lock still work). */
@@ -443,8 +452,68 @@ export const DEMO = {
     attractPanelSeconds: 6,
 } as const;
 
+/** The GAME OVER text: what it says and how it looks. */
+export const GAME_OVER_TEXT: ITextDisplay = {
+    text: 'GAME OVER',
+    /** Neon green. */
+    color: 0x00ff00,
+    /** World units per voxel (also the debris cube size). */
+    scale: 1,
+    /** How far in front of the camera the text floats (world units). The text is a real world object, so keep it above the terrain. */
+    cameraDistance: 100,
+    /** Shift along the camera's right and up axes (world units). */
+    offsetX: 0,
+    offsetY: 20,
+    /** Dimmer than the full colour; the bloom is set separately by glowIntensity. */
+    brightness: 0.6,
+    /** Strength of the glow: 1 blooms the text as brightly as its full colour, lower is subtler, 0 is none. */
+    glowIntensity: 0,
+    /** Omit `pitch` to face the camera squarely. 0 stands the text upright; 90 lies it flat face-up. */
+    pitch: 90,
+};
+
 export const GAME_OVER = {
+    /** Seconds before the player's explosion ends at which the Game Over screen takes over, so the two overlap. */
+    overlapSeconds: 1,
+    /** Seconds the whole text is shown, once built, before the letters start to explode. */
     displaySeconds: 3,
+    /** Seconds between one letter exploding and the next. */
+    explodeIntervalSec: 0.05,
+    /** Debris pool size for the letters. */
+    maxDebris: 1200,
+    /**
+     * The invaders left on the field stay until the Demo screen takes over. When true they also blow up, one at
+     * a time, as the letters start to explode; when false they simply disappear at the hand-off.
+     */
+    explodeInvaders: true,
+    /** Seconds between one remaining invader exploding and the next. */
+    invaderExplodeIntervalSec: 0.04,
+} as const;
+
+/** The intro in which the text's voxels swoop in from all around and build the letters. */
+export const GAME_OVER_ASSEMBLY: IVoxelAssemblyConfig = {
+    assembleSeconds: 2,
+    travelSeconds: 1.1,
+    spawnRadius: [150, 300],
+    minElevationDeg: 5,
+    curve: 0.35,
+    spinTurns: 1.5,
+    flashSeconds: 0.25,
+    flashIntensity: 1.5,
+};
+
+/**
+ * Voxel text (see systems/text). Text sits on its own object layer, which the bloom pass also draws so it glows.
+ * Glyphs are 10 voxels tall; each is trimmed to its used columns and spaced by `letterGap`.
+ * These are font-wide; per-display settings (colour, scale, glow...) live in an ITextDisplay such as GAME_OVER_TEXT.
+ */
+export const TEXT = {
+    layer: 2,
+    cellHeight: 10,
+    /** Width of a space, in voxels. */
+    spaceWidth: 6,
+    /** Default empty voxels between the last used column of one glyph and the first of the next. */
+    letterGap: 1,
 } as const;
 
 /** Infinite-looking ground: two meshes loop on Z */
