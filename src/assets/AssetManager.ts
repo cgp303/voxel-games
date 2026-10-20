@@ -1,5 +1,5 @@
 ﻿import * as THREE from 'three';
-import type { IParsedVoxModel, IVoxelCloud } from '../config/interfaces/interfaces';
+import type { IBossResources, IParsedVoxModel, IVoxelCloud } from '../config/interfaces/interfaces';
 import { VoxelWorld } from '../voxel/VoxelWorld';
 import { VoxelGeometry } from '../voxel/VoxelGeometry';
 import { buildVoxelCloud } from '../voxel/VoxelCloud';
@@ -7,7 +7,8 @@ import { ASSET_PATHS, type AssetKey } from './manifests';
 import { VoxParser } from '../voxel/VoxParser';
 import { disposeObject3D } from '../world/PlayField';
 import { CollisionModelSet } from '../systems/collision/CollisionModel';
-import { COLLISION } from '../config/data/constants';
+import { parseBossDefinition, toBossSpace } from '../systems/boss/BossDefinition';
+import { BOSS, BOSS_WEAPONS, COLLISION } from '../config/data/constants';
 
 
 /**
@@ -19,6 +20,7 @@ export class AssetManager {
   private instancedMeshes = new Map<string, THREE.InstancedMesh>();
   private collisionModels = new Map<string, CollisionModelSet>();
   private voxelClouds = new Map<string, IVoxelCloud>();
+  private bosses = new Map<string, IBossResources>();
   // Track available instanceIds for recycling (application-scoped); maps assetKey → free slot indices
   private freeSlots: Map<string, number[]> = new Map();
 
@@ -34,6 +36,48 @@ export class AssetManager {
 
   public async loadManifestAsset(key: AssetKey): Promise<IParsedVoxModel> {
     return this.loadVox(ASSET_PATHS[key], key);
+  }
+
+  /**
+   * Loads a boss: `<BOSS.assetFolder>/<id>/<id>.json`, its model and a model for each of its weapons (found next to
+   * the JSON as `<asset>.vox`). Models are stored in the boss's model space (see toBossSpace); the boss model under
+   * `boss:<id>` and each weapon's under `boss:<id>:<weaponId>`, which is also that weapon's pool key.
+   */
+  public async loadBoss(id: string): Promise<IBossResources> {
+    const cached = this.bosses.get(id);
+    if (cached) return cached;
+
+    const folder = `${BOSS.assetFolder}/${id}`;
+    const response = await fetch(`${folder}/${id}.json`);
+    if (!response.ok) throw new Error(`Boss "${id}": could not load ${folder}/${id}.json (${response.status})`);
+    const definition = parseBossDefinition(await response.json(), Object.keys(BOSS_WEAPONS));
+    if (definition.id !== id) throw new Error(`Boss "${id}": its JSON says id "${definition.id}"`);
+
+    const model = toBossSpace(await VoxParser.loadVoxFile(definition.vox));
+    const { x, y, z } = definition.size;
+    if (model.size.x !== x || model.size.y !== y || model.size.z !== z) {
+      throw new Error(
+        `Boss "${id}": ${definition.vox} is ${model.size.x} x ${model.size.y} x ${model.size.z} (x, height, z) but the JSON says ${x} x ${y} x ${z}`,
+      );
+    }
+    const modelKey = `boss:${id}`;
+    this.models.set(modelKey, model);
+
+    const weaponModelKeys: Record<string, string> = {};
+    for (const weapon of definition.weapons) {
+      const key = `boss:${id}:${weapon.id}`;
+      this.models.set(key, toBossSpace(await VoxParser.loadVoxFile(`${folder}/${weapon.asset}.vox`)));
+      weaponModelKeys[weapon.id] = key;
+    }
+
+    const resources: IBossResources = { definition, modelKey, weaponModelKeys };
+    this.bosses.set(id, resources);
+    return resources;
+  }
+
+  /** A boss loaded with loadBoss(), or undefined. */
+  public getBoss(id: string): IBossResources | undefined {
+    return this.bosses.get(id);
   }
 
   /**
@@ -206,6 +250,7 @@ export class AssetManager {
     this.models.clear();
     this.collisionModels.clear();
     this.voxelClouds.clear();
+    this.bosses.clear();
     this.meshTemplates.clear();
   }
 }

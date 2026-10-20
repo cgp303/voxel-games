@@ -129,6 +129,30 @@ export type WeaponType = 'Laser';
 /** Weapons carried by invaders (each type has its own pool bucket and instanced mesh). */
 export type InvaderWeaponType = 'Mine' | 'LazerA' | 'LazerB';
 
+/** Weapons a boss can carry (named by a boss definition; settings live in BOSS_WEAPONS). */
+export type BossWeaponType = 'BossLazerA' | 'BossLazerB' | 'BossBombA' | 'Missile';
+
+/**
+ * Key of one bucket in the InvaderWeaponPool: an invader weapon type, or a boss weapon (`boss:<bossId>:<weaponId>`,
+ * since each boss names its own models).
+ */
+export type PooledWeaponKey = InvaderWeaponType | `boss:${string}`;
+
+/**
+ * A boss's lifecycle: it flies in ('entering'), then alternates the 'attack' and 'rest' phases of its cycle until
+ * its core is destroyed. It only fires in the phases a weapon lists.
+ */
+export type BossPhase = 'entering' | 'attack' | 'rest';
+
+/** The phases a boss's cycle alternates between. */
+export type BossCyclePhase = Extract<BossPhase, 'attack' | 'rest'>;
+
+/**
+ * Special parts of a boss. Destroying the `core` kills the boss. A shot-off chunk that is no longer connected to
+ * the `anchor` (the core when no part is marked) breaks away and falls.
+ */
+export type BossPartRole = 'core' | 'anchor';
+
 /** Identifies an invader attack pattern so weapons can be limited to specific patterns. */
 export type AttackPatternId = 'groupAttack1' | 'groupAttack2' | 'columnVertical' | 'columnDives' | 'figureEight' | 'lazerBAttack';
 
@@ -137,7 +161,7 @@ export type ProjectileState = 'Idle' | 'Flying' | 'Fading';
 
 // explosions
 /** What exploded; selects the debris profile in EXPLOSION.profiles. */
-export type ExplosionKind = 'invader' | 'player' | 'text';
+export type ExplosionKind = 'invader' | 'player' | 'text' | 'bossPart' | 'bossChunk' | 'boss';
 
 // collision
 /**

@@ -18,7 +18,7 @@ import { loadHighScores } from '../config/data/highscores';
 import { TerrainService } from '../world/TerrainService';
 import { PlayField } from '../world/PlayField';
 import { CRYSTAL_TERRAIN_CONFIG } from '../voxel-landscape/TerrainConfig';
-import { VIEW, INSTANCED_ASSETS } from '../config/data/constants';
+import { VIEW, INSTANCED_ASSETS, BOSS } from '../config/data/constants';
 import { getUiRoot } from '../core/viewport';
 
 
@@ -130,6 +130,14 @@ export class App {
             await this.assets.loadManifestAsset(key as AssetKey);
         }
         await this.font.load(this.assets);
+        // A boss that fails to load only costs that boss (its wave ends at once), so the rest of the game still runs.
+        for (const id of BOSS.ids) {
+            try {
+                await this.assets.loadBoss(id);
+            } catch (err) {
+                console.error(`[App] boss "${id}" failed to load:`, err);
+            }
+        }
         // Cache mesh template for EntryDirector / PlaySession (Phase 5+).
         // Combat invaders are not pre-placed; Demo/Play intro spawns them off-stage.
 

@@ -177,7 +177,7 @@ export class CollisionModelSet {
 }
 
 /** Flattened (dx, dz) cell offsets inside a disc of the given cell radius. */
-function discOffsets(cellRadius: number, pad: number): Int32Array {
+export function discOffsets(cellRadius: number, pad: number): Int32Array {
     const offsets: number[] = [];
     const limit = cellRadius * cellRadius + EPS;
     for (let dz = -pad; dz <= pad; dz++) {
@@ -188,7 +188,7 @@ function discOffsets(cellRadius: number, pad: number): Int32Array {
     return Int32Array.from(offsets);
 }
 
-function dilate(solid: Uint8Array, cols: number, rows: number, disc: Int32Array): Uint8Array {
+export function dilate(solid: Uint8Array, cols: number, rows: number, disc: Int32Array): Uint8Array {
     const out = new Uint8Array(solid.length);
     for (let row = 0; row < rows; row++) {
         for (let col = 0; col < cols; col++) {

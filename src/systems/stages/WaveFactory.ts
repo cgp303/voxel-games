@@ -8,6 +8,7 @@ import { ColumnVerticalDirector } from '../patterns/directors/ColumnVerticalDire
 import { ColumnDivesDirector } from '../patterns/directors/ColumnDivesDirector';
 import { FigureEightDirector } from '../patterns/directors/FigureEightDirector';
 import { LazerBAttackPatternDirector } from '../patterns/directors/LazerBAttackPatternDirector';
+import { BossDirector } from '../patterns/directors/BossDirector';
 import {
     makeGridFormation,
     makeVFormation,
@@ -31,6 +32,8 @@ interface IStageConfigBase {
 /** One stage of a wave. Everything the factory needs to build a Stage and its director. */
 export type IStageConfig =
     | IStageBase<'entry' | 'columnVertical' | 'columnDives' | 'figureEight' | 'lazerB'>
+    /** A boss fight; the wave is over when the boss is dead. The wave's formation and roster are not used (give any valid ones). */
+    | (IStageBase<'boss'> & { bossId: string })
     | (IStageBase<'groupAttack'> & {
           /** `[patternName, repeats, startIndex]`; the wave's formation (`Grid`, `X`, ...) is appended to the name. */
           sets: [GroupKind, number, number][];
@@ -99,6 +102,16 @@ const DIRECTORS: Record<DirectorKey, IDirectorEntry> = {
         fireRate: 1.2,
         missileStrength: 1.4,
         create: () => new LazerBAttackPatternDirector(),
+    },
+    boss: {
+        // PlaySession ends a boss wave when this stage completes, so the name matters (see onlyEntryStage).
+        stageName: 'Boss',
+        fireRate: 1.0,
+        missileStrength: 1.0,
+        create: (config) => {
+            if (config.director !== 'boss') throw new Error('Expected a boss stage');
+            return new BossDirector(config.bossId);
+        },
     },
 };
 

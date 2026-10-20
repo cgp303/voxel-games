@@ -17,8 +17,8 @@ import type { PlayField } from '../../world/PlayField';
 import type { Game } from '../../app/Game';
 import type { ScreenManager } from '../../screens/ScreenManager';
 import { StageQueue } from '../../systems/stages/StageQueue';
-import type { CollisionLayerFlag, ExplosionKind } from '../types/types';
-import type { CollisionModelSet } from '../../systems/collision/CollisionModel.ts';
+import type { BossCyclePhase, BossPartRole, BossWeaponType, CollisionLayerFlag, ExplosionKind } from '../types/types';
+import type { Boss } from '../../entities/Boss';
 import type { HeightField } from '../../world/HeightField';
 
 
@@ -36,6 +36,8 @@ export interface IDirectorContext {
     scene?: THREE.Scene;
     /** Invader type for a formation slot (comes from the current StageQueue's row roster). */
     getInvaderTypeForSlot: (col: number, row: number) => InvaderTypeId;
+    /** Creates the named boss in the session and returns it (set by PlaySession; used by the boss director). */
+    spawnBoss?: (bossId: string) => Boss | null;
 }
 
 export interface IRepeatingPatternDirectorContext extends IDirectorContext {
@@ -742,6 +744,169 @@ export interface IVoxelAssemblyConfig {
 }
 
 
+/////////////bosses
+/**
+ * Inclusive rectangle of voxel columns in the boss's model space: [x0, z0, x1, z1]. Model space is the .vox
+ * with its axes swapped like the font's (file z, the height in MagicaVoxel, becomes y), so x and z span the
+ * top-down footprint and the boss's front, the end nearest the player, is z = 0.
+ */
+export type BossRect = readonly [number, number, number, number];
+
+/** A hittable part: every voxel column inside its rectangles (all heights) is destroyed together once `hits` are spent. */
+export interface IBossPartDef {
+    id: string;
+    rects: readonly BossRect[];
+    /** Hits (total player weapon power) needed to destroy the part. */
+    hits: number;
+    role?: BossPartRole;
+}
+
+/** Voxel columns no part claims are split into tiles of this size (connected pieces within a tile), each its own part. */
+export interface IBossHullDef {
+    tile: { w: number; d: number };
+    hits: number;
+}
+
+/** One place a weapon is released from. The mount stops working as soon as any part in `disabledBy` is destroyed. */
+export interface IBossMountDef {
+    /** Release point in voxel coordinates of the model (x, y = height, z); the centre of that voxel is used. */
+    muzzle: IVector3Like;
+    disabledBy: readonly string[];
+}
+
+export interface IBossWeaponDef {
+    id: string;
+    /** Which entry of BOSS_WEAPONS gives the weapon its behaviour. */
+    weapon: BossWeaponType;
+    /** Name of the weapon's .vox, without extension, in the boss's folder. */
+    asset: string;
+    /** When true every working mount releases together; otherwise the mounts take turns. */
+    sync?: boolean;
+    /** Seconds between releases. */
+    rate: number;
+    /** Release speed (units/s); defaults to the weapon's own setting. */
+    speed?: number;
+    /** Phases of the boss's cycle in which the weapon fires. */
+    phases: readonly BossCyclePhase[];
+    mounts: readonly IBossMountDef[];
+}
+
+/** One step of the attack/rest cycle; its length is random within `seconds`. */
+export interface IBossCycleStep {
+    phase: BossCyclePhase;
+    seconds: readonly [number, number];
+}
+
+export interface IBossMovementDef {
+    /** Key of BOSS_PATHS. */
+    path: string;
+    /** Seconds to fly the whole (looping) path. */
+    durationSec: number;
+    /** Largest roll (radians) the boss leans by. The boss never yaws: it always faces the player. */
+    maxRollRad: number;
+    /** Roll (radians) per unit of sideways speed. */
+    rollGain: number;
+}
+
+export interface IBossFxDef {
+    /** Chunks cut off from the anchor fall away. */
+    chunks: boolean;
+    /** Damaged edges drip fire. */
+    drip: boolean;
+}
+
+/** A boss as described by its JSON file (see public/assets/vox/bosses). */
+export interface IBossDefinition {
+    id: string;
+    /** Path of the boss's .vox, relative to the site root. */
+    vox: string;
+    /** Model-space size in voxels (x, y = height, z); checked against the .vox. */
+    size: IVector3Like;
+    scoreValue: number;
+    hull: IBossHullDef;
+    parts: readonly IBossPartDef[];
+    weapons: readonly IBossWeaponDef[];
+    cycle: readonly IBossCycleStep[];
+    movement: IBossMovementDef;
+    fx: IBossFxDef;
+}
+
+/** A loaded boss: its definition, and the asset keys its models were registered under. */
+export interface IBossResources {
+    definition: IBossDefinition;
+    /** AssetManager key of the boss's model (already in model space). */
+    modelKey: string;
+    /** AssetManager key of each weapon's model, by weapon id. */
+    weaponModelKeys: Readonly<Record<string, string>>;
+}
+
+/** Settings every boss weapon shares. */
+export interface IBossWeaponBaseConfig {
+    /** Pool size: the most of this weapon that can be live at once. */
+    maxCount: number;
+    /** World-unit radius used when the weapon sweeps against the player. */
+    collisionRadius: number;
+    castShadow: boolean;
+    /** Puts the weapon on the bloom layer. */
+    glow: boolean;
+    /** World units past the player's back edge at which the weapon is recycled. */
+    despawnMarginPastPlayer: number;
+    /** Speed used when the boss definition does not give one (units/s). */
+    defaultSpeed: number;
+}
+
+/** A boss lazer: indestructible and straight, like an invader's. */
+export interface IBossLazerConfig extends IBossWeaponBaseConfig {
+    kind: 'lazer';
+}
+
+/**
+ * A boss missile. `bezier` flies a curve that ends where the player was when it was released; `homing` steers
+ * toward the player's current position at a limited turn rate; `bezierThenHoming` does the first, then the second.
+ * It can be shot like a mine.
+ */
+export interface IBossMissileConfig extends IBossWeaponBaseConfig {
+    kind: 'missile';
+    guidance: 'bezier' | 'homing' | 'bezierThenHoming';
+    /** How far the curve bows sideways, as a fraction of its length (0 = a straight line). */
+    bezierBow: number;
+    /** Fastest the homing steering can turn the missile (radians per second). */
+    turnRateRadPerSec: number;
+    /** Seconds before an unspent missile gives up and is recycled. */
+    maxLifeSec: number;
+    /** Hits (total player weapon power) needed to destroy it. */
+    hitPoints: number;
+    /** Rotation about its own Z axis while it flies (radians per second). */
+    spinRateRadPerSec: number;
+}
+
+export type IBossWeaponConfig = IBossLazerConfig | IBossMissileConfig;
+
+
+/** A looping path the boss flies; consecutive segments share end points, and the last ends where the first starts. */
+export interface IBossPathDef {
+    segments: ICubicBezierControls[];
+}
+
+/** Boss behaviour that is not specific to one boss. */
+export interface IBossSettings {
+    /** Folder under the site root that holds each boss's own folder (`<folder>/<id>/<id>.json`). */
+    assetFolder: string;
+    /** Boss ids to load at start-up. */
+    ids: readonly string[];
+    /** Height above the terrain. */
+    hoverPadding: number;
+    /** World Z the boss starts its entrance from (off the far edge of the screen). */
+    entranceZ: number;
+    entranceSeconds: number;
+    /** How quickly the roll follows its target (per second). */
+    rollSmooth: number;
+    /** The player is killed when within this radius (world units) of a solid boss voxel. */
+    contactRadius: number;
+    /** Seconds between drips at no damage and at full damage (it speeds up as parts are lost). */
+    dripIntervalSec: readonly [number, number];
+}
+
 /////////////sparks
 /** Short-lived glowing single-voxel sparks thrown off by hits that do not destroy the target. */
 export interface ISparkConfig {
@@ -851,6 +1016,21 @@ export interface ICollisionBucket {
     readonly data: Uint8Array;
 }
 
+/** Where a collision model's footprints for one mover radius live: one bucket per roll angle. */
+export interface ICollisionModelVariant {
+    readonly buckets: readonly ICollisionBucket[];
+    bucketIndexForRoll(roll: number): number;
+}
+
+/** What the collision system needs from a target's baked footprints (CollisionModelSet, or a boss's editable mask). */
+export interface ICollisionModelSource {
+    /** Roll-independent half extents (origin to farthest edge) used by the broadphase. */
+    readonly broadHalfX: number;
+    readonly broadHalfZ: number;
+    /** Footprints for movers of the given radius (world units). */
+    get(radius: number): ICollisionModelVariant;
+}
+
 export interface ISlabResult {
     tEnter: number;
     tExit: number;
@@ -885,7 +1065,7 @@ export interface ICollisionMover {
 export interface ICollisionTarget {
     readonly collisionLayer: CollisionLayerFlag;
     readonly collisionEnabled: boolean;
-    readonly collisionModels: CollisionModelSet | null;
+    readonly collisionModels: ICollisionModelSource | null;
     readonly position: IPoint3;
     /** Rotation about the Z (travel) axis in radians; selects the baked footprint. */
     getCollisionRoll(): number;

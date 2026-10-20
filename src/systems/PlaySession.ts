@@ -8,19 +8,22 @@ import type {
     ILevelCompletedPayload,
 } from '../config/interfaces/interfaces';
 import { GameEvents, CollisionLayer } from '../config/types/types';
-import type { InvaderTypeId, ExplosionKind, CollisionLayerFlag } from '../config/types/types';
-import { INSTANCED_ASSETS, INVADER_ASSET_KEYS, INVADER_WEAPONS, INVADER_WEAPON_TYPES, LEVEL, PLAYER, WEAPONS, COLLISION, DEBUG, GAME_OVER } from '../config/data/constants';
-import type { IGameContext } from '../config/interfaces/interfaces';
+import type { InvaderTypeId, InvaderWeaponType, ExplosionKind, CollisionLayerFlag, PooledWeaponKey } from '../config/types/types';
+import { INSTANCED_ASSETS, INVADER_ASSET_KEYS, INVADER_WEAPONS, INVADER_WEAPON_TYPES, LEVEL, PLAYER, WEAPONS, COLLISION, DEBUG, GAME_OVER, BOSS, BOSS_DRIP, BOSS_PATHS, BOSS_WEAPONS } from '../config/data/constants';
+import type { IGameContext, IVoxelCloud } from '../config/interfaces/interfaces';
 import { EntityManager } from '../entities/EntityManager';
+import { Boss } from '../entities/Boss';
 import { Invader } from '../entities/Invader';
 import { InvaderWeapon } from '../entities/InvaderWeapon';
 import { MineWeapon } from '../entities/MineWeapon';
+import { MissileWeapon } from '../entities/MissileWeapon';
 import { Player } from '../entities/Player';
 import { Projectile } from '../entities/Projectile';
 import { Weapon } from '../entities/Weapon';
 import { ProjectilePool } from './ProjectilePool';
 import { InvaderWeaponPool } from './InvaderWeaponPool';
 import { CollisionSystem } from './collision/CollisionSystem';
+import { buildBossPath } from './boss/BossPath';
 import { DebrisSystem } from './fx/DebrisSystem';
 import { SparkSystem } from './fx/SparkSystem';
 import { EntryPatternDirector } from './patterns/directors/EntryPatternDirector';
@@ -69,6 +72,12 @@ export class PlaySession {
     private debris: DebrisSystem | null = null;
     private sparks: SparkSystem | null = null;
     private readonly sparkOrigin = new Vector3();
+    /** Fire dripping from a damaged boss. */
+    private drips: SparkSystem | null = null;
+    private readonly dripOrigin = new Vector3();
+    private readonly noVelocity = new Vector3();
+    /** The boss on the field, if any. */
+    private boss: Boss | null = null;
     private readonly debrisVelocity = new Vector3();
     /** Reused by the invaders' weapon triggers to describe the weapon being released. */
     private readonly weaponLaunch: IWeaponLaunch = {
@@ -277,12 +286,15 @@ export class PlaySession {
         this.respawnCountdown = Math.max(0, this.respawnCountdown - dt);
         this.updatePlayer(dt);
         this.projectilePool?.update(dt);
+        this.weaponPool?.setTarget(this.player?.collisionEnabled ? this.player.position : null);
         this.weaponPool?.update(dt);
         this.invaders?.update(dt);
         this.frameDt = dt;
         this.updateInvaderWeapons(dt);
+        this.updateBoss(dt);
         this.debris?.update(dt);
         this.sparks?.update(dt);
+        this.drips?.update(dt);
         this.updateCollisions();
 
         if (betweenWaves) {
@@ -347,6 +359,9 @@ export class PlaySession {
         this.debris = null;
         this.sparks?.dispose();
         this.sparks = null;
+        this.drips?.dispose();
+        this.drips = null;
+        this.boss = null;
         this.invaders?.clear();
         this.ctx?.playField.clearInvaders();
         this.ctx = null;
@@ -391,6 +406,8 @@ export class PlaySession {
         ctx.scene.scene.add(this.debris.mesh);
         this.sparks = new SparkSystem();
         ctx.scene.scene.add(this.sparks.mesh);
+        this.drips = new SparkSystem(BOSS_DRIP);
+        ctx.scene.scene.add(this.drips.mesh);
     }
 
     /**
@@ -409,17 +426,22 @@ export class PlaySession {
             if (shot.collisionEnabled) movers.push(shot);
         }
         for (const entity of invaders.getAll()) {
+            if (entity instanceof Boss) {
+                // A boss can be shot; touching it is tested separately below, against its living columns.
+                targets.push(entity);
+                continue;
+            }
             if (!(entity instanceof Invader)) continue;
             targets.push(entity);
             if (this.player?.collisionEnabled) movers.push(entity);
         }
-        // Only mines can be hit; lazers are movers only.
+        // Only mines and missiles can be hit; lazers are movers only.
         const weapons = this.weaponPool?.liveWeapons;
         if (weapons) {
             for (const weapon of weapons) {
                 if (!weapon.collisionEnabled) continue;
-                // Non-shootable mines are filtered out of the target list by the collision rules.
-                if (weapon instanceof MineWeapon) targets.push(weapon);
+                // Non-shootable ones are filtered out of the target list by the collision rules.
+                if (weapon instanceof MineWeapon || weapon instanceof MissileWeapon) targets.push(weapon);
                 if (this.player?.collisionEnabled) movers.push(weapon);
             }
         }
@@ -432,6 +454,12 @@ export class PlaySession {
         }
         movers.length = 0;
         targets.length = 0;
+
+        const boss = this.boss;
+        const player = this.player;
+        if (boss && player?.collisionEnabled && boss.touchesCircle(player.position.x, player.position.z, BOSS.contactRadius)) {
+            this.onPlayerHit(player);
+        }
     }
 
     /**
@@ -441,11 +469,15 @@ export class PlaySession {
     private resolveHit(hit: ICollisionHit): void {
         const { mover, target } = hit;
 
-        if (target instanceof Invader) {
+        if (target instanceof Boss) {
+            if (!target.collisionEnabled || !(mover instanceof Projectile)) return;
+            this.projectilePool?.release(mover);
+            this.hitBoss(target, hit, mover);
+        } else if (target instanceof Invader) {
             if (!target.collisionEnabled) return;
             if (mover instanceof Projectile) this.projectilePool?.release(mover);
             this.destroyInvader(target);
-        } else if (target instanceof MineWeapon) {
+        } else if (target instanceof MineWeapon || target instanceof MissileWeapon) {
             if (!target.collisionEnabled) return;
             if (mover instanceof Projectile) {
                 this.projectilePool?.release(mover);
@@ -475,13 +507,103 @@ export class PlaySession {
     }
 
     private destroyInvaderWeapon(weapon: InvaderWeapon): void {
-        // Only mines break apart; a lazer that hits the player just disappears.
+        // Only mines and missiles break apart; a lazer that hits the player just disappears.
         if (weapon instanceof MineWeapon) {
             this.debrisVelocity.copy(weapon.velocity);
-            this.explode('invader', INVADER_WEAPONS[weapon.type].assetKey, weapon.position, identityOrientation, this.debrisVelocity);
+            this.explode('invader', INVADER_WEAPONS[weapon.type as InvaderWeaponType].assetKey, weapon.position, identityOrientation, this.debrisVelocity);
+        } else if (weapon instanceof MissileWeapon) {
+            // A boss weapon's pool key is also the key of its model.
+            this.debrisVelocity.copy(weapon.velocity);
+            this.explode('invader', weapon.type, weapon.position, identityOrientation, this.debrisVelocity);
         }
         this.weaponPool?.release(weapon);
     }
+
+    /**
+     * A shot has reached the boss: it always throws sparks, and the part it struck loses hits. A destroyed part
+     * bursts into debris, anything it was holding up falls away, and destroying the core ends the boss.
+     */
+    private hitBoss(boss: Boss, hit: ICollisionHit, shot: Projectile): void {
+        this.emitSparks(hit.x, boss.position.y, hit.z, boss.velocity);
+        const damage = boss.takeHit(hit.localX, hit.localZ, shot.power, shot.collisionRadius);
+        if (!damage.destroyed) return;
+
+        this.explodeCloud('bossPart', boss.toCloud(damage.removed), boss.position, boss.orientation, boss.velocity);
+        if (damage.chunk.length > 0) {
+            this.explodeCloud('bossChunk', boss.toCloud(damage.chunk), boss.position, boss.orientation, boss.velocity);
+        }
+        if (damage.coreDestroyed) this.killBoss(boss);
+    }
+
+    /** The boss is dead: everything left of it explodes, the score is awarded and it is removed. */
+    private killBoss(boss: Boss): void {
+        this.explodeCloud('boss', boss.toCloud(boss.model.remainingVoxels()), boss.position, boss.orientation, boss.velocity);
+        this.ctx?.game.addScore(boss.definition.scoreValue);
+        this.invaders?.remove(boss);
+        if (this.boss === boss) this.boss = null;
+    }
+
+    /** Spawns the boss's queued weapons and its fire drips for this frame. */
+    private updateBoss(dt: number): void {
+        const boss = this.boss;
+        const pool = this.weaponPool;
+        if (!boss || !pool) return;
+
+        for (let i = 0; i < boss.launchCount; i++) {
+            const launch = boss.launches[i];
+            const layer = BOSS_WEAPONS[launch.weapon].kind === 'missile' ? this.invaderWeaponLayer() : CollisionLayer.INVADER_WEAPON;
+            pool.spawn(launch.key, launch.origin, launch.velocity, launch.orientation, layer);
+        }
+        boss.clearLaunches();
+
+        if (boss.pollDrip(dt, this.dripOrigin)) this.drips?.emit(this.dripOrigin, this.noVelocity);
+    }
+
+    /**
+     * Brings a loaded boss onto the field (called by the boss director): registers its weapons with the pool and its
+     * meshes with the scene, and bakes the footprints shots and the player are tested against.
+     */
+    private readonly spawnBoss = (bossId: string): Boss | null => {
+        const ctx = this.ctx;
+        const invaders = this.invaders;
+        const pool = this.weaponPool;
+        const resources = ctx?.assets.getBoss(bossId);
+        if (!ctx || !invaders || !pool || !resources) {
+            console.warn(`[PlaySession] boss "${bossId}" is not loaded`);
+            return null;
+        }
+
+        const { definition } = resources;
+        const pathDef = BOSS_PATHS[definition.movement.path];
+        if (!pathDef) throw new Error(`Boss "${bossId}": movement.path "${definition.movement.path}" is not in BOSS_PATHS`);
+        const hoverY = ctx.playField.bounds.height + BOSS.hoverPadding;
+        const model = ctx.assets.getModel(resources.modelKey)!;
+
+        const weaponKeys: Record<string, PooledWeaponKey> = {};
+        for (const weapon of definition.weapons) {
+            const key = resources.weaponModelKeys[weapon.id] as PooledWeaponKey;
+            const mesh = pool.registerBossWeapon(key, BOSS_WEAPONS[weapon.weapon], key, ctx.assets);
+            if (!mesh.parent) ctx.scene.scene.add(mesh);
+            weaponKeys[weapon.id] = key;
+        }
+
+        const boss = new Boss({
+            definition,
+            voxels: model.voxels,
+            palette: model.colors,
+            hoverY,
+            path: buildBossPath(pathDef, hoverY, definition.movement.durationSec, `Boss "${bossId}" path`),
+            weaponKeys,
+        });
+        // Bake the footprints now so the first shot or contact does not hitch.
+        boss.collisionModels.get(WEAPONS[PLAYER.weapon].collisionRadius);
+        boss.collisionModels.get(BOSS.contactRadius);
+
+        ctx.scene.scene.add(boss.object);
+        invaders.add(boss);
+        this.boss = boss;
+        return boss;
+    };
 
     /**
      * Asks every diving invader's weapon triggers whether to release a weapon this frame and spawns the ones
@@ -554,8 +676,20 @@ export class PlaySession {
         velocity: Vector3,
     ): number {
         const ctx = this.ctx;
-        if (!this.debris || !ctx) return 0;
-        return this.debris.explode(kind, ctx.assets.getVoxelCloud(assetKey), position, orientation, velocity);
+        if (!ctx) return 0;
+        return this.explodeCloud(kind, ctx.assets.getVoxelCloud(assetKey), position, orientation, velocity);
+    }
+
+    /** Like explode(), for voxels that are not a whole model (a part shot off a boss). */
+    private explodeCloud(
+        kind: ExplosionKind,
+        cloud: IVoxelCloud,
+        position: Vector3,
+        orientation: Quaternion,
+        velocity: Vector3,
+    ): number {
+        if (!this.debris || cloud.count === 0) return 0;
+        return this.debris.explode(kind, cloud, position, orientation, velocity);
     }
 
     /** Shots already in flight keep travelling; they are only cleared on dispose. */
@@ -603,6 +737,11 @@ export class PlaySession {
                 return true;
             }
         }
+        // Only the boss is left: it goes up all at once.
+        if (this.boss) {
+            this.killBoss(this.boss);
+            return true;
+        }
         return false;
     }
 
@@ -638,7 +777,9 @@ export class PlaySession {
     }
 
     private onlyEntryStage(): boolean {
-        return this.stageQueue?.stages.length === 1 && this.stageQueue?.stages[0].name === 'Entry';
+        const stages = this.stageQueue?.stages;
+        // A boss wave is a single stage too: when it completes (the boss is dead) there is nothing to advance to.
+        return stages?.length === 1 && (stages[0].name === 'Entry' || stages[0].name === 'Boss');
     }
 
     private advanceStage(): void {
@@ -659,6 +800,7 @@ export class PlaySession {
             config: this.currentStage.directorConfig,
             scene: this.ctx.scene.scene,
             getInvaderTypeForSlot: this.getInvaderTypeForSlot,
+            spawnBoss: this.spawnBoss,
         });
     }
 
@@ -678,6 +820,7 @@ export class PlaySession {
         }
 
         this.invaders?.clear();
+        this.boss = null;
         ctx.playField.clearInvaders();
 
         // Reset the InstancedMesh count and free-slots for every invader mesh (not the player's)
@@ -719,6 +862,7 @@ export class PlaySession {
             playField: ctx.playField,
             config: this.currentStage?.directorConfig ?? {},
             getInvaderTypeForSlot: this.getInvaderTypeForSlot,
+            spawnBoss: this.spawnBoss,
         });
 
 

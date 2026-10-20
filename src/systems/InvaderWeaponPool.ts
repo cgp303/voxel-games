@@ -2,10 +2,11 @@ import type { InstancedMesh, Quaternion, Vector3 } from 'three';
 import { InvaderWeapon } from '../entities/InvaderWeapon';
 import { LazerWeapon } from '../entities/LazerWeapon';
 import { MineWeapon } from '../entities/MineWeapon';
+import { MissileWeapon } from '../entities/MissileWeapon';
 import type { AssetManager } from '../assets/AssetManager';
 import { COLLISION, INVADER_WEAPONS, INVADER_WEAPON_TYPES, PLAYER } from '../config/data/constants';
-import type { ILazerDespawnBounds } from '../config/interfaces/interfaces';
-import type { CollisionLayerFlag, InvaderWeaponType } from '../config/types/types';
+import type { IBossWeaponConfig, ILazerDespawnBounds } from '../config/interfaces/interfaces';
+import type { CollisionLayerFlag, PooledWeaponKey } from '../config/types/types';
 import { applyShotGlow } from './fx/ShotGlow';
 
 /** How far past the collision grid a lazer may fly sideways or toward +Z before it is recycled. */
@@ -20,25 +21,32 @@ interface IWeaponBucket {
 }
 
 /**
- * Fixed-size pools of invader weapons, one bucket per weapon type. A bucket has one InstancedMesh per model
- * variant (intact, then damaged); weapon i always uses instance slot i in whichever variant it currently shows.
+ * Fixed-size pools of invader weapons, one bucket per weapon type (and, once a boss registers its weapons, one per
+ * boss weapon). A bucket has one InstancedMesh per model variant (intact, then damaged); weapon i always uses
+ * instance slot i in whichever variant it currently shows.
  * Weapons are recycled through free/live arrays; no allocation happens while playing.
  */
 export class InvaderWeaponPool {
-    private readonly buckets = new Map<InvaderWeaponType, IWeaponBucket>();
+    private readonly buckets = new Map<PooledWeaponKey, IWeaponBucket>();
     // Same buckets as an array, so per-frame loops need no Map iterator.
     private readonly bucketList: IWeaponBucket[] = [];
     /** Every live weapon of every type in one flat array, so collision can read it without a callback. */
     private readonly live: InvaderWeapon[] = [];
+    private readonly playerBackEdgeZ = PLAYER.spawnZ - PLAYER.zRange;
+    private readonly lazerBounds: ILazerDespawnBounds;
+    /** Where the player is (null when there is none in play); read by missiles that home in. */
+    private target: Vector3 | null = null;
+    private readonly getTarget = (): Vector3 | null => this.target;
 
     constructor(assets: AssetManager) {
         // Weapons fly toward -Z and are recycled a configured distance behind the player's back edge.
-        const playerBackEdgeZ = PLAYER.spawnZ - PLAYER.zRange;
+        const playerBackEdgeZ = this.playerBackEdgeZ;
         const lazerBounds: ILazerDespawnBounds = {
             minX: COLLISION.grid.minX - LAZER_DESPAWN_MARGIN,
             maxX: COLLISION.grid.maxX + LAZER_DESPAWN_MARGIN,
             maxZ: COLLISION.grid.maxZ + LAZER_DESPAWN_MARGIN,
         };
+        this.lazerBounds = lazerBounds;
 
         for (const type of INVADER_WEAPON_TYPES) {
             const config = INVADER_WEAPONS[type];
@@ -68,9 +76,44 @@ export class InvaderWeaponPool {
         }
     }
 
+    /**
+     * Gives a boss weapon its own bucket (idempotent per key): one instanced mesh of the weapon's model, with a
+     * pool of weapons of the configured kind. Returns the mesh, which the caller adds to the scene once.
+     */
+    public registerBossWeapon(key: PooledWeaponKey, config: IBossWeaponConfig, assetKey: string, assets: AssetManager): InstancedMesh {
+        const existing = this.buckets.get(key);
+        if (existing) return existing.meshes[0];
+
+        const mesh = assets.getOrCreateInstancedMesh(assetKey, config.maxCount);
+        if (config.glow) applyShotGlow(mesh);
+        mesh.castShadow = config.castShadow;
+        mesh.count = config.maxCount;
+
+        const despawnZ = this.playerBackEdgeZ - config.despawnMarginPastPlayer;
+        const meshes = [mesh];
+        const free: InvaderWeapon[] = [];
+        for (let i = config.maxCount - 1; i >= 0; i--) {
+            free.push(
+                config.kind === 'missile'
+                    ? new MissileWeapon(key, config, meshes, i, assets.getCollisionModels(assetKey), despawnZ, this.lazerBounds, this.getTarget)
+                    : new LazerWeapon(key, config, meshes, i, despawnZ, this.lazerBounds),
+            );
+        }
+        mesh.instanceMatrix.needsUpdate = true;
+        const bucket: IWeaponBucket = { meshes, free, liveCount: 0 };
+        this.buckets.set(key, bucket);
+        this.bucketList.push(bucket);
+        return mesh;
+    }
+
+    /** Tells missiles where the player is (null while there is no player in play). Call before update(). */
+    public setTarget(position: Vector3 | null): void {
+        this.target = position;
+    }
+
     /** Launches a free weapon of this type. Returns false (and does nothing) when its bucket is exhausted. */
     public spawn(
-        type: InvaderWeaponType,
+        type: PooledWeaponKey,
         origin: Vector3,
         velocity: Vector3,
         orientation: Quaternion,

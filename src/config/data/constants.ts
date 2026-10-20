@@ -1,6 +1,7 @@
 ﻿import * as THREE from 'three';
-import type { InvaderTypeId, InvaderWeaponType, WeaponType } from '../types/types';
-import type { IFxSettings, IInvaderTypeDefinition, IInvaderWeaponConfig, IWeaponConfig, ICollisionSystemConfig, IDebrisConfig, ISparkConfig, ITextDisplay, IVoxelAssemblyConfig } from '../interfaces/interfaces';
+import { Vector3 } from 'three';
+import type { InvaderTypeId, InvaderWeaponType, WeaponType, BossWeaponType } from '../types/types';
+import type { IFxSettings, IInvaderTypeDefinition, IInvaderWeaponConfig, IWeaponConfig, ICollisionSystemConfig, IDebrisConfig, ISparkConfig, ITextDisplay, IVoxelAssemblyConfig, IBossSettings, IBossPathDef, IBossWeaponConfig } from '../interfaces/interfaces';
 import { CollisionLayer } from '../types/types';
 /** Shared gameplay / layout constants (expand in later phases) */
 export const GAME = {
@@ -217,7 +218,7 @@ export const COLLISION = {
 export const FX: IFxSettings = {
     enabled: true,
     layer: 1,
-    shotEmissiveIntensity: 0.75,
+    shotEmissiveIntensity: 0.5,
     bloom: {
         strength: 1,
         radius: 0.25,
@@ -280,12 +281,42 @@ export const EXPLOSION: IDebrisConfig = {
         },
         text: {
             speed: [20, 52],
-            upward: [10, 40],
-            scatter: 8,
+            upward: [10, 80],
+            scatter: 5,
             inheritVelocity: 0,
             spin: [4, 16],
-            life: [0.8, 1.6],
-            glow: { color: [0.5, 1, 0.4], intensity: 1.5, durationSec: 0.8 },
+            life: [0.8, 2.6],
+            glow: { color: [0.5, 1, 0.4], intensity: 2.5, durationSec: 1.5 },
+        },
+        /** A destroyed boss part: a short, hot burst. */
+        bossPart: {
+            speed: [12, 40],
+            upward: [10, 50],
+            scatter: 4,
+            inheritVelocity: 0.4,
+            spin: [4, 14],
+            life: [0.8, 2.6],
+            glow: { color: [1, 0.7, 0.3], intensity: 3, durationSec: 1.5 },
+        },
+        /** A chunk of boss cut off from the rest: it drops away rather than bursting, trailing its glow. */
+        bossChunk: {
+            speed: [2, 10],
+            upward: [0, 8],
+            scatter: 2,
+            inheritVelocity: 0.8,
+            spin: [1, 6],
+            life: [1.6, 3],
+            glow: { color: [1, 0.45, 0.1], intensity: 3, durationSec: 2.2 },
+        },
+        /** The final explosion of a boss. */
+        boss: {
+            speed: [20, 70],
+            upward: [20, 90],
+            scatter: 10,
+            inheritVelocity: 0.3,
+            spin: [4, 18],
+            life: [1.2, 3],
+            glow: { color: [1, 0.8, 0.45], intensity: 3.5, durationSec: 1.8 },
         },
     },
 };
@@ -293,18 +324,109 @@ export const EXPLOSION: IDebrisConfig = {
 /** Sparks thrown off an invader weapon when a shot hits but does not destroy it. See systems/fx/SparkSystem. */
 export const SPARKS: ISparkConfig = {
     maxParticles: 256,
-    size: 1,
+    size: 1.3,
     count: [4, 9],
     speed: [30, 70],
     direction: { x: 0, y: 1, z: 1 },
     spread: 0.9,
-    gravity: 20,
-    life: [0.4, 0.6],
+    gravity: 5,
+    life: [0.4, 1],
     inheritVelocity: 0.5,
     hotColor: [1, 0.9, 0.55],
-    hotIntensity: 3,
+    hotIntensity: 2,
     redColor: [1, 0.08, 0.02],
     redAtFraction: 0.55,
+};
+
+/** Boss behaviour shared by every boss (each boss's own layout is its JSON file; see systems/boss). */
+export const BOSS: IBossSettings = {
+    assetFolder: 'assets/vox/bosses',
+    ids: ['boss1'],
+    hoverPadding: 8,
+    entranceZ: 270,
+    entranceSeconds: 1,
+    rollSmooth: 4,
+    contactRadius: 5,
+    dripIntervalSec: [0.5, 0.06],
+};
+
+/** The fire a damaged boss drips: embers that fall slowly from the edges of the holes shot in it. */
+export const BOSS_DRIP: ISparkConfig = {
+    maxParticles: 192,
+    size: 1,
+    count: [10, 30],
+    speed: [10, 20],
+    direction: { x: 0, y: 3, z: 0 },
+    spread: 1.2,
+    gravity: 5,
+    life: [0.8, 1.5],
+    inheritVelocity: 0.6,
+    hotColor: [1, 0.65, 0.2],
+    hotIntensity: 3,
+    redColor: [1, 0.1, 0.02],
+    redAtFraction: 0.5,
+};
+
+/**
+ * Paths a boss can fly (named by a boss's JSON). X/Z positions of cubic Bezier pieces, looped; the boss holds a
+ * fixed height above the terrain. Like the formation's path, but the boss turns this into a roll, never a yaw.
+ */
+export const BOSS_PATHS: Record<string, IBossPathDef> = {
+    bossSweep1: {
+        segments: [
+            { p0: new Vector3(0, 20, 70), p1: new Vector3(58, 20, 20), p2: new Vector3(58, 20, -20), p3: new Vector3(50, 20, -70) },
+            { p0: new Vector3(50, 20, -70), p1: new Vector3(10, 20, 20), p2: new Vector3(-10, 20, 20), p3: new Vector3(-50, 20, -50) },
+            { p0: new Vector3(-50, 20, -50), p1: new Vector3(-10, 20, 20), p2: new Vector3(10, 20, 20), p3: new Vector3(50, 20, -50) },
+            { p0: new Vector3(50, 20, -50), p1: new Vector3(10, 20, 20), p2: new Vector3(-10, 20, 20), p3: new Vector3(-50, 20, -50) },
+            { p0: new Vector3(-50, 20, -50), p1: new Vector3(30, 20, -10), p2: new Vector3(-30, 20, 10), p3: new Vector3(0, 20, 70) },
+        ],
+    },
+};
+
+/** Weapons a boss can carry. Which models, how often and from where are the boss's own JSON; this is how each behaves. */
+export const BOSS_WEAPONS: Record<BossWeaponType, IBossWeaponConfig> = {
+    BossLazerA: {
+        kind: 'lazer',
+        maxCount: 50,
+        collisionRadius: 2,
+        castShadow: false,
+        glow: true,
+        despawnMarginPastPlayer: 50,
+        defaultSpeed: 200,
+    },
+    BossLazerB: {
+        kind: 'lazer',
+        maxCount: 50,
+        collisionRadius: 2,
+        castShadow: false,
+        glow: true,
+        despawnMarginPastPlayer: 50,
+        defaultSpeed: 200,
+    },
+    BossBombA: {
+        kind: 'lazer',
+        maxCount: 30,
+        collisionRadius: 2,
+        castShadow: true,
+        glow: false,
+        despawnMarginPastPlayer: 50,
+        defaultSpeed: 100,
+    },
+    Missile: {
+        kind: 'missile',
+        maxCount: 15,
+        collisionRadius: 3,
+        castShadow: true,
+        glow: false,
+        despawnMarginPastPlayer: 50,
+        defaultSpeed: 90,
+        guidance: 'bezierThenHoming',
+        bezierBow: 0.3,
+        turnRateRadPerSec: 1.4,
+        maxLifeSec: 9,
+        hitPoints: 2,
+        spinRateRadPerSec: Math.PI * 2,
+    },
 };
 
 /** Level progression. After the last level the session wraps to levels[loopFromIndex]. */
@@ -492,8 +614,8 @@ export const GAME_OVER = {
 
 /** The intro in which the text's voxels swoop in from all around and build the letters. */
 export const GAME_OVER_ASSEMBLY: IVoxelAssemblyConfig = {
-    assembleSeconds: 2,
-    travelSeconds: 1.1,
+    assembleSeconds: 4,
+    travelSeconds: 2.1,
     spawnRadius: [150, 300],
     minElevationDeg: 5,
     curve: 0.35,

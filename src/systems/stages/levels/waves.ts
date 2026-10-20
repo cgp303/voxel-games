@@ -73,6 +73,14 @@ export const WAVE_LAZER_B: IWaveConfig = {
     stages: [ENTRY, LAZER_B],
 };
 
+/** A boss fight. The formation and roster are required by the wave format but a boss wave does not use them. */
+export const WAVE_BOSS_1: IWaveConfig = {
+    formation: 'Grid',
+    roster: DEFAULT_ROW_ROSTER,
+    loopStartIndex: 0,
+    stages: [{ director: 'boss', bossId: 'boss1' }],
+};
+
 /** Demo attract mode: column vertical then lazer B. */
 export const WAVE_DEMO: IWaveConfig = {
     formation: 'V',

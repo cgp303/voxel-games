@@ -1,7 +1,7 @@
 import { Matrix4, Quaternion, Vector3, type InstancedMesh } from 'three';
 import { Entity } from './Entity';
 import type { ICollisionMover, IInvaderWeaponBaseConfig } from '../config/interfaces/interfaces';
-import { CollisionLayer, type CollisionLayerFlag, type InvaderWeaponType } from '../config/types/types';
+import { CollisionLayer, type CollisionLayerFlag, type PooledWeaponKey } from '../config/types/types';
 
 const tempMatrix = new Matrix4();
 const hiddenMatrix = new Matrix4().makeScale(0, 0, 0);
@@ -15,7 +15,7 @@ const zeroScale = new Vector3(0, 0, 0);
  * As a mover it can hit the player.
  */
 export abstract class InvaderWeapon extends Entity implements ICollisionMover {
-    public readonly type: InvaderWeaponType;
+    public readonly type: PooledWeaponKey;
     public collisionLayer: CollisionLayerFlag = CollisionLayer.INVADER_WEAPON;
     public readonly collisionRadius: number;
     /** Position at the start of the last update; the collision sweep runs previousPosition -> position. */
@@ -30,8 +30,8 @@ export abstract class InvaderWeapon extends Entity implements ICollisionMover {
     private readonly despawnZ: number;
 
     constructor(
-        type: InvaderWeaponType,
-        config: IInvaderWeaponBaseConfig,
+        type: PooledWeaponKey,
+        config: Pick<IInvaderWeaponBaseConfig, 'collisionRadius'>,
         meshes: readonly InstancedMesh[],
         instanceId: number,
         despawnZ: number,
