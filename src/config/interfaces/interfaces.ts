@@ -307,6 +307,26 @@ export interface INextLevelFlyby {
     departSeconds: number;
 }
 
+/** A row of the top-ten table as the high-score server will deliver it. */
+export interface IHighScoreRow {
+    rank: number;
+    score: number;
+    name: string;
+}
+
+/** How a demo text display looks and moves: placed like ITextDisplay, then it creeps along +Z. */
+export interface IMarqueeStyle extends Omit<ITextDisplay, 'text'> {
+    /** Voxels from the middle of one line to the middle of the next. */
+    lineHeight: number;
+    /** World units per second along +Z. */
+    speedZ: number;
+    /** Seconds for the colour's hue to make one full turn. Omit for a fixed colour. */
+    hueCycleSeconds?: number;
+    /** World Z at which the display halts for `holdSeconds` before moving on. Omit to never stop. */
+    stopZ?: number;
+    holdSeconds?: number;
+}
+
 /**
  * Shared dependencies injected into every screen on enter().
  */

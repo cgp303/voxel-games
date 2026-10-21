@@ -56,8 +56,8 @@ export class VoxelText {
         return this.chars.length;
     }
 
-    public setColor(hex: number): void {
-        this.baseColor.set(hex);
+    public setColor(color: THREE.ColorRepresentation): void {
+        this.baseColor.set(color);
         this.material.color.copy(this.baseColor).multiplyScalar(this.brightness);
     }
 
@@ -66,19 +66,37 @@ export class VoxelText {
         this.material.color.copy(this.baseColor).multiplyScalar(bloomPass.active ? this.glowIntensity : this.brightness);
     };
 
-    /** Replaces the text. Spaces advance the cursor; characters the font lacks are skipped. */
-    public setText(text: string): void {
-        this.clearChars();
+    /** Width in voxels of `text` as setText() lays it out (spaces and characters the font lacks included). */
+    public static measure(font: VoxelFont, text: string, letterGap: number = TEXT.letterGap): number {
+        return VoxelText.layout(font, text, letterGap).width;
+    }
 
+    /** Where each drawable character of `text` starts (voxels from the line's left end), and the line's width. */
+    private static layout(font: VoxelFont, text: string, letterGap: number): { items: { glyph: IGlyph; x: number }[]; width: number } {
+        const items: { glyph: IGlyph; x: number }[] = [];
         let cursor = 0;
         for (const char of text) {
-            const glyph = this.font.get(char);
+            const glyph = font.get(char);
             if (!glyph) {
                 if (char === ' ') cursor += TEXT.spaceWidth;
                 continue;
             }
+            items.push({ glyph, x: cursor });
+            cursor += glyph.width + letterGap;
+        }
+        // The cursor includes the gap after the last glyph.
+        return { items, width: cursor - letterGap };
+    }
+
+    /** Replaces the text. Spaces advance the cursor; characters the font lacks are skipped. */
+    public setText(text: string): void {
+        this.clearChars();
+
+        const { items, width } = VoxelText.layout(this.font, text, this.letterGap);
+        for (const { glyph, x } of items) {
             const mesh = new THREE.Mesh(glyph.geometry, this.material);
-            mesh.position.set(cursor, -TEXT.cellHeight / 2, 0);
+            // Centre the line on the group origin.
+            mesh.position.set(x - width / 2, -TEXT.cellHeight / 2, 0);
             mesh.castShadow = this.castShadow;
             mesh.receiveShadow = true;
             mesh.layers.set(FX.enabled ? TEXT.layer : 0);
@@ -86,12 +104,7 @@ export class VoxelText {
             mesh.onBeforeRender = this.applyPassColor;
             this.group.add(mesh);
             this.chars.push({ mesh, glyph, exploded: false });
-            cursor += glyph.width + this.letterGap;
         }
-
-        // Centre the line on the group origin (cursor includes the gap after the last glyph).
-        const width = cursor - this.letterGap;
-        for (const { mesh } of this.chars) mesh.position.x -= width / 2;
     }
 
     /**

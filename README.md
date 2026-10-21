@@ -99,7 +99,9 @@ PlaySession (per Demo/Play enter)
 ### DemoScreen
 [`src/screens/DemoScreen.ts`](src/screens/DemoScreen.ts)
 
-- Attract UI (info ↔ high scores)
+- Attract display: a looping sequence of flat voxel-text displays that emerge from behind the camera and creep
+  toward the horizon (HIGH SCORES → INVADER VALUES → controls → game name, which pauses at its `stopZ`)
+  — see `DemoMarquee`, `DEMO*` in `constants.ts`, and `TopTenScores` for the (dummy) score data
 - Free camera orbit
 - **`PlaySession.start`** on enter → entry intro
 - **Enter** → Play

@@ -1,18 +1,21 @@
 import * as THREE from 'three';
 import type { ITextDisplay } from '../../config/interfaces/interfaces';
-import type { VoxelText } from './VoxelText';
 
 const forward = new THREE.Vector3();
 const axis = new THREE.Vector3();
 const euler = new THREE.Euler();
+
+/** The part of a text display that says where it goes. */
+export type ITextPlacement = Pick<ITextDisplay, 'cameraDistance' | 'offsetX' | 'offsetY' | 'pitch'>;
 
 /**
  * Positions text in front of a (locked) camera as its display settings describe: `cameraDistance` along the
  * view, shifted by `offsetX`/`offsetY` along the camera's right/up axes.
  * With no `pitch` the text faces the camera squarely. With a `pitch` it stands on the world instead
  * (0 upright, 90 flat face-up), turned to face the camera's heading so it still reads left to right.
+ * Works on anything with a `group`: a VoxelText or a VoxelTextBlock.
  */
-export function placeTextInFrontOfCamera(text: VoxelText, camera: THREE.Camera, display: ITextDisplay): void {
+export function placeTextInFrontOfCamera(text: { group: THREE.Object3D }, camera: THREE.Camera, display: ITextPlacement): void {
     camera.updateMatrixWorld();
     camera.getWorldDirection(forward);
 

@@ -1,7 +1,7 @@
-﻿import * as THREE from 'three';
+import * as THREE from 'three';
 import { Vector3 } from 'three';
 import type { InvaderTypeId, InvaderWeaponType, WeaponType, BossWeaponType } from '../types/types';
-import type { IFxSettings, IInvaderTypeDefinition, IInvaderWeaponConfig, IWeaponConfig, ICollisionSystemConfig, IDebrisConfig, ISparkConfig, ITextDisplay, INextLevelFlyby, IVoxelAssemblyConfig, IBossSettings, IBossPathDef, IBossWeaponConfig } from '../interfaces/interfaces';
+import type { IFxSettings, IInvaderTypeDefinition, IInvaderWeaponConfig, IWeaponConfig, ICollisionSystemConfig, IDebrisConfig, ISparkConfig, ITextDisplay, IMarqueeStyle, INextLevelFlyby, IVoxelAssemblyConfig, IBossSettings, IBossPathDef, IBossWeaponConfig } from '../interfaces/interfaces';
 import { CollisionLayer } from '../types/types';
 /** Shared gameplay / layout constants (expand in later phases) */
 export const GAME = {
@@ -439,7 +439,7 @@ export const LEVEL = {
 /** Dev/test helpers. Disable (or remove) before shipping. */
 export const DEBUG = {
     /** When true the player ignores collisions (no life lost, no removal) so the game can be tested freely. */
-    invinciblePlayer: true,
+    invinciblePlayer: false,
     /** Skip to the next wave by disposing all active invaders. */
     enableWaveSkip: true,
     /** KeyboardEvent.key values that trigger the wave skip (both cases so Shift/Caps Lock still work). */
@@ -568,10 +568,12 @@ export const CAMERA = {
 // } as const;
 
 
-/** Demo attract mode: info panel ↔ high scores */
+/** Demo attract mode: a slow sequence of voxel text displays that emerge from behind the camera. */
 export const DEMO = {
-    /** Seconds each attract panel stays visible before swapping */
-    attractPanelSeconds: 6,
+    /** A display spawns the next one when it passes this world Z. */
+    nextSlideZ: -30,
+    /** A new display starts this far behind the camera in Z (world units), clear of the view. */
+    startBehindCamera: 10,
 } as const;
 
 /** The GAME OVER text: what it says and how it looks. */
@@ -619,6 +621,52 @@ export const BOSS_WAVE_TEXT: ITextDisplay = {
     ...NEXT_LEVEL_TEXT,
     text: 'BOSS',
     color: 0xff0000,
+};
+
+const { text: _gameOverWording, ...GAME_OVER_LOOK } = GAME_OVER_TEXT;
+
+/** Look and motion of the demo's tables: GAME OVER's placement and material, in yellow, creeping toward the horizon. */
+export const DEMO_TABLE_STYLE: IMarqueeStyle = {
+    ...GAME_OVER_LOOK,
+    color: 0xffff00,
+    glowIntensity: 1,
+    /** Voxels between the middle of one line and the next. */
+    lineHeight: 14,
+    /** World units per second along +Z. */
+    speedZ: 20,
+};
+
+/** The game's name: larger, hue-shifting from its colour (red), and it halts at `stopZ` before moving on. */
+export const DEMO_TITLE_STYLE: IMarqueeStyle = {
+    ...DEMO_TABLE_STYLE,
+    color: 0xff0000,
+    scale: 1.5,
+    /** Seconds for the hue to make one full turn; omit for a fixed colour. */
+    hueCycleSeconds: 5,
+    stopZ: -70,
+    holdSeconds: 5,
+};
+
+/** What the demo displays say. Scores come from TopTenScores; invader values from INVADER_TYPES. */
+export const DEMO_TEXT = {
+    gameTitle: 'ASTRO ASSAULT',
+    highScores: {
+        title: 'HIGH SCORES',
+        /** Width in voxels of a row: the name, a run of dots, then the score. */
+        rowWidth: 130,
+    },
+    invaderValues: {
+        title: 'INVADER VALUES',
+        rowWidth: 130,
+        /** Shown in this order; the score is that invader type's `scoreValue`. */
+        invaders: [
+            { name: 'SCOUT', type: 'scout' },
+            { name: 'FIGHTER', type: 'fighter' },
+            { name: 'ELITE', type: 'elite' },
+            { name: 'BOSS', type: 'tie' },
+        ] as readonly { name: string; type: InvaderTypeId }[],
+    },
+    controls: ['ARROW KEYS: MOVE PLAYER', 'SPACE BAR: FIRE WEAPON', 'ENTER: START GAME'],
 };
 
 export const GAME_OVER = {

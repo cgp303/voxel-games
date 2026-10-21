@@ -1,18 +1,18 @@
-﻿import type { IScoreEntry, IGameContext, IScreen } from '../config/interfaces/interfaces';
-import type { DemoAttractPanel } from '../config/types/types';
-import { DEMO } from '../config/data/constants';
+import type { IGameContext, IScreen } from '../config/interfaces/interfaces';
+import { DEMO, DEMO_TABLE_STYLE, DEMO_TEXT, DEMO_TITLE_STYLE, INVADER_TYPES } from '../config/data/constants';
+import { TopTenScores } from '../config/data/TopTenScores';
 import { PlaySession } from '../systems/PlaySession';
+import { DemoMarquee, type IMarqueeSlide } from '../systems/text/DemoMarquee';
+import { leaderRow } from '../systems/text/leaderRow';
+import type { VoxelFont } from '../systems/text/VoxelFont';
 import type { PlayScreen } from './PlayScreen';
 import { createWave } from '../systems/stages/WaveFactory';
 import { WAVE_DEMO } from '../systems/stages/levels/waves';
 
-/** Attract panels cycled on the demo screen */
-
-
 /**
  * Attract / title mode over the shared PlayField.
- * Alternates info (controls + invader values) and high scores every few seconds.
- * Runs the same off-stage → formation invader intro as Play.
+ * Plays a looping sequence of voxel-text displays (high scores, invader values, controls, the game's name)
+ * that emerge from behind the camera, and runs the same off-stage → formation invader intro as Play.
  */
 export class DemoScreen implements IScreen {
   public readonly id = 'demo';
@@ -20,10 +20,7 @@ export class DemoScreen implements IScreen {
   private ctx: IGameContext | null = null;
   private playScreen: PlayScreen | null = null;
   private session: PlaySession | null = null;
-
-  private panel: DemoAttractPanel = 'info';
-  private panelElapsed = 0;
-  private overlay: HTMLDivElement | null = null;
+  private marquee: DemoMarquee | null = null;
 
   public setTransitions(play: PlayScreen): void {
     this.playScreen = play;
@@ -32,9 +29,6 @@ export class DemoScreen implements IScreen {
   public enter(ctx: IGameContext): void {
     this.ctx = ctx;
     ctx.game.mode = 'demo';
-    // Default info; GameOver may call showHighScores() right after set()
-    this.panel = 'info';
-    this.panelElapsed = 0;
 
     // Shared world stays mounted; demo allows orbit look-around
     ctx.playField.attachTo(ctx.scene.scene);
@@ -46,15 +40,16 @@ export class DemoScreen implements IScreen {
       stageQueue: createWave(WAVE_DEMO)
     });
 
-    this.ensureOverlay();
-    this.renderPanel();
+    this.marquee = new DemoMarquee(ctx.font, ctx.scene.scene, ctx.camera.camera, buildSlides(ctx.font), DEMO);
+    this.marquee.start();
     console.log('[DemoScreen] enter — attract intro + terrain; Enter starts Play');
   }
 
   public exit(): void {
     this.session?.dispose();
     this.session = null;
-    this.destroyOverlay();
+    this.marquee?.dispose();
+    this.marquee = null;
     this.ctx = null;
     console.log('[DemoScreen] exit');
   }
@@ -64,128 +59,37 @@ export class DemoScreen implements IScreen {
     if (!ctx) return;
 
     this.session?.update(dt);
+    this.marquee?.update(dt);
 
     if (ctx.input.wasPressed('Enter') && this.playScreen) {
       void ctx.screens.set(this.playScreen);
-      return;
     }
-
-    this.panelElapsed += dt;
-    if (this.panelElapsed >= DEMO.attractPanelSeconds) {
-      this.panelElapsed = 0;
-      this.panel = this.panel === 'info' ? 'highscores' : 'info';
-      this.renderPanel();
-    }
-  }
-
-  /** Jump straight to high-score panel (e.g. after game over returns to demo) */
-  public showHighScores(): void {
-    this.panel = 'highscores';
-    this.panelElapsed = 0;
-    // enter() may have already rendered info; refresh if overlay exists
-    if (this.overlay) {
-      this.renderPanel();
-    }
-  }
-
-  private ensureOverlay(): void {
-    if (this.overlay) return;
-
-    const el = document.createElement('div');
-    el.id = 'demo-attract-overlay';
-    el.style.cssText = `
-      position: absolute;
-      left: 50%;
-      top: 42%;
-      transform: translate(-50%, -50%);
-      min-width: 280px;
-      max-width: 90%;
-      padding: 24px 28px;
-      background: rgba(0, 0, 0, 0.82);
-      color: #7CFF7C;
-      font-family: "Courier New", monospace;
-      font-size: 14px;
-      line-height: 1.45;
-      text-align: center;
-      border: 2px solid #00ff66;
-      box-shadow: 0 0 24px rgba(0, 255, 100, 0.25);
-      z-index: 50;
-      pointer-events: none;
-      white-space: pre-line;
-    `;
-    document.getElementById('ui-root')?.appendChild(el);
-    this.overlay = el;
-  }
-
-  private destroyOverlay(): void {
-    this.overlay?.remove();
-    this.overlay = null;
-  }
-
-  private renderPanel(): void {
-    if (!this.overlay || !this.ctx) return;
-
-    if (this.panel === 'info') {
-      this.overlay.innerHTML = this.buildInfoHtml();
-    } else {
-      this.overlay.innerHTML = this.buildHighScoresHtml(this.ctx.game.highScores);
-    }
-  }
-
-  private buildInfoHtml(): string {
-    return [
-      '<div style="font-size:18px;letter-spacing:0.12em;margin-bottom:12px;color:#b8ffb8">VOXEL GALAGA</div>',
-      '<div style="opacity:0.9;margin-bottom:8px">— CONTROLS —</div>',
-      '← → / A D   Move\n',
-      'Space / Z     Fire\n',
-      'Enter         Start\n',
-      '<div style="margin:14px 0 8px;opacity:0.9">— INVADER VALUES —</div>',
-      'Scout     50\n',
-      'Fighter  100\n',
-      'Elite    200\n',
-      'Boss     800\n',
-      `<div style="margin-top:16px;font-size:12px;opacity:0.65">Swaps to high scores in ${DEMO.attractPanelSeconds}s</div>`,
-    ].join('');
-  }
-
-  private buildHighScoresHtml(scores: IScoreEntry[]): string {
-    const header = [
-      '<div style="font-size:18px;letter-spacing:0.12em;margin-bottom:12px;color:#b8ffb8">HIGH SCORES</div>',
-    ];
-
-    if (scores.length === 0) {
-      return header
-        .concat([
-          '<div style="opacity:0.8;margin:12px 0">No scores yet</div>',
-          '<div style="opacity:0.8">Be the first</div>',
-          `<div style="margin-top:16px;font-size:12px;opacity:0.65">Swaps to info in ${DEMO.attractPanelSeconds}s</div>`,
-        ])
-        .join('');
-    }
-
-    const rows = [...scores]
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 10)
-      .map((entry, i) => {
-        const rank = String(i + 1).padStart(2, ' ');
-        const name = (entry.name || '---').slice(0, 10).padEnd(10, ' ');
-        const score = String(entry.score).padStart(6, ' ');
-        return `<div style="text-align:left;font-variant-numeric:tabular-nums">${rank}  ${escapeHtml(name)}  ${score}</div>`;
-      });
-
-    return header
-      .concat(rows)
-      .concat([
-        `<div style="margin-top:16px;font-size:12px;opacity:0.65">Swaps to info in ${DEMO.attractPanelSeconds}s</div>`,
-      ])
-      .join('');
   }
 }
 
-function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+/** The sequence, in order: high scores, invader values, controls, then the game's name (which loops back to the scores). */
+function buildSlides(font: VoxelFont): IMarqueeSlide[] {
+  const { highScores, invaderValues, controls, gameTitle } = DEMO_TEXT;
+  return [
+    {
+      style: DEMO_TABLE_STYLE,
+      lines: () => [
+        highScores.title,
+        '',
+        ...TopTenScores.getScores().map((row) => leaderRow(font, row.name, String(row.score), highScores.rowWidth)),
+      ],
+    },
+    {
+      style: DEMO_TABLE_STYLE,
+      lines: () => [
+        invaderValues.title,
+        '',
+        ...invaderValues.invaders.map(({ name, type }) =>
+          leaderRow(font, name, String(INVADER_TYPES[type].scoreValue), invaderValues.rowWidth),
+        ),
+      ],
+    },
+    { style: DEMO_TABLE_STYLE, lines: () => controls },
+    { style: DEMO_TITLE_STYLE, lines: () => [gameTitle] },
+  ];
 }

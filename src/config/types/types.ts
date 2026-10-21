@@ -115,7 +115,6 @@ export type FitRect = {
 };
 
 // demoscreen 
-export type DemoAttractPanel = 'info' | 'highscores';
 
 export type PatternType = "Grid" | "V" | "X" | "Diamond";
 

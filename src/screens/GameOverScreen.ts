@@ -153,10 +153,7 @@ export class GameOverScreen implements IScreen {
     const sessionQuiet = !session || !session.hasActiveDebris;
     if (this.nextChar >= text.charCount && debris.activeCount === 0 && invadersGone && sessionQuiet) {
       this.finished = true;
-      const demo = this.demoScreen;
-      void ctx.screens.set(demo).then(() => {
-        demo.showHighScores();
-      });
+      void ctx.screens.set(this.demoScreen);
     }
   }
 }
