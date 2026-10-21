@@ -8,6 +8,8 @@ import type {
     IPathPattern,
     IVoxel,
     IVoxelCloud,
+    IBossLaunch,
+    IBossInit,
 } from '../config/interfaces/interfaces';
 import { CollisionLayer, type BossPhase, type BossWeaponType, type PooledWeaponKey } from '../config/types/types';
 import { DestructibleCollisionModels } from '../systems/boss/DestructibleCollisionModels';
@@ -21,26 +23,6 @@ const FIRST_SHOT_DELAY: readonly [number, number] = [0.4, 0.8];
 /** Extra reach (world units) beyond a shot's radius when finding the part it struck: the mask is quantised to cells. */
 const REACH_SLACK = 1;
 
-/** A weapon release the boss wants made this frame. The session spawns it and the boss reuses the slot. */
-export interface IBossLaunch {
-    key: PooledWeaponKey;
-    weapon: BossWeaponType;
-    origin: THREE.Vector3;
-    velocity: THREE.Vector3;
-    orientation: THREE.Quaternion;
-}
-
-export interface IBossInit {
-    definition: IBossDefinition;
-    voxels: readonly IVoxel[];
-    palette: Array<{ r: number; g: number; b: number; a: number }>;
-    /** World Y the boss holds. */
-    hoverY: number;
-    /** The looping path it flies once it has entered; it starts at the path's start. */
-    path: IPathPattern;
-    /** Pool bucket of each weapon, by weapon id. */
-    weaponKeys: Readonly<Record<string, PooledWeaponKey>>;
-}
 
 interface IMount {
     /** Release point relative to the boss's centre. */

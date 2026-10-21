@@ -107,6 +107,8 @@ export class PlaySession {
     private levels: ILevelDescriptor[] | null = null;
     private levelIndex = 0;
     private level: Level | null = null;
+    /** The next level once built ahead of time by upcomingWave(). */
+    private upcomingLevel: Level | null = null;
 
     private readonly getInvaderTypeForSlot = (col: number, row: number): InvaderTypeId =>
         this.stageQueue?.getTypeForSlot(col, row) ?? 'scout';
@@ -177,6 +179,24 @@ export class PlaySession {
         return this.waveClearRemaining > 0;
     }
 
+    /** True when the wave that follows the current one (possibly the first of the next level) is a boss fight. */
+    public get nextWaveIsBoss(): boolean {
+        return this.upcomingWave()?.hasBoss ?? false;
+    }
+
+    private nextLevelIndex(): number {
+        return this.levelIndex + 1 >= (this.levels?.length ?? 0) ? LEVEL.loopFromIndex : this.levelIndex + 1;
+    }
+
+    /** The wave startNextWave() will begin, built ahead of time and reused when it does. */
+    private upcomingWave(): StageQueue | null {
+        if (!this.level || !this.levels) return null;
+        const queue = this.level.peekNextWave();
+        if (queue) return queue;
+        this.upcomingLevel ??= new Level(this.levels[this.nextLevelIndex()]);
+        return this.upcomingLevel.peekNextWave();
+    }
+
     private startNextWave(reason: IWaveClearedPayload['reason']): void {
         const ctx = this.ctx;
         const level = this.level;
@@ -197,8 +217,9 @@ export class PlaySession {
                 levelName: level.name,
             } satisfies ILevelCompletedPayload);
 
-            this.levelIndex = this.levelIndex + 1 >= levels.length ? LEVEL.loopFromIndex : this.levelIndex + 1;
-            this.level = new Level(levels[this.levelIndex]);
+            this.levelIndex = this.nextLevelIndex();
+            this.level = this.upcomingLevel ?? new Level(levels[this.levelIndex]);
+            this.upcomingLevel = null;
             nextQueue = this.level.nextWave()!;
             startedNewLevel = true;
         }

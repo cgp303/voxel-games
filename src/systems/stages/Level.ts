@@ -10,6 +10,8 @@ import type { StageQueue } from './StageQueue';
 export class Level {
     private readonly descriptor: ILevelDescriptor;
     private waveIndex = -1;
+    /** The next wave once built by peekNextWave(), so nextWave() returns that same queue. */
+    private upcoming: StageQueue | null = null;
 
     constructor(descriptor: ILevelDescriptor) {
         if (descriptor.waves.length === 0) {
@@ -33,8 +35,17 @@ export class Level {
 
     /** Builds the next wave, or returns null once every wave has been played. */
     public nextWave(): StageQueue | null {
-        if (this.waveIndex + 1 >= this.descriptor.waves.length) return null;
+        const queue = this.peekNextWave();
+        if (!queue) return null;
+        this.upcoming = null;
         this.waveIndex++;
-        return this.descriptor.waves[this.waveIndex]();
+        return queue;
+    }
+
+    /** The wave nextWave() will return, without moving past the current one (null after the last wave). */
+    public peekNextWave(): StageQueue | null {
+        if (this.waveIndex + 1 >= this.descriptor.waves.length) return null;
+        this.upcoming ??= this.descriptor.waves[this.waveIndex + 1]();
+        return this.upcoming;
     }
 }

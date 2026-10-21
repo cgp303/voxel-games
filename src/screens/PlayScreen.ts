@@ -3,7 +3,8 @@ import { PlaySession } from '../systems/PlaySession';
 import type { DemoScreen } from './DemoScreen';
 import type { GameOverScreen } from './GameOverScreen';
 import { createBasicLevels } from '../systems/stages/levels-basic';
-import { DEBUG } from '../config/data/constants';
+import { BOSS_WAVE_TEXT, DEBUG, NEXT_LEVEL_FLYBY, NEXT_LEVEL_TEXT } from '../config/data/constants';
+import { TextFlyby } from '../systems/text/TextFlyby';
 
 /**
  * Gameplay mode over the shared PlayField.
@@ -17,8 +18,9 @@ export class PlayScreen implements IScreen {
   private gameOverScreen: GameOverScreen | null = null;
   private session: PlaySession | null = null;
   private hud: HTMLDivElement | null = null;
-  private banner: HTMLDivElement | null = null;
-  private bannerShown = false;
+  /** Centre-screen voxel text flown past between waves. Each runs on its own clock, so several can overlap. */
+  private readonly flybys: TextFlyby[] = [];
+  private wasBetweenWaves = false;
 
   // Last values written to the HUD; refreshHud() skips the DOM write when unchanged.
   private hudScore = NaN;
@@ -51,7 +53,6 @@ export class PlayScreen implements IScreen {
 
 
     this.ensureHud();
-    this.ensureBanner();
     this.refreshHud();
     console.log('[PlayScreen] enter — entry intro; Esc=Demo, G=GameOver');
   }
@@ -60,7 +61,7 @@ export class PlayScreen implements IScreen {
     this.session?.dispose();
     this.session = null;
     this.destroyHud();
-    this.destroyBanner();
+    this.clearFlybys();
     if (this.ctx) {
       this.ctx.camera.controls.enabled = true;
     }
@@ -74,7 +75,7 @@ export class PlayScreen implements IScreen {
 
     this.session?.update(dt);
     this.refreshHud();
-    this.refreshBanner();
+    this.updateFlybys(dt);
 
     if (this.session?.gameOver) {
       this.handOverToGameOver(ctx);
@@ -138,45 +139,26 @@ export class PlayScreen implements IScreen {
     this.hudScore = NaN; // force a rewrite when the HUD is next created
   }
 
-  /** Centre-screen message shown between waves. */
-  private ensureBanner(): void {
-    if (this.banner) return;
-    const el = document.createElement('div');
-    el.id = 'play-banner';
-    el.textContent = 'NEXT WAVE';
-    el.style.cssText = [
-      'position: absolute',
-      'top: 38%',
-      'left: 50%',
-      'transform: translate(-50%, -50%)',
-      'color: #7CFF7C',
-      'font-family: Courier New, monospace',
-      'font-size: 56px',
-      'font-weight: bold',
-      'letter-spacing: 8px',
-      'text-shadow: 0 0 12px #00ff66, 0 0 28px #00ff66',
-      'z-index: 90',
-      'pointer-events: none',
-      'display: none',
-    ].join(';');
-    document.getElementById('ui-root')?.appendChild(el);
-    this.banner = el;
-    this.bannerShown = false;
+  /** Starts a voxel text flyby (BOSS when a boss fight follows, otherwise NEXT LEVEL) as each between-waves pause begins. */
+  private updateFlybys(dt: number): void {
+    const ctx = this.ctx;
+    const session = this.session;
+    const betweenWaves = session?.isBetweenWaves ?? false;
+    if (ctx && session && betweenWaves && !this.wasBetweenWaves) {
+      const display = session.nextWaveIsBoss ? BOSS_WAVE_TEXT : NEXT_LEVEL_TEXT;
+      this.flybys.push(new TextFlyby(ctx.font, ctx.scene.scene, ctx.camera.camera, display, NEXT_LEVEL_FLYBY));
+    }
+    this.wasBetweenWaves = betweenWaves;
+
+    for (let i = this.flybys.length - 1; i >= 0; i--) {
+      if (this.flybys[i].update(dt)) this.flybys.splice(i, 1);
+    }
   }
 
-  private destroyBanner(): void {
-    this.banner?.remove();
-    this.banner = null;
-    this.bannerShown = false;
-  }
-
-  /** Shows "NEXT WAVE" while the session is paused between waves; only touches the DOM when that changes. */
-  private refreshBanner(): void {
-    if (!this.banner) return;
-    const show = this.session?.isBetweenWaves ?? false;
-    if (show === this.bannerShown) return;
-    this.bannerShown = show;
-    this.banner.style.display = show ? 'block' : 'none';
+  private clearFlybys(): void {
+    for (const flyby of this.flybys) flyby.dispose();
+    this.flybys.length = 0;
+    this.wasBetweenWaves = false;
   }
 
   /** Rewrites the DOM only when a displayed value changed (avoids per-frame text/DOM churn). */

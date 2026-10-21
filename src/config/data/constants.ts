@@ -1,7 +1,7 @@
 ﻿import * as THREE from 'three';
 import { Vector3 } from 'three';
 import type { InvaderTypeId, InvaderWeaponType, WeaponType, BossWeaponType } from '../types/types';
-import type { IFxSettings, IInvaderTypeDefinition, IInvaderWeaponConfig, IWeaponConfig, ICollisionSystemConfig, IDebrisConfig, ISparkConfig, ITextDisplay, IVoxelAssemblyConfig, IBossSettings, IBossPathDef, IBossWeaponConfig } from '../interfaces/interfaces';
+import type { IFxSettings, IInvaderTypeDefinition, IInvaderWeaponConfig, IWeaponConfig, ICollisionSystemConfig, IDebrisConfig, ISparkConfig, ITextDisplay, INextLevelFlyby, IVoxelAssemblyConfig, IBossSettings, IBossPathDef, IBossWeaponConfig } from '../interfaces/interfaces';
 import { CollisionLayer } from '../types/types';
 /** Shared gameplay / layout constants (expand in later phases) */
 export const GAME = {
@@ -354,7 +354,7 @@ export const BOSS: IBossSettings = {
 export const BOSS_DRIP: ISparkConfig = {
     maxParticles: 192,
     size: 1,
-    count: [10, 30],
+    count: [10, 20],
     speed: [10, 20],
     direction: { x: 0, y: 3, z: 0 },
     spread: 1.2,
@@ -439,7 +439,7 @@ export const LEVEL = {
 /** Dev/test helpers. Disable (or remove) before shipping. */
 export const DEBUG = {
     /** When true the player ignores collisions (no life lost, no removal) so the game can be tested freely. */
-    invinciblePlayer: false,
+    invinciblePlayer: true,
     /** Skip to the next wave by disposing all active invaders. */
     enableWaveSkip: true,
     /** KeyboardEvent.key values that trigger the wave skip (both cases so Shift/Caps Lock still work). */
@@ -594,6 +594,33 @@ export const GAME_OVER_TEXT: ITextDisplay = {
     pitch: 90,
 };
 
+/** Movement of the between-waves text; its wording and look are in NEXT_LEVEL_TEXT and BOSS_WAVE_TEXT. */
+export const NEXT_LEVEL_FLYBY: INextLevelFlyby = {
+    /** World Z where the text pauses (its X and Y are those of GAME_OVER_TEXT). */
+    pauseZ: -80,
+    /** Z the text starts from, this far behind the camera (world units), so it is out of sight until it zooms in. */
+    startBehindCamera: 100,
+    /** World Z at which the text is removed; far enough away to be lost in the fog. */
+    endZ: 800,
+    approachSeconds: 1,
+    pauseSeconds: 1,
+    departSeconds: 1,
+};
+
+/** The text shown between waves. Matches GAME_OVER_TEXT (colour, material, orientation, height) but glows. */
+export const NEXT_LEVEL_TEXT: ITextDisplay = {
+    ...GAME_OVER_TEXT,
+    text: 'NEXT WAVE',
+    glowIntensity: 1,
+};
+
+/** Shown instead of NEXT_LEVEL_TEXT when the wave that follows is a boss fight. */
+export const BOSS_WAVE_TEXT: ITextDisplay = {
+    ...NEXT_LEVEL_TEXT,
+    text: 'BOSS',
+    color: 0xff0000,
+};
+
 export const GAME_OVER = {
     /** Seconds before the player's explosion ends at which the Game Over screen takes over, so the two overlap. */
     overlapSeconds: 1,
@@ -641,7 +668,7 @@ export const TEXT = {
 /** Infinite-looking ground: two meshes loop on Z */
 export const TERRAIN = {
     /** World units per second along Z (positive = +Z) */
-    scrollSpeedZ: -24,
+    scrollSpeedZ: -48,
     /** When false, PlayField.updateScroll is a no-op */
     scrollEnabledDefault: true,
 } as const;

@@ -1,6 +1,7 @@
 // systems/stages/StageQueue.ts
 
 import { Stage } from './Stage';
+import { BossDirector } from '../patterns/directors/BossDirector';
 import { IFormationDescriptor } from '../../config/interfaces/interfaces';
 import type { InvaderRowRoster, InvaderTypeId } from '../../config/types/types';
 
@@ -29,6 +30,11 @@ export class StageQueue {
         this.loopStartIndex = loopStartIndex;
         this.formationDescription = formationDescription;
         this.rowRoster = rowRoster;
+    }
+
+    /** True when one of the wave's stages is a boss fight. */
+    get hasBoss(): boolean {
+        return this.stages.some((stage) => stage.director instanceof BossDirector);
     }
 
     getFormationDescription(): IFormationDescriptor | null {

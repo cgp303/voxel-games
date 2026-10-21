@@ -5,7 +5,7 @@ import type { EntityManager } from '../../entities/EntityManager';
 import type { Object3D, Quaternion, Vector3 } from 'three';
 import * as THREE from 'three';
 import type { MultiSegmentPattern } from '../../systems/patterns/patterns/MultiSegmentPattern';
-import type { MovementPath, InvaderTypeId, EntrySide, AttackPatternId, InvaderWeaponType, SlotKey } from '../types/types';
+import type { MovementPath, InvaderTypeId, EntrySide, AttackPatternId, InvaderWeaponType, SlotKey, PooledWeaponKey } from '../types/types';
 import type { GameScene } from '../../scene/Scene';
 import type { GameCamera } from '../../scene/Camera';
 import type { GameRenderer } from '../../scene/Renderer';
@@ -292,6 +292,19 @@ export interface ITextDisplay extends IVoxelTextStyle {
      * on the world instead: 0 is upright, 90 lies it flat face-up, both still reading left to right for the camera.
      */
     pitch?: number;
+}
+
+/** How the between-waves text moves: it zooms in along world Z from behind the camera, pauses, then flies off. */
+export interface INextLevelFlyby {
+    /** World Z of the pause. */
+    pauseZ: number;
+    /** The start is this far behind the camera in Z (world units). */
+    startBehindCamera: number;
+    /** World Z at which the text is removed. */
+    endZ: number;
+    approachSeconds: number;
+    pauseSeconds: number;
+    departSeconds: number;
 }
 
 /**
@@ -745,6 +758,26 @@ export interface IVoxelAssemblyConfig {
 
 
 /////////////bosses
+/** A weapon release the boss wants made this frame. The session spawns it and the boss reuses the slot. */
+export interface IBossLaunch {
+    key: PooledWeaponKey;
+    weapon: BossWeaponType;
+    origin: THREE.Vector3;
+    velocity: THREE.Vector3;
+    orientation: THREE.Quaternion;
+}
+
+export interface IBossInit {
+    definition: IBossDefinition;
+    voxels: readonly IVoxel[];
+    palette: Array<{ r: number; g: number; b: number; a: number }>;
+    /** World Y the boss holds. */
+    hoverY: number;
+    /** The looping path it flies once it has entered; it starts at the path's start. */
+    path: IPathPattern;
+    /** Pool bucket of each weapon, by weapon id. */
+    weaponKeys: Readonly<Record<string, PooledWeaponKey>>;
+}
 /**
  * Inclusive rectangle of voxel columns in the boss's model space: [x0, z0, x1, z1]. Model space is the .vox
  * with its axes swapped like the font's (file z, the height in MagicaVoxel, becomes y), so x and z span the
