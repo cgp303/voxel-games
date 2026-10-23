@@ -18,8 +18,9 @@ import { loadHighScores } from '../config/data/highscores';
 import { TerrainService } from '../world/TerrainService';
 import { PlayField } from '../world/PlayField';
 import { CRYSTAL_TERRAIN_CONFIG } from '../voxel-landscape/TerrainConfig';
-import { VIEW, INSTANCED_ASSETS, BOSS } from '../config/data/constants';
+import { VIEW, INSTANCED_ASSETS, BOSS, HUD } from '../config/data/constants';
 import { getUiRoot } from '../core/viewport';
+import { ScoreHud } from '../systems/text/ScoreHud';
 
 
 /**
@@ -45,6 +46,7 @@ export class App {
     private readonly gameOverScreen = new GameOverScreen();
 
     private fpsDisplay: HTMLDivElement | null = null;
+    private scoreHud: ScoreHud | null = null;
     private frameCount = 0;
     private fpsLastMs = performance.now();
     private worldReady = false;
@@ -88,6 +90,7 @@ export class App {
         this.engine.setTick((time) => {
             this.playField.updateScroll(time.delta);
             this.screens.update(time.delta);
+            this.scoreHud?.update();
             this.renderer.render();
             this.input.endFrame();
             this.updateFps();
@@ -107,6 +110,8 @@ export class App {
     public stop(): void {
         this.engine.stop();
         this.input.stop();
+        this.scoreHud?.dispose();
+        this.scoreHud = null;
         this.screens.getActive()?.exit();
     }
 
@@ -152,6 +157,9 @@ export class App {
 
         this.playField.attachTo(this.scene.scene);
         this.playField.frameCamera(this.camera);
+
+        // The score / lives readout lives for the whole run of the app, across every screen.
+        this.scoreHud = new ScoreHud(this.font, this.scene.scene, this.camera.camera, this.game, HUD);
 
         // Demo can free-look; Play will lock controls on enter
         this.camera.controls.enabled = true;

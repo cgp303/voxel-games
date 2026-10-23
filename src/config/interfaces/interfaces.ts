@@ -327,6 +327,49 @@ export interface IMarqueeStyle extends Omit<ITextDisplay, 'text'> {
     holdSeconds?: number;
 }
 
+/** Colour and glow of one kind of HUD text (the labels, or the values). */
+export interface IHudTextLook {
+    /** sRGB colour, e.g. 0x00ff00. */
+    color: number;
+    /** Multiplier on the colour drawn on screen (1 = full colour). */
+    brightness: number;
+    /** Strength of the glow (bloom pass only): 1 blooms as brightly as the full colour, 0 is no glow. */
+    glowIntensity: number;
+}
+
+/**
+ * The voxel score / lives readout. It floats at a fixed spot relative to the camera, so every item shares one
+ * height and depth and they differ only in X (along the camera's right axis).
+ */
+export interface IHudConfig {
+    /** World units per voxel. */
+    scale: number;
+    /** How far in front of the camera the HUD floats (world units). Fog starts at 200, so stay under that to keep full colour. */
+    cameraDistance: number;
+    /** Shift along the camera's up axis (world units; + is up). */
+    offsetY: number;
+    /** Tilt in degrees, as for ITextDisplay. Omit to face the camera squarely. */
+    pitch?: number;
+    /** Whether the HUD's voxels cast shadows (on themselves and the terrain). The text always receives them. */
+    castShadow: boolean;
+    labels: IHudTextLook;
+    values: IHudTextLook;
+    /** Voxels between a label and its value. */
+    labelGap: number;
+    score: {
+        label: string;
+        /** World units along the camera's right axis (+ is right) to the label's left edge. */
+        labelX: number;
+        /** Number of digits shown; the score is zero-padded to this and capped at all nines. */
+        digits: number;
+    };
+    lives: {
+        label: string;
+        /** As for `score.labelX`. */
+        labelX: number;
+    };
+}
+
 /**
  * Shared dependencies injected into every screen on enter().
  */

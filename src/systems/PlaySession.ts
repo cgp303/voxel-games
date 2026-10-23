@@ -496,7 +496,11 @@ export class PlaySession {
             this.hitBoss(target, hit, mover);
         } else if (target instanceof Invader) {
             if (!target.collisionEnabled) return;
-            if (mover instanceof Projectile) this.projectilePool?.release(mover);
+            if (mover instanceof Projectile) {
+                this.projectilePool?.release(mover);
+                // Only a shot scores; an invader that rams the player is just destroyed.
+                this.ctx?.game.addScore(target.scoreValue);
+            }
             this.destroyInvader(target);
         } else if (target instanceof MineWeapon || target instanceof MissileWeapon) {
             if (!target.collisionEnabled) return;
@@ -556,10 +560,10 @@ export class PlaySession {
         if (damage.coreDestroyed) this.killBoss(boss);
     }
 
-    /** The boss is dead: everything left of it explodes, the score is awarded and it is removed. */
-    private killBoss(boss: Boss): void {
+    /** The boss is dead: everything left of it explodes, the score is awarded (unless `award` is false) and it is removed. */
+    private killBoss(boss: Boss, award = true): void {
         this.explodeCloud('boss', boss.toCloud(boss.model.remainingVoxels()), boss.position, boss.orientation, boss.velocity);
-        this.ctx?.game.addScore(boss.definition.scoreValue);
+        if (award) this.ctx?.game.addScore(boss.definition.scoreValue);
         this.invaders?.remove(boss);
         if (this.boss === boss) this.boss = null;
     }
@@ -760,7 +764,7 @@ export class PlaySession {
         }
         // Only the boss is left: it goes up all at once.
         if (this.boss) {
-            this.killBoss(this.boss);
+            this.killBoss(this.boss, false);
             return true;
         }
         return false;

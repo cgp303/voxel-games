@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { Vector3 } from 'three';
 import type { InvaderTypeId, InvaderWeaponType, WeaponType, BossWeaponType } from '../types/types';
-import type { IFxSettings, IInvaderTypeDefinition, IInvaderWeaponConfig, IWeaponConfig, ICollisionSystemConfig, IDebrisConfig, ISparkConfig, ITextDisplay, IMarqueeStyle, INextLevelFlyby, IVoxelAssemblyConfig, IBossSettings, IBossPathDef, IBossWeaponConfig } from '../interfaces/interfaces';
+import type { IFxSettings, IInvaderTypeDefinition, IInvaderWeaponConfig, IWeaponConfig, ICollisionSystemConfig, IDebrisConfig, ISparkConfig, ITextDisplay, IMarqueeStyle, IHudConfig, INextLevelFlyby, IVoxelAssemblyConfig, IBossSettings, IBossPathDef, IBossWeaponConfig } from '../interfaces/interfaces';
 import { CollisionLayer } from '../types/types';
 /** Shared gameplay / layout constants (expand in later phases) */
 export const GAME = {
@@ -571,10 +571,29 @@ export const CAMERA = {
 /** Demo attract mode: a slow sequence of voxel text displays that emerge from behind the camera. */
 export const DEMO = {
     /** A display spawns the next one when it passes this world Z. */
-    nextSlideZ: -30,
+    nextSlideZ: 10,
     /** A new display starts this far behind the camera in Z (world units), clear of the view. */
     startBehindCamera: 10,
 } as const;
+
+/**
+ * The score and lives readout (systems/text/ScoreHud). SCORE sits at the top left and LIVES at the top right, far from
+ * the camera and high in the frame so they stay clear of play. The view is 80 degrees tall and square, so at a distance
+ * of 180 its half-extent is about 150 world units: keep |labelX| and offsetY inside that.
+ */
+export const HUD: IHudConfig = {
+    scale: 1.5,
+    cameraDistance: 320,
+    offsetY: 220,
+    /** Leans the text back so the tops and sides of the voxels catch the light; omit to face the camera flat-on (no visible depth). */
+    pitch: 60,
+    castShadow: true,
+    labels: { color: 0x00ff00, brightness: 0.6, glowIntensity: 0 },
+    values: { color: 0x00ff00, brightness: 0.6, glowIntensity: 0 },
+    labelGap: 8,
+    score: { label: 'SCORE', labelX: -220, digits: 7 },
+    lives: { label: 'LIVES', labelX: 135 },
+};
 
 /** The GAME OVER text: what it says and how it looks. */
 export const GAME_OVER_TEXT: ITextDisplay = {
@@ -603,7 +622,7 @@ export const NEXT_LEVEL_FLYBY: INextLevelFlyby = {
     /** Z the text starts from, this far behind the camera (world units), so it is out of sight until it zooms in. */
     startBehindCamera: 100,
     /** World Z at which the text is removed; far enough away to be lost in the fog. */
-    endZ: 800,
+    endZ: 400,
     approachSeconds: 1,
     pauseSeconds: 1,
     departSeconds: 1,
@@ -640,16 +659,16 @@ export const DEMO_TABLE_STYLE: IMarqueeStyle = {
 export const DEMO_TITLE_STYLE: IMarqueeStyle = {
     ...DEMO_TABLE_STYLE,
     color: 0xff0000,
-    scale: 1.5,
+    scale: 2,
     /** Seconds for the hue to make one full turn; omit for a fixed colour. */
-    hueCycleSeconds: 5,
-    stopZ: -70,
-    holdSeconds: 5,
+    //hueCycleSeconds: 5,
+    stopZ: -80,
+    holdSeconds: 20,
 };
 
 /** What the demo displays say. Scores come from TopTenScores; invader values from INVADER_TYPES. */
 export const DEMO_TEXT = {
-    gameTitle: 'ASTRO ASSAULT',
+    gameTitle: 'ASTRO FORCE',
     highScores: {
         title: 'HIGH SCORES',
         /** Width in voxels of a row: the name, a run of dots, then the score. */
