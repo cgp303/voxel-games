@@ -5,9 +5,11 @@ import { MineWeapon } from '../entities/MineWeapon';
 import { MissileWeapon } from '../entities/MissileWeapon';
 import type { AssetManager } from '../assets/AssetManager';
 import { COLLISION, INVADER_WEAPONS, INVADER_WEAPON_TYPES, PLAYER } from '../config/data/constants';
-import type { IBossWeaponConfig, ILazerDespawnBounds } from '../config/interfaces/interfaces';
-import type { CollisionLayerFlag, PooledWeaponKey } from '../config/types/types';
+import type { IBossWeaponConfig, IGameContext, ILazerDespawnBounds } from '../config/interfaces/interfaces';
+import { type CollisionLayerFlag, type PooledWeaponKey, GameEvents } from '../config/types/types';
 import { applyShotGlow } from './fx/ShotGlow';
+import type { EventBus } from '../core/EventBus';
+
 
 /** How far past the collision grid a lazer may fly sideways or toward +Z before it is recycled. */
 const LAZER_DESPAWN_MARGIN = 40;
@@ -37,8 +39,13 @@ export class InvaderWeaponPool {
     /** Where the player is (null when there is none in play); read by missiles that home in. */
     private target: Vector3 | null = null;
     private readonly getTarget = (): Vector3 | null => this.target;
+    /** Mines in play. Changes only when a mine goes active <-> inactive, so each mine is counted down exactly once. */
+    private activeMines = 0;
+    private readonly eventBus: EventBus;
 
-    constructor(assets: AssetManager) {
+
+    constructor(ctx: IGameContext) {
+        this.eventBus = ctx.events;
         // Weapons fly toward -Z and are recycled a configured distance behind the player's back edge.
         const playerBackEdgeZ = this.playerBackEdgeZ;
         const lazerBounds: ILazerDespawnBounds = {
@@ -48,11 +55,12 @@ export class InvaderWeaponPool {
         };
         this.lazerBounds = lazerBounds;
 
+
         for (const type of INVADER_WEAPON_TYPES) {
             const config = INVADER_WEAPONS[type];
             const meshKeys = config.kind === 'mine' ? [config.assetKey, ...(config.hitMeshes ?? [])] : [config.assetKey];
             const meshes = meshKeys.map((key) => {
-                const mesh = assets.getOrCreateInstancedMesh(key, config.maxCount);
+                const mesh = ctx.assets.getOrCreateInstancedMesh(key, config.maxCount);
                 if (config.kind === 'lazer' && config.glow) applyShotGlow(mesh);
                 // Meshes are cached across sessions, so apply the weapon's settings every time.
                 mesh.castShadow = config.castShadow;
@@ -65,7 +73,7 @@ export class InvaderWeaponPool {
             for (let i = config.maxCount - 1; i >= 0; i--) {
                 free.push(
                     config.kind === 'mine'
-                        ? new MineWeapon(type, config, meshes, i, assets.getCollisionModels(config.assetKey), despawnZ)
+                        ? new MineWeapon(type, config, meshes, i, ctx.assets.getCollisionModels(config.assetKey), despawnZ)
                         : new LazerWeapon(type, config, meshes, i, despawnZ, lazerBounds),
                 );
             }
@@ -75,6 +83,9 @@ export class InvaderWeaponPool {
             this.bucketList.push(bucket);
         }
     }
+
+
+
 
     /**
      * Gives a boss weapon its own bucket (idempotent per key): one instanced mesh of the weapon's model, with a
@@ -125,6 +136,9 @@ export class InvaderWeaponPool {
         weapon.launch(origin, velocity, orientation, layer);
         bucket.liveCount++;
         this.live.push(weapon);
+
+        // The first mine into an empty field starts the mine loop.
+        if (type === 'Mine' && this.activeMines++ === 0) this.eventBus.emit(GameEvents.mineActivated);
         return true;
     }
 
@@ -141,6 +155,9 @@ export class InvaderWeaponPool {
         if (!weapon.active) return;
         weapon.hide();
         this.flagMeshes(this.buckets.get(weapon.type)!);
+        if (weapon.type === 'Mine') {
+            this.eventBus.emit(GameEvents.mineDestroyed, { wasLast: --this.activeMines === 0 });
+        }
     }
 
     public update(dt: number): void {
@@ -152,20 +169,35 @@ export class InvaderWeaponPool {
             if (bucket.liveCount > 0) this.flagMeshes(bucket);
         }
 
+        // Track if any mine left play this frame.
+        let mineLeftPlay = false;
+
         // Iterate backwards so swap-remove does not skip entries.
         for (let i = live.length - 1; i >= 0; i--) {
             const weapon = live[i];
+            const wasActive = weapon.active;
             if (weapon.update(dt)) continue;
+            // Still active before the call, so it left play by passing despawnZ this frame.
+            // A mine released by a hit is already inactive here and was counted down in release().
+            if (weapon.type === 'Mine' && wasActive) {
+                this.activeMines--;
+                mineLeftPlay = true;
+            }
             live[i] = live[live.length - 1];
             live.pop();
             const bucket = this.buckets.get(weapon.type)!;
             bucket.liveCount--;
             bucket.free.push(weapon);
         }
+
+        // Once per frame, after every removal: if a mine passed and none remain active, the loop fades out.
+        if (mineLeftPlay && this.activeMines === 0) this.eventBus.emit(GameEvents.minePassed);
     }
 
     /** Hides and recycles every live weapon. */
     public clear(): void {
+        if (this.activeMines > 0) this.eventBus.emit(GameEvents.mineCleared);
+        this.activeMines = 0;
         for (const bucket of this.bucketList) {
             if (bucket.liveCount > 0) this.flagMeshes(bucket);
             bucket.liveCount = 0;
@@ -174,6 +206,7 @@ export class InvaderWeaponPool {
             w.hide();
             this.buckets.get(w.type)!.free.push(w);
         }
+
     }
 
     /** A weapon may have moved between variant meshes, so every mesh in the bucket needs re-uploading. */

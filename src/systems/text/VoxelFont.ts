@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { AssetManager } from '../../assets/AssetManager';
+import type { TrackLoad } from '../../ui/Preloader';
 import { FONT_PATHS, fontGlyphPath } from '../../assets/manifests';
 import type { IParsedVoxModel, IVoxelCloud } from '../../config/interfaces/interfaces';
 import { TEXT } from '../../config/data/constants';
@@ -26,12 +27,12 @@ export interface IGlyph {
 export class VoxelFont {
     private readonly glyphs = new Map<string, IGlyph>();
 
-    /** Loads every glyph. A glyph that fails to load is skipped (and logged) so the rest still work. */
-    public async load(assets: AssetManager): Promise<void> {
+    /** Loads every glyph, counting each with `track` if given. A glyph that fails to load is skipped (and logged) so the rest still work. */
+    public async load(assets: AssetManager, track: TrackLoad = (load) => load): Promise<void> {
         await Promise.all(
             Object.keys(FONT_PATHS).map(async (char) => {
                 try {
-                    const model = await assets.loadVox(FONT_PATHS[char], `font:${char}`);
+                    const model = await track(assets.loadVox(FONT_PATHS[char], `font:${char}`));
                     const glyph = buildGlyph(model);
                     if (glyph) this.glyphs.set(char, glyph);
                 } catch (err) {

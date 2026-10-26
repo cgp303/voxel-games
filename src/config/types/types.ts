@@ -53,6 +53,8 @@ export const GameEvents = {
     invaderKilled: 'invader:killed',
     /** Future: player lost a life / died. */
     playerDied: 'player:died',
+    /** The player's weapon released a shot. */
+    playerFires: 'player:fires',
     /** A wave (StageQueue) began; payload is ILevelProgress. */
     waveStarted: 'wave:started',
     /** A wave was left (skipped or finished); payload is IWaveClearedPayload. */
@@ -61,6 +63,48 @@ export const GameEvents = {
     levelStarted: 'level:started',
     /** Last wave of a level ended; payload is ILevelCompletedPayload. */
     levelCompleted: 'level:completed',
+    /** Player fired a laser. */
+    playerFiresLazer: 'player:firesLazer',
+    /** Game start event. */
+    gameStart: 'game:start',
+    /** Game over event. */
+    gameOver: 'game:over',
+    /** Game over text assembly event. */
+    gameOverAssembly: 'game:over:assembly',
+    /** Game over text explosion event. */
+    gameOverExplosion: 'game:over:explosion',
+    /** Invader laser 1a fired. */
+    invaderLazerA: 'invader:lazerA',
+    /** First Mine Released */
+    mineActivated: 'mine:activated',
+    /** Mine destroyed (removed from play). */
+    mineDestroyed: 'mine:destroyed',
+    /** Mine passed despawnZ (left play without being destroyed). */
+    minePassed: 'mine:passed',
+    /** Pool cleared while a mine loop was running (wave or game ended). */
+    mineCleared: 'mine:cleared',
+    /** A mine was hit (but not necessarily destroyed). */
+    mineHit: 'mine:hit',
+    /** A mine was hit for the second time. */
+    mineHit2: 'mine:hit2',
+    /** Next wave event. */
+    nextWave: 'wave:next',
+    /** Boss wave event. */
+    bossWave: 'wave:boss',
+    /** Boss 1 laser turned on. */
+    boss1LazerOn: 'boss1:lazerOn',
+    /** Boss 1 laser turned off. */
+    boss1LazerOff: 'boss1:lazerOff',
+    /** Boss 1 bomb fired. */
+    boss1Bomb: 'boss1:bomb',
+
+    /** Boss 1 part destroyed. */
+    boss1PartDestroyed: 'boss1:partDestroyed',
+    /** Boss 1 part falls off. */
+    boss1PartFallsOff: 'boss1:partFallsOff',
+    /** Boss 1 exploded. */
+    boss1Explosion: 'boss1:explosion',
+
 } as const;
 
 export type GameEventName = (typeof GameEvents)[keyof typeof GameEvents];
@@ -178,3 +222,5 @@ export const CollisionLayer = {
 
 /** A single layer bit. Masks (several layers OR-ed together) are plain numbers. */
 export type CollisionLayerFlag = (typeof CollisionLayer)[keyof typeof CollisionLayer];
+
+

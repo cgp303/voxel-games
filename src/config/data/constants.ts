@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { Vector3 } from 'three';
-import type { InvaderTypeId, InvaderWeaponType, WeaponType, BossWeaponType } from '../types/types';
+import type { InvaderTypeId, InvaderWeaponType, WeaponType, BossWeaponType, GameEvents } from '../types/types';
 import type { IFxSettings, IInvaderTypeDefinition, IInvaderWeaponConfig, IWeaponConfig, ICollisionSystemConfig, IDebrisConfig, ISparkConfig, ITextDisplay, IMarqueeStyle, IHudConfig, INextLevelFlyby, IVoxelAssemblyConfig, IBossSettings, IBossPathDef, IBossWeaponConfig } from '../interfaces/interfaces';
 import { CollisionLayer } from '../types/types';
 /** Shared gameplay / layout constants (expand in later phases) */
@@ -125,10 +125,11 @@ export const INVADER_WEAPONS: Record<InvaderWeaponType, IInvaderWeaponConfig> = 
         maxCount: 32,
         dropChancePerFrame: { groupAttack1: [0.1, 0.07, 0.05] },
         releaseXRange: { min: -70, max: 70 },
-        maxPerAttack: 5,
+        maxPerAttack: 1,
         allowedInvaderTypes: ['scout', 'fighter', 'elite', 'tie'],
         allowedSegments: { groupAttack1: [1, 2, 3] },
-        despawnMarginPastPlayer: 50,
+        despawnMarginPastPlayer: 25,
+        fadeAudioAt: 5,
         spinRateRadPerSec: Math.PI * 4,
         hitPoints: 3,
         knockbackDistance: 24,
@@ -741,4 +742,32 @@ export const TERRAIN = {
 } as const;
 
 
+//////////////// AUDIO EVENTS //////////////////
 
+export const AUDIO: Partial<Record<keyof typeof GameEvents, string>> = {
+    playerDied: 'playerDeath',
+    playerFiresLazer: 'playerFiresLazer',
+    waveStarted: 'waveStart',
+    waveCleared: 'waveCleared',
+    levelCompleted: 'levelComplete',
+    gameStart: 'gameStart',
+    gameOver: 'gameOver',
+    gameOverAssembly: 'gameOverAssembly',
+    gameOverExplosion: 'gameOverExplosion',
+    invaderLazerA: 'invaderLazerA',
+    invaderKilled: 'invaderKilled',
+    mineActivated: 'mineActivated',
+    mineDestroyed: 'mineDestroyed',
+    minePassed: 'minePassed',
+    mineCleared: 'mineCleared',
+    mineHit: 'mineHit',
+    mineHit2: 'mineHit2',
+    nextWave: 'waveNext',
+    bossWave: 'waveBoss',
+    boss1LazerOn: 'boss1LazerOn',
+    boss1LazerOff: 'boss1LazerOff',
+    boss1Bomb: 'boss1Bomb',
+    boss1PartDestroyed: 'boss1PartDestroyed',
+    boss1PartFallsOff: 'boss1PartFallsOff',
+    boss1Explosion: 'boss1Explosion',
+};

@@ -1,5 +1,8 @@
 import { Vector3 } from 'three';
 import type { IWeaponConfig } from '../config/interfaces/interfaces';
+import { GameEvents } from '../config/types/types';
+import { AUDIO } from '../config/data/constants';
+import type { EventBus } from '../core/EventBus';
 import type { ProjectilePool } from '../systems/ProjectilePool';
 
 const tempOrigin = new Vector3();
@@ -9,11 +12,13 @@ const tempVelocity = new Vector3();
 export class Weapon {
     private readonly pool: ProjectilePool;
     private readonly config: IWeaponConfig;
+    private readonly events: EventBus;
     private cooldown = 0;
 
-    constructor(pool: ProjectilePool, config: IWeaponConfig) {
+    constructor(pool: ProjectilePool, config: IWeaponConfig, events: EventBus) {
         this.pool = pool;
         this.config = config;
+        this.events = events;
     }
 
     public update(dt: number): void {
@@ -32,6 +37,7 @@ export class Weapon {
 
         if (!this.pool.spawn(tempOrigin, tempVelocity)) return false;
         this.cooldown = this.config.fireIntervalSec;
+        this.events.emit(GameEvents.playerFiresLazer, undefined);
         return true;
     }
 }

@@ -5,9 +5,49 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Voxel Game - PoC</title>
+  <!-- Inline so the curtain shows before any script or bundled CSS arrives. -->
+  <style>
+    #preload-curtain {
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: #000;
+      color: #39ff14;
+      font-family: monospace;
+      font-size: 18px;
+      text-shadow: 0 0 6px #39ff14;
+      transition: opacity 0.4s ease-out;
+    }
+
+    #preload-curtain.done {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    #preload-bar {
+      margin-top: 0.75em;
+      white-space: pre;
+    }
+
+    /* Fixed width (one ch per dot) so the brackets never move while the dots fill in. */
+    #preload-dots {
+      display: inline-block;
+      width: 32ch;
+      overflow: hidden;
+      vertical-align: bottom;
+    }
+  </style>
 </head>
 
 <body>
+  <div id="preload-curtain">
+    <div>loading Astro Force</div>
+    <div id="preload-bar">[ <span id="preload-dots"></span> ]</div>
+  </div>
   <div id="game-frame">
     <div id="ui-root"></div>
   </div>

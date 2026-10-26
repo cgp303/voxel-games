@@ -31,7 +31,7 @@ export const WAVE_1_1: IWaveConfig = {
         {
             director: 'groupAttack',
             sets: [['group2x2', 2, 0]],
-            weaponOverrides: { Mine: { dropChancePerFrame: { groupAttack1: [0.1, 0.1, 0.1] }, maxPerAttack: 5 } },
+            weaponOverrides: { Mine: { dropChancePerFrame: { groupAttack1: [0.02, 0.1, 0.1] }, maxPerAttack: 5 } },
         },
         COLUMN_VERTICAL,
     ],

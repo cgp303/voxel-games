@@ -1,5 +1,6 @@
 ﻿import '../style.css';
 import { GameScene } from '../scene/Scene';
+import { AudioEventTrigger } from '../audio/AudioEventTrigger';
 import { GameCamera } from '../scene/Camera';
 import { GameRenderer } from '../scene/Renderer';
 import { Engine } from '../core/Engine';
@@ -21,6 +22,8 @@ import { CRYSTAL_TERRAIN_CONFIG } from '../voxel-landscape/TerrainConfig';
 import { VIEW, INSTANCED_ASSETS, BOSS, HUD } from '../config/data/constants';
 import { getUiRoot } from '../core/viewport';
 import { ScoreHud } from '../systems/text/ScoreHud';
+import { AudioManager } from '../audio/AudioManager';
+import { Preloader } from '../ui/Preloader';
 
 
 /**
@@ -31,6 +34,7 @@ export class App {
     private readonly scene: GameScene;
     private readonly renderer: GameRenderer;
     private readonly camera: GameCamera;
+
     private readonly engine = new Engine();
     private readonly input = new Input();
     private readonly events = new EventBus();
@@ -40,6 +44,7 @@ export class App {
     private readonly screens = new ScreenManager();
     private readonly terrainService = new TerrainService();
     private readonly playField = new PlayField();
+    private readonly preloader = new Preloader();
 
     private readonly demoScreen = new DemoScreen();
     private readonly playScreen = new PlayScreen();
@@ -50,12 +55,18 @@ export class App {
     private frameCount = 0;
     private fpsLastMs = performance.now();
     private worldReady = false;
+    private audioEventTrigger: AudioEventTrigger | null = null;
+    private audioManager: AudioManager | null = null;
 
     constructor() {
         this.scene = new GameScene();
         this.renderer = new GameRenderer(this.scene, null);
         this.camera = new GameCamera(this.renderer);
         this.renderer.setCamera(this.camera);
+        this.audioManager = new AudioManager();
+
+        this.audioEventTrigger = new AudioEventTrigger(this.events, this.audioManager);
+        this.audioEventTrigger.attach();
 
         this.demoScreen.setTransitions(this.playScreen);
         this.playScreen.setTransitions(this.demoScreen, this.gameOverScreen);
@@ -84,6 +95,7 @@ export class App {
     }
 
     public async start(): Promise<void> {
+
         this.input.start();
 
         // Engine owns the only animation loop (do not call renderer.startAnimation)
@@ -103,6 +115,10 @@ export class App {
             console.error('[App] world bootstrap failed:', err);
         }
 
+        await this.preloader.finish();
+        this.assets.loadBackground();
+        this.audioManager?.loadBackground();
+
         await this.screens.set(this.demoScreen);
         console.log('[App] started — Demo attract + invader entry intro');
     }
@@ -110,6 +126,8 @@ export class App {
     public stop(): void {
         this.engine.stop();
         this.input.stop();
+        this.audioEventTrigger?.detach();
+        this.audioEventTrigger = null;
         this.scoreHud?.dispose();
         this.scoreHud = null;
         this.screens.getActive()?.exit();
@@ -130,19 +148,19 @@ export class App {
         });
         this.scene.createLights();
 
-        console.log('[App] loading invader assets…');
-        for (const { key } of INSTANCED_ASSETS) {
-            await this.assets.loadManifestAsset(key as AssetKey);
-        }
-        await this.font.load(this.assets);
-        // A boss that fails to load only costs that boss (its wave ends at once), so the rest of the game still runs.
-        for (const id of BOSS.ids) {
-            try {
-                await this.assets.loadBoss(id);
-            } catch (err) {
-                console.error(`[App] boss "${id}" failed to load:`, err);
-            }
-        }
+        console.log('[App] preloading assets…');
+        const track = this.preloader.track;
+        // Every load is registered in this tick (before any is awaited) so the preload bar never moves backwards.
+        await Promise.all([
+            // Instanced meshes are built below, so their models are needed whatever their manifest flag says.
+            this.assets.preloadManifest(track, INSTANCED_ASSETS.map(({ key }) => key as AssetKey)),
+            this.font.load(this.assets, track),
+            // A boss that fails to load only costs that boss (its wave ends at once), so the rest of the game still runs.
+            ...BOSS.ids.map((id) =>
+                track(this.assets.loadBoss(id)).catch((err) => console.error(`[App] boss "${id}" failed to load:`, err)),
+            ),
+            this.audioManager?.preload(track),
+        ]);
         // Cache mesh template for EntryDirector / PlaySession (Phase 5+).
         // Combat invaders are not pre-placed; Demo/Play intro spawns them off-stage.
 
