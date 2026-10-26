@@ -49,6 +49,9 @@ export class MineWeapon extends InvaderWeapon implements ICollisionTarget {
         return this.spinAngle;
     }
 
+    public hitPointsRemaining(): number {
+        return this.hitPoints;
+    }
     /**
      * Applies a hit. Returns true when the weapon is destroyed; otherwise it is knocked back
      * (restarting any push already in progress), tumbles one more full turn and, if a damaged model

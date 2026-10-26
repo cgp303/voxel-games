@@ -7,7 +7,7 @@ import type {
     IWaveClearedPayload,
     ILevelCompletedPayload,
 } from '../config/interfaces/interfaces';
-import { GameEvents, CollisionLayer } from '../config/types/types';
+import { GameEvents, CollisionLayer, GameMode } from '../config/types/types';
 import type { InvaderTypeId, InvaderWeaponType, ExplosionKind, CollisionLayerFlag, PooledWeaponKey } from '../config/types/types';
 import { INSTANCED_ASSETS, INVADER_ASSET_KEYS, INVADER_WEAPONS, INVADER_WEAPON_TYPES, LEVEL, PLAYER, WEAPONS, COLLISION, DEBUG, GAME_OVER, BOSS, BOSS_DRIP, BOSS_PATHS, BOSS_WEAPONS } from '../config/data/constants';
 import type { IGameContext, IVoxelCloud } from '../config/interfaces/interfaces';
@@ -124,7 +124,7 @@ export class PlaySession {
         for (const { key, maxCount } of INSTANCED_ASSETS) {
             ctx.assets.getOrCreateInstancedMesh(key, maxCount);
         }
-        this.weaponPool = new InvaderWeaponPool(ctx.assets);
+        this.weaponPool = new InvaderWeaponPool(ctx);
 
         if (options.spawnPlayer) {
             this.spawnPlayer(ctx);
@@ -402,7 +402,7 @@ export class PlaySession {
         const weaponConfig = WEAPONS[PLAYER.weapon];
         const shotMesh = ctx.assets.getOrCreateInstancedMesh(weaponConfig.assetKey, weaponConfig.maxCount);
         this.projectilePool = new ProjectilePool(shotMesh, weaponConfig);
-        this.playerWeapon = new Weapon(this.projectilePool, weaponConfig);
+        this.playerWeapon = new Weapon(this.projectilePool, weaponConfig, ctx.events);
 
         this.collision = new CollisionSystem(COLLISION);
         this.player.collisionModels = ctx.assets.getCollisionModels(PLAYER.assetKey);
@@ -508,6 +508,14 @@ export class PlaySession {
                 this.projectilePool?.release(mover);
                 // Weapons survive hits until their hit points run out; a surviving one is knocked back and throws sparks.
                 if (!target.takeHit(mover.power)) {
+                    // emit event to trigger audio
+                    if (target instanceof MineWeapon) {
+                        // just deal with hit points. final destruction is handled in invaderWeaponPool.
+                        // though it might be better one day to add it here.
+                        target.hitPointsRemaining() == 2 ? this.ctx?.events.emit(GameEvents.mineHit) :
+                            target.hitPointsRemaining() == 1 ? this.ctx?.events.emit(GameEvents.mineHit2) : null;
+
+                    }
                     this.emitSparks(hit.x, target.position.y, hit.z, target.velocity);
                     return;
                 }
@@ -553,11 +561,29 @@ export class PlaySession {
         const damage = boss.takeHit(hit.localX, hit.localZ, shot.power, shot.collisionRadius);
         if (!damage.destroyed) return;
 
+        let damageType: number = 0;
         this.explodeCloud('bossPart', boss.toCloud(damage.removed), boss.position, boss.orientation, boss.velocity);
         if (damage.chunk.length > 0) {
+            damageType = 1; // Mark that a boss part was destroyed
             this.explodeCloud('bossChunk', boss.toCloud(damage.chunk), boss.position, boss.orientation, boss.velocity);
         }
-        if (damage.coreDestroyed) this.killBoss(boss);
+
+        if (damage.coreDestroyed) {
+            damageType = 2;
+            this.killBoss(boss);
+        }
+
+        // Emit events based on the type of damage inflicted on the boss.
+        switch (damageType) {
+            case 0:
+                this.ctx?.events.emit(GameEvents.boss1PartDestroyed);
+                break;
+
+            case 1:
+                this.ctx?.events.emit(GameEvents.boss1PartFallsOff);
+                break;
+
+        }
     }
 
     /** The boss is dead: everything left of it explodes, the score is awarded (unless `award` is false) and it is removed. */
@@ -566,6 +592,8 @@ export class PlaySession {
         if (award) this.ctx?.game.addScore(boss.definition.scoreValue);
         this.invaders?.remove(boss);
         if (this.boss === boss) this.boss = null;
+        this.ctx?.events.emit(GameEvents.boss1LazerOff);
+        this.ctx?.events.emit(GameEvents.boss1Explosion);
     }
 
     /** Spawns the boss's queued weapons and its fire drips for this frame. */
@@ -613,6 +641,7 @@ export class PlaySession {
         }
 
         const boss = new Boss({
+            ctx,
             definition,
             voxels: model.voxels,
             palette: model.colors,
@@ -650,6 +679,12 @@ export class PlaySession {
                 if (!entity.pollWeaponRelease(type, dt, target, launch, playerPresent, overrides?.[type])) continue;
                 const layer = INVADER_WEAPONS[type].kind === 'mine' ? this.invaderWeaponLayer() : CollisionLayer.INVADER_WEAPON;
                 if (pool.spawn(type, launch.origin, launch.velocity, launch.orientation, layer)) {
+                    if (this.ctx?.game.mode !== 'demo') {
+                        // Play the invader weapon sound only if not in demo mode
+                        const eventAudioId = "invader" + type;
+                        this.ctx?.events.emit(GameEvents[eventAudioId as keyof typeof GameEvents]);
+                    }
+
                     entity.commitWeaponRelease(type);
                 }
             }
@@ -685,6 +720,7 @@ export class PlaySession {
             (invader.position.z - invader.previousPosition.z) * inverse,
         );
         this.explode('invader', invader.assetKey, invader.position, invader.orientation, this.debrisVelocity);
+        this.ctx?.events.emit(GameEvents.invaderKilled);
     }
 
     /** Returns how long (s) the player's explosion takes to finish. */

@@ -9,6 +9,12 @@ import { disposeObject3D } from '../world/PlayField';
 import { CollisionModelSet } from '../systems/collision/CollisionModel';
 import { parseBossDefinition, toBossSpace } from '../systems/boss/BossDefinition';
 import { BOSS, BOSS_WEAPONS, COLLISION } from '../config/data/constants';
+import type { TrackLoad } from '../ui/Preloader';
+
+/** Manifest keys whose `preload` flag matches. */
+function manifestKeys(preload: boolean): AssetKey[] {
+  return (Object.keys(ASSET_PATHS) as AssetKey[]).filter((key) => ASSET_PATHS[key].preload === preload);
+}
 
 
 /**
@@ -16,6 +22,8 @@ import { BOSS, BOSS_WEAPONS, COLLISION } from '../config/data/constants';
  */
 export class AssetManager {
   private models = new Map<string, IParsedVoxModel>();
+  /** Loads still in flight, so a second request for the same model joins the first instead of fetching again. */
+  private pendingModels = new Map<string, Promise<IParsedVoxModel>>();
   private meshTemplates = new Map<string, THREE.Object3D>();
   private instancedMeshes = new Map<string, THREE.InstancedMesh>();
   private collisionModels = new Map<string, CollisionModelSet>();
@@ -28,14 +36,38 @@ export class AssetManager {
     const cacheKey = key ?? path;
     const cached = this.models.get(cacheKey);
     if (cached) return cached;
+    const pending = this.pendingModels.get(cacheKey);
+    if (pending) return pending;
 
-    const model = await VoxParser.loadVoxFile(path);
-    this.models.set(cacheKey, model);
-    return model;
+    const load = VoxParser.loadVoxFile(path)
+      .then((model) => {
+        this.models.set(cacheKey, model);
+        return model;
+      })
+      .finally(() => this.pendingModels.delete(cacheKey));
+    this.pendingModels.set(cacheKey, load);
+    return load;
   }
 
   public async loadManifestAsset(key: AssetKey): Promise<IParsedVoxModel> {
-    return this.loadVox(ASSET_PATHS[key], key);
+    return this.loadVox(ASSET_PATHS[key].src, key);
+  }
+
+  /**
+   * Loads every manifest model marked `preload`, plus `required` (models needed at startup whatever their flag says),
+   * counting each one with `track`.
+   */
+  public preloadManifest(track: TrackLoad, required: readonly AssetKey[] = []): Promise<IParsedVoxModel[]> {
+    const keys = new Set([...manifestKeys(true), ...required]);
+    return Promise.all([...keys].map((key) => track(this.loadManifestAsset(key))));
+  }
+
+  /** Starts loading every manifest model not marked `preload`. Failures are logged, not thrown. */
+  public loadBackground(): void {
+    for (const key of manifestKeys(false)) {
+      if (this.models.has(key)) continue;
+      this.loadManifestAsset(key).catch((err) => console.error(`[AssetManager] background load of "${key}" failed:`, err));
+    }
   }
 
   /**

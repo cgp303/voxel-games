@@ -8,10 +8,12 @@ export function createBasicLevels(): ILevelDescriptor[] {
         {
             name: 'Level 1',
             waves: [
+
                 () => createWave(WAVE_1_1),
                 () => createWave(WAVE_1_2),
                 () => createWave(WAVE_1_3),
                 () => createWave(WAVE_BOSS_1),
+
             ],
         },
         {

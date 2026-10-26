@@ -273,7 +273,7 @@ Combat should write score via events → `Game.addScore` later (not fully wired 
 
 **Invader path today:**
 1. `manifests.ts` key `invader`
-2. App bootstrap `loadManifestAsset` + `getOrCreateMeshTemplate`
+2. App bootstrap preloads it (`preloadManifest`, behind the preload curtain) + `getOrCreateMeshTemplate`
 3. EntryDirector clones template per ship
 
 **Terrain path:** `TerrainService.buildScrollingPair` → `playField.setScrollingTerrain`.
@@ -324,7 +324,7 @@ High scores: [`src/data/highscores.ts`](src/data/highscores.ts).
 
 ### Add a `.vox`
 1. File in `public/assets/vox/`
-2. Key in `manifests.ts`
+2. Key in `manifests.ts` (`{ src, preload }`: `preload: true` loads behind the preload curtain, `false` loads in the background after it)
 3. Load via AssetManager; clone template
 
 ### Change feel

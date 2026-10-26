@@ -8,6 +8,7 @@ import type { PlaySession } from '../systems/PlaySession';
 import { VoxelText } from '../systems/text/VoxelText';
 import { placeTextInFrontOfCamera } from '../systems/text/placeText';
 import type { DemoScreen } from './DemoScreen';
+import { GameEvents } from '../config/types/types';
 
 /**
  * Interstitial after a real game end. It takes over the play session, so the player's explosion (which it
@@ -86,6 +87,8 @@ export class GameOverScreen implements IScreen {
       particleSize: GAME_OVER_TEXT.scale,
     });
     ctx.scene.scene.add(this.debris.mesh);
+    // play game over assembly sound fx
+    ctx.events.emit(GameEvents.gameOverAssembly);
 
     console.log('[GameOverScreen] enter — voxel text, letters explode, then Demo high scores');
   }
@@ -126,12 +129,20 @@ export class GameOverScreen implements IScreen {
       return;
     }
 
+    // play game over jingle, only if this.elapsed == 0
+    if (this.elapsed === 0) {
+
+      // send audio event
+      ctx.events.emit(GameEvents.gameOver);
+    }
     this.elapsed += dt;
     if (this.elapsed < GAME_OVER.displaySeconds) return;
 
     // One letter per interval, first to last.
     this.explodeTimer += dt;
     while (this.nextChar < text.charCount && this.explodeTimer >= GAME_OVER.explodeIntervalSec) {
+      // play game over explosion sound fx
+      if (this.nextChar === 0) ctx.events.emit(GameEvents.gameOverExplosion);
       this.explodeTimer -= GAME_OVER.explodeIntervalSec;
       text.explodeChar(this.nextChar++, debris);
     }

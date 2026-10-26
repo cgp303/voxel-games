@@ -508,6 +508,8 @@ export interface IMineWeaponConfig extends IInvaderWeaponBaseConfig {
     velocity: Vector3;
     /** Asset keys of damaged models: after the nth hit that does not destroy the weapon it shows hitMeshes[n - 1]. Each must be in INSTANCED_ASSETS. */
     hitMeshes?: readonly string[];
+    /** Z position at which the audio starts fading out. */
+    fadeAudioAt: number;
 }
 
 /** How a lazer is aimed when released. */
@@ -840,6 +842,8 @@ export interface IBossInit {
     path: IPathPattern;
     /** Pool bucket of each weapon, by weapon id. */
     weaponKeys: Readonly<Record<string, PooledWeaponKey>>;
+
+    ctx: IGameContext;
 }
 /**
  * Inclusive rectangle of voxel columns in the boss's model space: [x0, z0, x1, z1]. Model space is the .vox

@@ -10,8 +10,9 @@ import type {
     IVoxelCloud,
     IBossLaunch,
     IBossInit,
+    IGameContext,
 } from '../config/interfaces/interfaces';
-import { CollisionLayer, type BossPhase, type BossWeaponType, type PooledWeaponKey } from '../config/types/types';
+import { CollisionLayer, type BossPhase, type BossWeaponType, type PooledWeaponKey, GameEvents } from '../config/types/types';
 import { DestructibleCollisionModels } from '../systems/boss/DestructibleCollisionModels';
 import { DestructibleVoxelModel, voxelsToCloud, type IBossDamage } from '../systems/boss/DestructibleVoxelModel';
 import { VoxelGeometry } from '../voxel/VoxelGeometry';
@@ -80,6 +81,8 @@ export class Boss extends Entity implements ICollisionTarget {
     private cycleIndex = 0;
     private phaseRemaining = 0;
     private readonly weapons: IWeaponState[];
+    private readonly ctx: IGameContext;
+    private mainLazerActive = false;
 
     private roll = 0;
     private readonly rollQuat = new THREE.Quaternion();
@@ -89,6 +92,7 @@ export class Boss extends Entity implements ICollisionTarget {
 
     constructor(init: IBossInit) {
         super(null);
+        this.ctx = init.ctx;
         this.integrateVelocity = false;
         const { definition } = init;
         this.definition = definition;
@@ -190,6 +194,8 @@ export class Boss extends Entity implements ICollisionTarget {
         this.launchCount = 0;
     }
 
+
+
     /**
      * Where fire should drip from this frame (world position), once the boss has holes in it: the rate rises with
      * the damage. Returns false when nothing should drip.
@@ -245,6 +251,11 @@ export class Boss extends Entity implements ICollisionTarget {
         this.phaseRemaining = step.seconds[0] + Math.random() * (step.seconds[1] - step.seconds[0]);
         for (const weapon of this.weapons) {
             weapon.cooldown = FIRST_SHOT_DELAY[0] + Math.random() * (FIRST_SHOT_DELAY[1] - FIRST_SHOT_DELAY[0]);
+        }
+
+        if (this.phase === 'rest') {
+            this.mainLazerActive = false;
+            this.ctx?.events.emit(GameEvents.boss1LazerOff);
         }
     }
 
@@ -308,6 +319,13 @@ export class Boss extends Entity implements ICollisionTarget {
         // Weapons leave straight toward the player (-Z); the roll only moves where they leave from.
         launch.velocity.set(0, 0, -weapon.speed);
         launch.orientation.identity();
+
+        if (weapon.def.id === 'side' || weapon.def.id === 'main' && !this.mainLazerActive) {
+            this.mainLazerActive = true;
+            this.ctx?.events.emit(GameEvents.boss1LazerOn);
+        } else if (weapon.def.id === 'bomb') {
+            this.ctx?.events.emit(GameEvents.boss1Bomb);
+        }
     }
 
     private createWeaponState(def: IBossWeaponDef, key: PooledWeaponKey | undefined): IWeaponState {

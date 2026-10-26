@@ -5,7 +5,7 @@ import type { GameOverScreen } from './GameOverScreen';
 import { createBasicLevels } from '../systems/stages/levels-basic';
 import { BOSS_WAVE_TEXT, DEBUG, NEXT_LEVEL_FLYBY, NEXT_LEVEL_TEXT } from '../config/data/constants';
 import { TextFlyby } from '../systems/text/TextFlyby';
-
+import { GameEvents } from '../config/types/types';
 /**
  * Gameplay mode over the shared PlayField.
  * Restarts the invader entry intro on each enter; Esc returns to Demo (intro restarts there).
@@ -41,6 +41,9 @@ export class PlayScreen implements IScreen {
       levels: createBasicLevels(),
       spawnPlayer: true,
     });
+
+    // play game start jingle
+    ctx.events.emit(GameEvents.gameStart);
 
     console.log('[PlayScreen] enter — entry intro; Esc=Demo, G=GameOver');
   }
@@ -104,7 +107,15 @@ export class PlayScreen implements IScreen {
     const session = this.session;
     const betweenWaves = session?.isBetweenWaves ?? false;
     if (ctx && session && betweenWaves && !this.wasBetweenWaves) {
-      const display = session.nextWaveIsBoss ? BOSS_WAVE_TEXT : NEXT_LEVEL_TEXT;
+      let display;
+      if (session.nextWaveIsBoss) {
+        display = BOSS_WAVE_TEXT;
+        this.ctx?.events.emit(GameEvents.bossWave);
+      } else {
+        display = NEXT_LEVEL_TEXT;
+        this.ctx?.events.emit(GameEvents.nextWave);
+      }
+
       this.flybys.push(new TextFlyby(ctx.font, ctx.scene.scene, ctx.camera.camera, display, NEXT_LEVEL_FLYBY));
     }
     this.wasBetweenWaves = betweenWaves;

@@ -63,6 +63,7 @@ export abstract class InvaderWeapon extends Entity implements ICollisionMover {
         this.onLaunch();
         this.active = true;
         this.syncTransform();
+
     }
 
     /** Hides the instance and takes it out of play; the pool recycles it on its next update. */
@@ -93,7 +94,7 @@ export abstract class InvaderWeapon extends Entity implements ICollisionMover {
     }
 
     /** Resets subclass state at the start of every flight. */
-    protected onLaunch(): void {}
+    protected onLaunch(): void { }
 
     /** Per-frame movement; previousPosition has already been stored. */
     protected abstract advance(dt: number): void;
