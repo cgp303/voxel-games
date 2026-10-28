@@ -46,17 +46,17 @@ export interface IAudioManifestEntry extends IManifestEntry {
 
 export const AUDIO_PATHS = {
     // mp3
-    playerFiresLazer: { src: 'assets/audio/player-lazer.mp3', volume: 0.25, loop: false, preload: true },
+    playerFiresLazer: { src: 'assets/audio/player-lazer.mp3', volume: 0.2, loop: false, preload: true },
     playerDied: { src: 'assets/audio/player-explosion.mp3', volume: 1, loop: false, preload: true },
     gameStart: { src: 'assets/audio/game-start-jingle.mp3', volume: 1, loop: false, preload: true },
     gameOver: { src: 'assets/audio/gameover-a.mp3', volume: 1, loop: false, preload: true },
     gameOverAssembly: { src: 'assets/audio/gameover-assembly.mp3', volume: 0.6, loop: false, preload: true },
     gameOverExplosion: { src: 'assets/audio/gameover-explosion.mp3', volume: 1, loop: false, preload: true },
     invaderLazerA: { src: 'assets/audio/invader-lazer1d.mp3', volume: 1, loop: false, preload: true },
-    invaderKilled: { src: 'assets/audio/invader-explosion.mp3', volume: 0.1, loop: false, preload: true },
-    mineDestroyed: { src: 'assets/audio/mine-explosion.mp3', volume: 1, loop: false, preload: true },
-    mineHit: { src: 'assets/audio/mine-clonk.mp3', volume: 1, loop: false, preload: true },
-    mineHit2: { src: 'assets/audio/mine-clonk-2.mp3', volume: 1, loop: false, preload: true },
+    invaderKilled: { src: 'assets/audio/invader-explosion.mp3', volume: 1, loop: false, preload: true },
+    mineDestroyed: { src: 'assets/audio/mine-explosion.mp3', volume: 0.15, loop: false, preload: true },
+    mineHit: { src: 'assets/audio/mine-clonk.mp3', volume: 0.15, loop: false, preload: true },
+    mineHit2: { src: 'assets/audio/mine-clonk.mp3', volume: 0.15, loop: false, preload: true },
     nextWave: { src: 'assets/audio/next-wave.mp3', volume: 1, loop: false, preload: true },
     bossWave: { src: 'assets/audio/boss-wave.mp3', volume: 1, loop: false, preload: true },
     boss1Bomb: { src: 'assets/audio/boss1-bomb.mp3', volume: 1, loop: false, preload: true },
@@ -65,8 +65,12 @@ export const AUDIO_PATHS = {
     boss1Explosion: { src: 'assets/audio/boss1-explosion.mp3', volume: 1, loop: false, preload: true },
 
     // wav (wav files loop better)
-    mineActivated: { src: 'assets/audio/mine-loop1.wav', volume: 1, loop: true, preload: true },
+    mineActivated: { src: 'assets/audio/mine-loop1.ogg', volume: 0.1, loop: true, preload: true },
     boss1LazerOn: { src: 'assets/audio/boss1-lazers.wav', volume: 1, loop: true, preload: true },
+
+    // ogg
+    astroForcePsy: { src: 'assets/audio/astro-force-psy.ogg', volume: 0.5, loop: true, preload: true },
+    astroInGame: { src: 'assets/audio/astro-force-game-track.ogg', volume: 1, loop: true, preload: true },
 
 } as const satisfies Record<string, IAudioManifestEntry>;
 

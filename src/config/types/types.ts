@@ -1,7 +1,7 @@
 import type { Time } from "../../core/Time";
 
 /** High-level game mode / screen identity (high scores live inside demo attract) */
-export type GameMode = 'demo' | 'play' | 'game_over';
+export type GameMode = 'demo' | 'play' | 'game_over' | 'high_score_entry';
 
 
 
@@ -104,6 +104,14 @@ export const GameEvents = {
     boss1PartFallsOff: 'boss1:partFallsOff',
     /** Boss 1 exploded. */
     boss1Explosion: 'boss1:explosion',
+    /** Astro Force Psy music track started. */
+    astroForcePsy: 'astroForcePsy: start',
+    /** Astro Force Psy music track ended. */
+    astroForcePsyEnd: 'astroForcePsy: end',
+    /** Astro in game track started. */
+    astroInGame: 'astroInGame: start',
+    /** Astro in game track ended. */
+    astroInGameEnd: 'astroInGame: end',
 
 } as const;
 

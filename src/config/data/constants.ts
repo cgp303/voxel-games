@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { Vector3 } from 'three';
 import type { InvaderTypeId, InvaderWeaponType, WeaponType, BossWeaponType, GameEvents } from '../types/types';
-import type { IFxSettings, IInvaderTypeDefinition, IInvaderWeaponConfig, IWeaponConfig, ICollisionSystemConfig, IDebrisConfig, ISparkConfig, ITextDisplay, IMarqueeStyle, IHudConfig, INextLevelFlyby, IVoxelAssemblyConfig, IBossSettings, IBossPathDef, IBossWeaponConfig } from '../interfaces/interfaces';
+import type { IFxSettings, IInvaderTypeDefinition, IInvaderWeaponConfig, IWeaponConfig, ICollisionSystemConfig, IDebrisConfig, ISparkConfig, ITextDisplay, IMarqueeStyle, IHudConfig, IHighScoreEntryConfig, INextLevelFlyby, IVoxelAssemblyConfig, IBossSettings, IBossPathDef, IBossWeaponConfig } from '../interfaces/interfaces';
 import { CollisionLayer } from '../types/types';
 /** Shared gameplay / layout constants (expand in later phases) */
 export const GAME = {
@@ -719,6 +719,47 @@ export const GAME_OVER_ASSEMBLY: IVoxelAssemblyConfig = {
     flashIntensity: 1.5,
 };
 
+/** The online top-ten table (see TopTenScores). */
+export const HIGH_SCORE_SERVER = {
+    /** Empty = same origin: the game is served by the high-score server itself. */
+    url: '',
+    /** Give up on a request after this long and keep the cached table. */
+    timeoutMs: 5000,
+    tableSize: 10,
+} as const;
+
+/**
+ * The screen between Game Over and Demo where a player with a top-ten score clicks out a 3-letter handle.
+ * Everything is one block of voxel text placed in front of the (locked) camera and tilted like the HUD.
+ */
+export const HIGH_SCORE_ENTRY: IHighScoreEntryConfig = {
+    /** Close to the camera (and small) so the tilted block sits high above the terrain while looking the same size. */
+    cameraDistance: 100,
+    offsetX: 0,
+    /** High enough that the lowest line (the entered handle) stays clear of the terrain, low enough to clear the HUD. */
+    offsetY: 35,
+    pitch: HUD.pitch,
+    scale: 0.67,
+    brightness: 0.8,
+    glowIntensity: 0.5,
+    castShadow: true,
+    lineHeight: 14,
+    sectionGap: 8,
+    header: {
+        lines: ['CONGRATULATIONS:', 'YOU HAVE A HIGH SCORE.', 'PLEASE ENTER YOUR', '3 CHARACTER HANDLE'],
+        color: 0xffff00,
+    },
+    alphabet: {
+        rows: ['ABCDEFGHI', 'JKLMNOPQR', 'STUVWXYZ'],
+        color: 0x00ff00,
+        hoverColor: 0xffff00,
+        columnPitch: 14,
+        hitPadding: 2,
+    },
+    entry: { color: 0xff0000, length: 3 },
+    finishPauseSeconds: 1,
+};
+
 /**
  * Voxel text (see systems/text). Text sits on its own object layer, which the bloom pass also draws so it glows.
  * Glyphs are 10 voxels tall; each is trimmed to its used columns and spaced by `letterGap`.
@@ -770,4 +811,8 @@ export const AUDIO: Partial<Record<keyof typeof GameEvents, string>> = {
     boss1PartDestroyed: 'boss1PartDestroyed',
     boss1PartFallsOff: 'boss1PartFallsOff',
     boss1Explosion: 'boss1Explosion',
+    astroForcePsy: 'astroForcePsyStart',
+    astroForcePsyEnd: 'astroForcePsyEnd',
+    astroInGame: 'astroInGameStart',
+    astroInGameEnd: 'astroInGameEnd',
 };

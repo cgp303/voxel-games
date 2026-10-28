@@ -42,6 +42,17 @@ export class AudioEventTrigger {
             case 'boss1LazerOff':
                 this.audioManager.stop(AUDIO.boss1LazerOn || '');
                 break;
+            case 'astroForcePsyEnd':
+                this.audioManager.fade('astroForcePsy', 200);
+                break;
+            case 'gameStart':
+                this.audioManager.play(key);
+                // this.audioManager.playThen(key, 'astroInGame');
+                break;
+            case 'gameOverAssembly':
+                // this.audioManager.fade('astroInGame', 800);
+                this.audioManager.play(key);
+                break;
             default:
                 this.audioManager.play(key);
                 break;
