@@ -16,7 +16,7 @@ export class AudioManager {
         const loads: Promise<void>[] = [];
         for (const [id, asset] of Object.entries(AUDIO_PATHS)) {
             this.baseVolume.set(id, asset.volume);
-            let settle: () => void = () => {};
+            let settle: () => void = () => { };
             const loaded = new Promise<void>((resolve) => (settle = resolve));
             const sound = new Howl({
                 src: [asset.src],
@@ -54,6 +54,22 @@ export class AudioManager {
         if (sound.loop()) sound.stop();
         sound.volume(this.baseVolume.get(id) ?? 1);
         sound.play();
+    }
+
+    playThen(id: string, nextId: string): void {
+        const sound = this.sounds.get(id);
+        const nextSound = this.sounds.get(nextId);
+        if (!sound) return;
+        if (!nextSound) return;
+        // Cancel any fade-out still pending from an earlier run, and restore full volume.
+        sound.off('fade');
+        // play() always starts a new instance; stop a loop first so a restart never overlaps one still fading.
+        if (sound.loop()) sound.stop();
+        sound.volume(this.baseVolume.get(id) ?? 1);
+        sound.play();
+        sound.once('end', () => {
+            nextSound.play();
+        });
     }
 
     /** Ramps the sound to silence, then stops it and restores its volume for the next play. */

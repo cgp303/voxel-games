@@ -13,6 +13,8 @@ import { ScreenManager } from '../screens/ScreenManager';
 import { DemoScreen } from '../screens/DemoScreen';
 import { PlayScreen } from '../screens/PlayScreen';
 import { GameOverScreen } from '../screens/GameOverScreen';
+import { HighScoreEntryScreen } from '../screens/HighScoreEntryScreen';
+import { TopTenScores } from '../config/data/TopTenScores';
 import { Game } from './Game';
 import type { IGameContext } from '../config/interfaces/interfaces';
 import { loadHighScores } from '../config/data/highscores';
@@ -49,6 +51,7 @@ export class App {
     private readonly demoScreen = new DemoScreen();
     private readonly playScreen = new PlayScreen();
     private readonly gameOverScreen = new GameOverScreen();
+    private readonly highScoreEntryScreen = new HighScoreEntryScreen();
 
     private fpsDisplay: HTMLDivElement | null = null;
     private scoreHud: ScoreHud | null = null;
@@ -70,7 +73,8 @@ export class App {
 
         this.demoScreen.setTransitions(this.playScreen);
         this.playScreen.setTransitions(this.demoScreen, this.gameOverScreen);
-        this.gameOverScreen.setTransitions(this.demoScreen);
+        this.gameOverScreen.setTransitions(this.demoScreen, this.highScoreEntryScreen);
+        this.highScoreEntryScreen.setTransitions(this.demoScreen);
 
         const ctx: IGameContext = {
             scene: this.scene,
@@ -95,6 +99,8 @@ export class App {
     }
 
     public async start(): Promise<void> {
+        // Live scores load alongside the world so the first demo can show them; failures keep the cached table.
+        void TopTenScores.fetchFromServer();
 
         this.input.start();
 

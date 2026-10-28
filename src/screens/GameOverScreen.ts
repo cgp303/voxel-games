@@ -8,6 +8,8 @@ import type { PlaySession } from '../systems/PlaySession';
 import { VoxelText } from '../systems/text/VoxelText';
 import { placeTextInFrontOfCamera } from '../systems/text/placeText';
 import type { DemoScreen } from './DemoScreen';
+import type { HighScoreEntryScreen } from './HighScoreEntryScreen';
+import { TopTenScores } from '../config/data/TopTenScores';
 import { GameEvents } from '../config/types/types';
 
 /**
@@ -21,6 +23,7 @@ export class GameOverScreen implements IScreen {
 
   private ctx: IGameContext | null = null;
   private demoScreen: DemoScreen | null = null;
+  private highScoreEntryScreen: HighScoreEntryScreen | null = null;
   private text: VoxelText | null = null;
   private assembler: VoxelAssembler | null = null;
   private assemblyView: DebrisRenderer | null = null;
@@ -36,8 +39,9 @@ export class GameOverScreen implements IScreen {
   private nextChar = 0;
   private finished = false;
 
-  public setTransitions(demo: DemoScreen): void {
+  public setTransitions(demo: DemoScreen, highScoreEntry: HighScoreEntryScreen): void {
     this.demoScreen = demo;
+    this.highScoreEntryScreen = highScoreEntry;
   }
 
   /** Takes over the play session that ended in game over; call just before switching to this screen. */
@@ -164,7 +168,16 @@ export class GameOverScreen implements IScreen {
     const sessionQuiet = !session || !session.hasActiveDebris;
     if (this.nextChar >= text.charCount && debris.activeCount === 0 && invadersGone && sessionQuiet) {
       this.finished = true;
-      void ctx.screens.set(this.demoScreen);
+      void this.handOff(ctx);
     }
+  }
+
+  /** Refreshes the live table, then goes to high-score entry if the score earns a place, otherwise to the Demo. */
+  private async handOff(ctx: IGameContext): Promise<void> {
+    await TopTenScores.fetchFromServer();
+    // The screen may have been left while the scores were loading.
+    if (this.ctx !== ctx || !this.demoScreen) return;
+    const next = this.highScoreEntryScreen && TopTenScores.qualifies(ctx.game.score) ? this.highScoreEntryScreen : this.demoScreen;
+    await ctx.screens.set(next);
   }
 }

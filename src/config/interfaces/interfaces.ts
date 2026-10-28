@@ -370,6 +370,42 @@ export interface IHudConfig {
     };
 }
 
+/** The high-score handle entry screen: where it floats, how it looks, and what it says. */
+export interface IHighScoreEntryConfig {
+    /** How far in front of the camera the block floats (world units). */
+    cameraDistance: number;
+    /** Shift along the camera's right axis (world units; + is right). */
+    offsetX: number;
+    /** Shift along the camera's up axis (world units; + is up). */
+    offsetY: number;
+    /** Tilt in degrees, as for ITextDisplay. Omit to face the camera squarely. */
+    pitch?: number;
+    /** World units per voxel. */
+    scale: number;
+    brightness: number;
+    glowIntensity: number;
+    castShadow: boolean;
+    /** Voxels from the middle of one line to the middle of the next. */
+    lineHeight: number;
+    /** Extra voxels between the header, the alphabet and the entered handle. */
+    sectionGap: number;
+    header: { lines: readonly string[]; color: number };
+    alphabet: {
+        /** One string per row; each character is a clickable letter. */
+        rows: readonly string[];
+        color: number;
+        /** Colour of the letter under the mouse. */
+        hoverColor: number;
+        /** Voxels from the middle of one letter to the middle of the next along a row. */
+        columnPitch: number;
+        /** Voxels added around each letter's clickable area. */
+        hitPadding: number;
+    };
+    entry: { color: number; length: number };
+    /** Seconds the finished handle stays on screen before the demo starts. */
+    finishPauseSeconds: number;
+}
+
 /**
  * Shared dependencies injected into every screen on enter().
  */

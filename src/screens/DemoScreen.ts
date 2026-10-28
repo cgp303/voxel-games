@@ -8,6 +8,7 @@ import type { VoxelFont } from '../systems/text/VoxelFont';
 import type { PlayScreen } from './PlayScreen';
 import { createWave } from '../systems/stages/WaveFactory';
 import { WAVE_DEMO } from '../systems/stages/levels/waves';
+import { GameEvents } from '../config/types/types';
 
 /**
  * Attract / title mode over the shared PlayField.
@@ -42,15 +43,18 @@ export class DemoScreen implements IScreen {
 
     this.marquee = new DemoMarquee(ctx.font, ctx.scene.scene, ctx.camera.camera, buildSlides(ctx.font), DEMO);
     this.marquee.start();
+    this.ctx.events.emit(GameEvents.astroForcePsy);
     console.log('[DemoScreen] enter — attract intro + terrain; Enter starts Play');
   }
 
   public exit(): void {
+    this.ctx?.events.emit(GameEvents.astroForcePsyEnd);
     this.session?.dispose();
     this.session = null;
     this.marquee?.dispose();
     this.marquee = null;
     this.ctx = null;
+
     console.log('[DemoScreen] exit');
   }
 
