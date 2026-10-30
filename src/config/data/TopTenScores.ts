@@ -19,8 +19,18 @@ export class TopTenScores {
         { rank: 10, score: 5000, name: 'BEG' },
     ];
 
+    /** The score the player just entered; shown highlighted in the table until the next game starts. */
+    static highlight: { name: string; score: number } | null = null;
+
     static getScores(): readonly IHighScoreRow[] {
         return this.scores;
+    }
+
+    /** Index in the table of the highlighted row, or -1 when there is none. */
+    static getHighlightIndex(): number {
+        const { highlight } = this;
+        if (!highlight) return -1;
+        return this.scores.findIndex((row) => row.score === highlight.score && row.name === highlight.name);
     }
 
     /** Downloads the live table. On any failure the cached table is kept (and logged). Never rejects. */
@@ -54,6 +64,7 @@ export class TopTenScores {
         const insertAt = index === -1 ? this.scores.length : index;
         if (insertAt >= HIGH_SCORE_SERVER.tableSize) return null;
         this.scores = ranked([...this.scores.slice(0, insertAt), { rank: 0, score, name }, ...this.scores.slice(insertAt)]);
+        this.highlight = { name, score };
         return insertAt + 1;
     }
 

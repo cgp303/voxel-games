@@ -8,7 +8,7 @@ import { VoxParser } from '../voxel/VoxParser';
 import { disposeObject3D } from '../world/PlayField';
 import { CollisionModelSet } from '../systems/collision/CollisionModel';
 import { parseBossDefinition, toBossSpace } from '../systems/boss/BossDefinition';
-import { BOSS, BOSS_WEAPONS, COLLISION } from '../config/data/constants';
+import { BOSS, BOSS_WEAPONS, COLLISION, QUALITY } from '../config/data/constants';
 import type { TrackLoad } from '../ui/Preloader';
 
 /** Manifest keys whose `preload` flag matches. */
@@ -138,7 +138,7 @@ export class AssetManager {
     const pivot = new THREE.Group();
     pivot.name = `template:${key}`;
     mesh.position.set(-centerX, -centerY, -centerZ);
-    mesh.castShadow = true;
+    mesh.castShadow = QUALITY.entityCastShadow;
     mesh.receiveShadow = true;
     pivot.add(mesh);
 
@@ -170,7 +170,7 @@ export class AssetManager {
     const material = VoxelGeometry.createMaterial();
 
     mesh = new THREE.InstancedMesh(geometry, material, maxCount);
-    mesh.castShadow = true;
+    mesh.castShadow = QUALITY.entityCastShadow;
     mesh.receiveShadow = true;
     mesh.count = 0;
     mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);

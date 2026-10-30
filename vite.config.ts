@@ -13,6 +13,7 @@ export default defineConfig({
         },
     },
     build: {
+        sourcemap: true,
         rollupOptions: {
             input: {
                 main: resolvePath('./index.html'),

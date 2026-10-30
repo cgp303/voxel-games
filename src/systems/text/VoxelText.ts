@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { FX, INVADER_MESH_MATERIAL, TEXT } from '../../config/data/constants';
+import { FX, INVADER_MESH_MATERIAL, QUALITY, TEXT } from '../../config/data/constants';
 import type { IVoxelCloud, IVoxelTextStyle } from '../../config/interfaces/interfaces';
 import type { DebrisSystem } from '../fx/DebrisSystem';
 import { bloomPass } from '../fx/bloomPass';
@@ -45,7 +45,7 @@ export class VoxelText {
         this.letterGap = style.letterGap ?? TEXT.letterGap;
         this.glowIntensity = style.glowIntensity;
         this.brightness = style.brightness;
-        this.castShadow = style.castShadow ?? true;
+        this.castShadow = (style.castShadow ?? true) && QUALITY.textCastShadow;
         this.group.name = 'VoxelText';
         this.group.scale.setScalar(this.scale);
         this.setColor(style.color);

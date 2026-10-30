@@ -637,6 +637,22 @@ export interface IBloomConfig {
     radius: number;
     /** Scale of the bloom render target relative to the internal view size. */
     resolutionScale: number;
+    /** Luminance below which the bloom buffer contributes no glow (0 = everything on the FX layers glows). */
+    threshold: number;
+}
+
+/** Per-device bloom tuning (part of IRenderQuality); copied into FX.bloom when the renderer is created. */
+export interface IBloomQuality {
+    /** Selective bloom + FXAA post-processing (FX.enabled). Off = one plain render per frame. */
+    enabled: boolean;
+    /** Scale of the bloom render target relative to the internal view size; lower is cheaper. */
+    resolution: number;
+    /** Intensity of the glow added to the scene. */
+    strength: number;
+    /** Blur spread; smaller is cheaper and tighter. */
+    radius: number;
+    /** Luminance below which a pixel does not glow (0 = no cut-off). */
+    threshold: number;
 }
 
 /** Optional visual effects. When `enabled` is false, no extra passes or materials are used. */
@@ -647,6 +663,26 @@ export interface IFxSettings {
     /** Emissive multiplier for glowing shot materials. */
     shotEmissiveIntensity: number;
     bloom: IBloomConfig;
+}
+
+/** Render-cost settings that can be traded for speed on weaker (mobile) devices. See MOBILE_QUALITY. */
+export interface IRenderQuality {
+    /** Selective bloom settings; bloom.enabled drives FX.enabled. */
+    bloom: IBloomQuality;
+    /** WebGL multisample antialiasing. */
+    antialias: boolean;
+    /** Shadow-map pass at all. Off = nothing casts or receives shadows. */
+    shadows: boolean;
+    /** Multiplier on SHADOW.mapWidth / mapHeight. */
+    shadowMapScale: number;
+    /** The two scrolling terrain tiles cast shadows (they still receive them). */
+    terrainCastShadow: boolean;
+    /** Invaders, the player, the boss and all weapons/shots cast shadows (weapons also need their own castShadow). */
+    entityCastShadow: boolean;
+    /** Voxel text (HUD, titles, game over, high-score entry) casts shadows (each display also needs its own castShadow). */
+    textCastShadow: boolean;
+    /** Size of the gameplay explosion debris pool (EXPLOSION.maxParticles). */
+    debrisMaxParticles: number;
 }
 
 /** World-space movement limits for the player ship. */
@@ -717,6 +753,40 @@ export interface IParsedVoxModel {
     size: { x: number; y: number; z: number };
     voxels: Array<{ x: number; y: number; z: number; colorIndex: number }>;
     colors: Array<{ r: number; g: number; b: number; a: number }>;
+}
+
+/** How VoxelGeometry turns a VoxelWorld into triangles. */
+export interface IVoxelMeshOptions {
+    /** true: merge same-coloured neighbouring faces into larger rectangles (GreedyMesher). false: one quad per visible voxel face. */
+    greedy: boolean;
+    /** true: drop the downward faces on the bottom layer (y = 0), for models never seen from below. */
+    cullBottomFaces: boolean;
+}
+
+/** Raw mesh arrays from a voxel mesher, ready to wrap in a THREE.BufferGeometry. */
+export interface IVoxelMeshBuffers {
+    positions: Float32Array;
+    colors: Float32Array;
+    /** null when normals are left for computeVertexNormals(). */
+    normals: Float32Array | null;
+    indices: Uint32Array;
+    /** Number of quads (each is 4 vertices, 2 triangles). */
+    quadCount: number;
+    /** Extent of all vertex positions; all zero when there are no quads. */
+    bounds: IVoxelBounds;
+}
+
+/**
+ * Merged faces from GreedyMesher.greedyQuads(). Quad q occupies quads[q * 7 .. q * 7 + 6]:
+ * - direction: face direction 0-5 (+X, -X, +Y, -Y, +Z, -Z)
+ * - slice: voxel coordinate along the direction's axis
+ * - u, v: voxel coordinates of the quad's first cell along the two other axes (see sliceAxes)
+ * - width, height: size of the quad in voxels along u and v
+ * - cell: VoxelWorld cell value (colorIndex + 1) shared by every face in the quad
+ */
+export interface IGreedyQuads {
+    quads: Int32Array;
+    count: number;
 }
 
 // Options for configuring the invader grid layout from PlayField.ts

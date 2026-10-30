@@ -231,4 +231,7 @@ export const CollisionLayer = {
 /** A single layer bit. Masks (several layers OR-ed together) are plain numbers. */
 export type CollisionLayerFlag = (typeof CollisionLayer)[keyof typeof CollisionLayer];
 
+/** Voxel model colours, 0-255 per channel (palette index = voxel colorIndex). */
+export type VoxelColorPalette = ReadonlyArray<{ r: number; g: number; b: number; a: number }>;
+
 

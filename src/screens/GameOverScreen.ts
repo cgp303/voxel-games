@@ -1,6 +1,6 @@
 import type { IGameContext, IScreen } from '../config/interfaces/interfaces';
 import * as THREE from 'three';
-import { EXPLOSION, GAME_OVER, GAME_OVER_ASSEMBLY, GAME_OVER_TEXT } from '../config/data/constants';
+import { EXPLOSION, GAME_OVER, GAME_OVER_ASSEMBLY, GAME_OVER_TEXT, QUALITY } from '../config/data/constants';
 import { DebrisRenderer } from '../systems/fx/DebrisRenderer';
 import { DebrisSystem } from '../systems/fx/DebrisSystem';
 import { VoxelAssembler } from '../systems/text/VoxelAssembler';
@@ -79,7 +79,7 @@ export class GameOverScreen implements IScreen {
     );
     this.assemblyView = new DebrisRenderer(this.assembler.count);
     this.assemblyView.mesh.name = 'VoxelAssembler';
-    this.assemblyView.mesh.castShadow = true;
+    this.assemblyView.mesh.castShadow = QUALITY.textCastShadow;
     this.assemblyView.mesh.receiveShadow = true;
     this.assemblyView.sync(this.assembler);
     ctx.scene.scene.add(this.assemblyView.mesh);

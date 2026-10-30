@@ -21,7 +21,7 @@ import { loadHighScores } from '../config/data/highscores';
 import { TerrainService } from '../world/TerrainService';
 import { PlayField } from '../world/PlayField';
 import { CRYSTAL_TERRAIN_CONFIG } from '../voxel-landscape/TerrainConfig';
-import { VIEW, INSTANCED_ASSETS, BOSS, HUD } from '../config/data/constants';
+import { VIEW, INSTANCED_ASSETS, BOSS, HUD, MOBILE_QUALITY_ACTIVE } from '../config/data/constants';
 import { getUiRoot } from '../core/viewport';
 import { ScoreHud } from '../systems/text/ScoreHud';
 import { AudioManager } from '../audio/AudioManager';
@@ -64,6 +64,8 @@ export class App {
     constructor() {
         this.scene = new GameScene();
         this.renderer = new GameRenderer(this.scene, null);
+
+
         this.camera = new GameCamera(this.renderer);
         this.renderer.setCamera(this.camera);
         this.audioManager = new AudioManager();
@@ -211,7 +213,7 @@ export class App {
       color: #00ff00;
       padding: 10px 15px;
       font-family: monospace;
-      font-size: 12px;
+      font-size: 36px;
       z-index: 100;
       border: 1px solid #00ff00;
       pointer-events: none;
@@ -226,7 +228,7 @@ export class App {
         const now = performance.now();
         if (now >= this.fpsLastMs + 1000) {
             if (this.fpsDisplay) {
-                this.fpsDisplay.textContent = `FPS: ${this.frameCount} | ${this.game.mode}`;
+                this.fpsDisplay.textContent = `FPS: ${this.frameCount} | ${this.game.mode}${MOBILE_QUALITY_ACTIVE ? ' | mobile' : ''}`;
             }
             this.frameCount = 0;
             this.fpsLastMs = now;

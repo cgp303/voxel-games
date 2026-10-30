@@ -71,6 +71,9 @@ export class DemoScreen implements IScreen {
   }
 }
 
+/** Line index of the first score row on the HIGH SCORES slide (after the title and a blank line). */
+const HIGH_SCORE_FIRST_ROW_LINE = 2;
+
 /** The sequence, in order: high scores, invader values, controls, then the game's name (which loops back to the scores). */
 function buildSlides(font: VoxelFont): IMarqueeSlide[] {
   const { highScores, invaderValues, controls, gameTitle } = DEMO_TEXT;
@@ -82,6 +85,10 @@ function buildSlides(font: VoxelFont): IMarqueeSlide[] {
         '',
         ...TopTenScores.getScores().map((row) => leaderRow(font, row.name, String(row.score), highScores.rowWidth)),
       ],
+      lineColors: () => {
+        const index = TopTenScores.getHighlightIndex();
+        return index < 0 ? new Map() : new Map([[index + HIGH_SCORE_FIRST_ROW_LINE, highScores.newScoreColor]]);
+      },
     },
     {
       style: DEMO_TABLE_STYLE,

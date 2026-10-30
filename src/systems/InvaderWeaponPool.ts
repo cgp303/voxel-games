@@ -4,7 +4,7 @@ import { LazerWeapon } from '../entities/LazerWeapon';
 import { MineWeapon } from '../entities/MineWeapon';
 import { MissileWeapon } from '../entities/MissileWeapon';
 import type { AssetManager } from '../assets/AssetManager';
-import { COLLISION, INVADER_WEAPONS, INVADER_WEAPON_TYPES, PLAYER } from '../config/data/constants';
+import { COLLISION, INVADER_WEAPONS, INVADER_WEAPON_TYPES, PLAYER, QUALITY } from '../config/data/constants';
 import type { IBossWeaponConfig, IGameContext, ILazerDespawnBounds } from '../config/interfaces/interfaces';
 import { type CollisionLayerFlag, type PooledWeaponKey, GameEvents } from '../config/types/types';
 import { applyShotGlow } from './fx/ShotGlow';
@@ -63,7 +63,7 @@ export class InvaderWeaponPool {
                 const mesh = ctx.assets.getOrCreateInstancedMesh(key, config.maxCount);
                 if (config.kind === 'lazer' && config.glow) applyShotGlow(mesh);
                 // Meshes are cached across sessions, so apply the weapon's settings every time.
-                mesh.castShadow = config.castShadow;
+                mesh.castShadow = config.castShadow && QUALITY.entityCastShadow;
                 mesh.count = config.maxCount;
                 return mesh;
             });
@@ -97,7 +97,7 @@ export class InvaderWeaponPool {
 
         const mesh = assets.getOrCreateInstancedMesh(assetKey, config.maxCount);
         if (config.glow) applyShotGlow(mesh);
-        mesh.castShadow = config.castShadow;
+        mesh.castShadow = config.castShadow && QUALITY.entityCastShadow;
         mesh.count = config.maxCount;
 
         const despawnZ = this.playerBackEdgeZ - config.despawnMarginPastPlayer;

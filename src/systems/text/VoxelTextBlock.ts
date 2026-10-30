@@ -33,6 +33,11 @@ export class VoxelTextBlock {
         for (const line of this.lines) line.setColor(color);
     }
 
+    /** Recolours one line (0 = top); out-of-range indices are ignored. */
+    public setLineColor(index: number, color: THREE.ColorRepresentation): void {
+        this.lines[index]?.setColor(color);
+    }
+
     public dispose(): void {
         for (const line of this.lines) line.dispose();
         this.lines.length = 0;

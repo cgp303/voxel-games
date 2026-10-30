@@ -1,6 +1,7 @@
 import type { InstancedMesh, Vector3 } from 'three';
 import { Projectile } from '../entities/Projectile';
 import { applyShotGlow } from './fx/ShotGlow';
+import { QUALITY } from '../config/data/constants';
 import type { IWeaponConfig } from '../config/interfaces/interfaces';
 
 /**
@@ -17,7 +18,7 @@ export class ProjectilePool {
 
         applyShotGlow(mesh);
         // The mesh is cached and defaults to casting shadows, so apply the weapon's setting every time.
-        mesh.castShadow = config.castShadow;
+        mesh.castShadow = config.castShadow && QUALITY.entityCastShadow;
 
         mesh.count = config.maxCount;
         for (let i = config.maxCount - 1; i >= 0; i--) {

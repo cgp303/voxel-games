@@ -1,6 +1,6 @@
 ﻿import * as THREE from 'three';
 import type { GameCamera } from '../scene/Camera';
-import { CAMERA, GAME, TERRAIN } from '../config/data/constants';
+import { CAMERA, DEBUG, GAME, TERRAIN } from '../config/data/constants';
 import type {
     IGradient2,
     IGroundSampler,
@@ -42,6 +42,8 @@ export class PlayField implements IGroundSampler {
 
         this.terrainRoot = new THREE.Group();
         this.terrainRoot.name = 'TerrainRoot';
+
+        this.terrainRoot.visible = !DEBUG.disableTerrain;
         this.root.add(this.terrainRoot);
 
         this.invaderRoot = new THREE.Group();
