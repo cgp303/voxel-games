@@ -85,6 +85,32 @@ export class AudioManager {
         sound.fade(from, 0, durationMs);
     }
 
+    fadeThenPlay(id: string, nextId: string, durationMs = 1000): void {
+        const sound = this.sounds.get(id);
+        const nextSound = this.sounds.get(nextId);
+
+        if (!sound || !nextSound) return;
+
+        // 1. Capture the exact original volume
+        const originalVolume = sound.volume();
+        const targetLowerVolume = originalVolume * 0.25;
+
+        // 2. Fade out the first sound to half volume
+        sound.fade(originalVolume, targetLowerVolume, durationMs);
+
+        // 3. Wait for the fade out to finish
+        sound.once('fade', () => {
+            nextSound.play();
+
+            // 4. Wait for the next sound to finish playing
+            nextSound.once('end', () => {
+                // 5. Fade the first sound back up to its original volume
+                sound.fade(targetLowerVolume, originalVolume, durationMs);
+            });
+        });
+    }
+
+
     /** Stops the sound immediately. */
     stop(id: string): void {
         const sound = this.sounds.get(id);

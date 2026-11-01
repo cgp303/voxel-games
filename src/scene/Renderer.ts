@@ -6,8 +6,9 @@ import { GameScene } from './Scene';
 import { GameCamera } from './Camera';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { FXAAShader } from 'three/examples/jsm/shaders/FXAAShader.js';
-import { FX, TEXT, VIEW } from '../config/data/constants';
+import { FX, QUALITY, TEXT, VIEW } from '../config/data/constants';
 import { bloomPass } from '../systems/fx/bloomPass';
+import type { FitRect } from '../config/types/types';
 import {
     applyFitRect,
     applyUiScale,
@@ -60,12 +61,20 @@ export class GameRenderer {
         this.gameFrame = getGameFrame();
         this.uiRoot = getUiRoot();
 
-        this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+        // Single source of truth for bloom tuning is QUALITY.bloom (desktop or mobile).
+        FX.bloom.strength = QUALITY.bloom.strength;
+        FX.bloom.radius = QUALITY.bloom.radius;
+        FX.bloom.resolutionScale = QUALITY.bloom.resolution;
+        FX.bloom.threshold = QUALITY.bloom.threshold;
+
+        this.renderer = new THREE.WebGLRenderer({ antialias: QUALITY.antialias, alpha: false });
+        // for debugging:
+        (window as any).renderer = this.renderer;
         // Fixed internal resolution; CSS scales the canvas to the fitted frame.
         this.renderer.setPixelRatio(1);
         this.renderer.setSize(VIEW.internalWidth, VIEW.internalHeight, false);
         this.renderer.outputColorSpace = THREE.SRGBColorSpace;
-        this.renderer.shadowMap.enabled = true;
+        this.renderer.shadowMap.enabled = QUALITY.shadows;
         this.renderer.shadowMap.type = THREE.PCFShadowMap;
         this.renderer.toneMapping = THREE.NoToneMapping;
         this.renderer.toneMappingExposure = 1.0;
@@ -76,8 +85,6 @@ export class GameRenderer {
         if (FX.enabled) {
             this.composer = new EffectComposer(this.renderer);
             this.composer.addPass(new RenderPass(this.scene.scene, this.camera?.camera || new THREE.Camera()));
-            this.buildBloomPasses();
-            this.fxaaPass = new ShaderPass(FXAAShader);
             this.fxaaPass = new ShaderPass(FXAAShader);
             this.fxaaPass.uniforms['resolution'].value.x = 1 / VIEW.internalWidth;
             this.fxaaPass.uniforms['resolution'].value.y = 1 / VIEW.internalHeight;
@@ -106,14 +113,12 @@ export class GameRenderer {
     }
 
     /**
-     * Contain-fit #game-frame in the window and scale #ui-root to design res.
+     * Places #game-frame at `fit` (by default a contain-fit in the window) and scales #ui-root to design res.
      * Does not change the WebGL buffer size (stays VIEW.internal*).
      */
     public applyFrameToWindow(
-        windowW: number = window.innerWidth,
-        windowH: number = window.innerHeight,
+        fit: FitRect = fitContain(window.innerWidth, window.innerHeight, viewAspect()),
     ): void {
-        const fit = fitContain(windowW, windowH, viewAspect());
         applyFitRect(this.gameFrame, fit);
         applyUiScale(this.uiRoot, fit);
         document.body.style.background = VIEW.bezelColor;
@@ -128,7 +133,7 @@ export class GameRenderer {
         if (!this.camera) return;
         this.camera.update();
         if (this.composer) {
-            if (this.bloomComposer && this.bloomMixPass) {
+            if (QUALITY.bloom.enabled && this.bloomComposer && this.bloomMixPass) {
                 this.renderBloomBuffer(this.bloomComposer, this.bloomMixPass);
             }
             this.composer.render();
@@ -139,8 +144,15 @@ export class GameRenderer {
 
     /** Builds the bloom composer and the mix pass that adds its result into the main composer. */
     private buildBloomPasses(): void {
-        const width = Math.round(VIEW.internalWidth * FX.bloom.resolutionScale);
-        const height = Math.round(VIEW.internalHeight * FX.bloom.resolutionScale);
+        if (!QUALITY.bloom.enabled) {
+            this.bloomComposer = null;
+            this.bloomRenderPass = null;
+            this.bloomMixPass = null;
+            return;
+        }
+
+        const width = Math.max(1, Math.round(VIEW.internalWidth * FX.bloom.resolutionScale));
+        const height = Math.max(1, Math.round(VIEW.internalHeight * FX.bloom.resolutionScale));
 
         this.bloomComposer = new EffectComposer(this.renderer);
         this.bloomComposer.renderToScreen = false;
@@ -155,7 +167,7 @@ export class GameRenderer {
                 new THREE.Vector2(width, height),
                 FX.bloom.strength,
                 FX.bloom.radius,
-                0,
+                FX.bloom.threshold,
             ),
         );
 

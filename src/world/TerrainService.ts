@@ -5,6 +5,7 @@ import { VoxParser } from '../voxel/VoxParser';
 import { VoxelGeometry } from '../voxel/VoxelGeometry';
 import { HeightField } from './HeightField';
 import type { ITerrainBuildResult, IScrollingTerrainBuildResult } from '../config/interfaces/interfaces';
+import { QUALITY, TERRAIN_MESH } from '../config/data/constants';
 
 /**
  * Builds terrain meshes from config via the voxel pipeline.
@@ -55,10 +56,15 @@ export class TerrainService {
     const world = new VoxelWorld(terrain.size);
     VoxParser.populateWorld(world, terrain);
 
-    const mesh = VoxelGeometry.createMesh(world, terrain.colors);
+    const meshStart = performance.now();
+    const mesh = VoxelGeometry.createMesh(world, terrain.colors, false, TERRAIN_MESH);
+    const quadCount = (mesh.geometry.index?.count ?? 0) / 6;
+    console.log(
+      `[TerrainService] ${name}: ${quadCount} quads (greedy: ${TERRAIN_MESH.greedy}) meshed in ${(performance.now() - meshStart).toFixed(1)} ms`,
+    );
     mesh.name = name;
     mesh.receiveShadow = true;
-    mesh.castShadow = true;
+    mesh.castShadow = QUALITY.terrainCastShadow;
 
     const width = terrain.size.x;
     const height = terrain.size.y;

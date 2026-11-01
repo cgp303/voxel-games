@@ -9,6 +9,7 @@ import type { PlayScreen } from './PlayScreen';
 import { createWave } from '../systems/stages/WaveFactory';
 import { WAVE_DEMO } from '../systems/stages/levels/waves';
 import { GameEvents } from '../config/types/types';
+import { TAP_KEY } from '../core/Input';
 
 /**
  * Attract / title mode over the shared PlayField.
@@ -65,11 +66,14 @@ export class DemoScreen implements IScreen {
     this.session?.update(dt);
     this.marquee?.update(dt);
 
-    if (ctx.input.wasPressed('Enter') && this.playScreen) {
+    if ((ctx.input.wasPressed('Enter') || ctx.input.wasPressed(TAP_KEY)) && this.playScreen) {
       void ctx.screens.set(this.playScreen);
     }
   }
 }
+
+/** Line index of the first score row on the HIGH SCORES slide (after the title and a blank line). */
+const HIGH_SCORE_FIRST_ROW_LINE = 2;
 
 /** The sequence, in order: high scores, invader values, controls, then the game's name (which loops back to the scores). */
 function buildSlides(font: VoxelFont): IMarqueeSlide[] {
@@ -82,6 +86,10 @@ function buildSlides(font: VoxelFont): IMarqueeSlide[] {
         '',
         ...TopTenScores.getScores().map((row) => leaderRow(font, row.name, String(row.score), highScores.rowWidth)),
       ],
+      lineColors: () => {
+        const index = TopTenScores.getHighlightIndex();
+        return index < 0 ? new Map() : new Map([[index + HIGH_SCORE_FIRST_ROW_LINE, highScores.newScoreColor]]);
+      },
     },
     {
       style: DEMO_TABLE_STYLE,

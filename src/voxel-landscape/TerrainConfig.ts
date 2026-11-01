@@ -9,11 +9,11 @@ export const DEFAULT_TERRAIN_CONFIG: ITerrainConfig = {
     maxHeight: 8,
     tileSize: 512, // same as the direction you want terrain to scroll in. here 'depth'.
 
-    noiseScale: 4, // ~50 unit wavelength terrain features
-    noiseOctaves: 3,
+    noiseScale: 2, // ~50 unit wavelength terrain features
+    noiseOctaves: 1,
     noisePersistence: 0.5,
-    noiseLacunarity: 1.5,
-    noiseExponent: 1.2, // Slightly peaked for more variation at mid-heights
+    noiseLacunarity: 0.5,
+    noiseExponent: 0.1, // Slightly peaked for more variation at mid-heights
 
     // colorBands: [
     //     { height: 0.00, color: { r: 20, g: 25, b: 35 } },    // Abyssal blue-black
@@ -87,7 +87,7 @@ export const DEFAULT_TERRAIN_CONFIG: ITerrainConfig = {
 
 export const CRYSTAL_TERRAIN_CONFIG: ITerrainConfig = {
     ...DEFAULT_TERRAIN_CONFIG,
-    noiseScale: 5,
+    noiseScale: 2.5,
     noiseOctaves: 7,
     noiseExponent: 0.3,
     noisePersistence: 0.25,

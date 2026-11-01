@@ -45,12 +45,17 @@ export class AudioEventTrigger {
             case 'astroForcePsyEnd':
                 this.audioManager.fade('astroForcePsy', 200);
                 break;
+            case 'nextWave':
+                // this.audioManager.fade('astroInGame', 800);
+                this.audioManager.play(key);
+                //this.audioManager.fadeThenPlay('astroInGame', key, 50);
+                break;
             case 'gameStart':
                 this.audioManager.play(key);
                 // this.audioManager.playThen(key, 'astroInGame');
                 break;
             case 'gameOverAssembly':
-                // this.audioManager.fade('astroInGame', 800);
+                this.audioManager.fade('astroInGame', 800);
                 this.audioManager.play(key);
                 break;
             default:

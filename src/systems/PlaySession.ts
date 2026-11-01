@@ -593,7 +593,8 @@ export class PlaySession {
         this.invaders?.remove(boss);
         if (this.boss === boss) this.boss = null;
         this.ctx?.events.emit(GameEvents.boss1LazerOff);
-        this.ctx?.events.emit(GameEvents.boss1Explosion);
+        // if the game is in play mode, emit the boss explosion event but dont in game over mode
+        this.ctx?.game.mode == 'play' ? this.ctx?.events.emit(GameEvents.boss1Explosion) : undefined;
     }
 
     /** Spawns the boss's queued weapons and its fire drips for this frame. */
@@ -720,7 +721,7 @@ export class PlaySession {
             (invader.position.z - invader.previousPosition.z) * inverse,
         );
         this.explode('invader', invader.assetKey, invader.position, invader.orientation, this.debrisVelocity);
-        this.ctx?.events.emit(GameEvents.invaderKilled);
+        this.ctx?.game.mode == 'play' ? this.ctx?.events.emit(GameEvents.invaderKilled) : undefined;
     }
 
     /** Returns how long (s) the player's explosion takes to finish. */
@@ -826,13 +827,14 @@ export class PlaySession {
             player.respawn();
         }
 
-        const axisX = anyDown(PLAYER.keys.right) - anyDown(PLAYER.keys.left);
-        const axisZ = anyDown(PLAYER.keys.forward) - anyDown(PLAYER.keys.back);
+        const clampAxis = (v: number): number => Math.max(-1, Math.min(1, v));
+        const axisX = clampAxis(anyDown(PLAYER.keys.right) - anyDown(PLAYER.keys.left) + input.analogX);
+        const axisZ = clampAxis(anyDown(PLAYER.keys.forward) - anyDown(PLAYER.keys.back) + input.analogZ);
         player.setInput(axisX, axisZ);
         player.update(dt);
 
         this.playerWeapon?.update(dt);
-        if (anyDown(PLAYER.keys.fire) && player.canFire) {
+        if ((anyDown(PLAYER.keys.fire) || input.autoFire) && player.canFire) {
             this.playerWeapon?.tryFire(player.position);
         }
     }

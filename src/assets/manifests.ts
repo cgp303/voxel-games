@@ -46,9 +46,9 @@ export interface IAudioManifestEntry extends IManifestEntry {
 
 export const AUDIO_PATHS = {
     // mp3
-    playerFiresLazer: { src: 'assets/audio/player-lazer.mp3', volume: 0.2, loop: false, preload: true },
+    playerFiresLazer: { src: 'assets/audio/player-lazer.mp3', volume: 0.1, loop: false, preload: true },
     playerDied: { src: 'assets/audio/player-explosion.mp3', volume: 1, loop: false, preload: true },
-    gameStart: { src: 'assets/audio/game-start-jingle.mp3', volume: 1, loop: false, preload: true },
+    gameStart: { src: 'assets/audio/game-start-jingle.mp3', volume: 0.7, loop: false, preload: true },
     gameOver: { src: 'assets/audio/gameover-a.mp3', volume: 1, loop: false, preload: true },
     gameOverAssembly: { src: 'assets/audio/gameover-assembly.mp3', volume: 0.6, loop: false, preload: true },
     gameOverExplosion: { src: 'assets/audio/gameover-explosion.mp3', volume: 1, loop: false, preload: true },
@@ -63,14 +63,11 @@ export const AUDIO_PATHS = {
     boss1PartDestroyed: { src: 'assets/audio/boss1-part-explosion.mp3', volume: 1, loop: false, preload: true },
     boss1PartFallsOff: { src: 'assets/audio/boss1-part-drops-off.mp3', volume: 1, loop: false, preload: true },
     boss1Explosion: { src: 'assets/audio/boss1-explosion.mp3', volume: 1, loop: false, preload: true },
-
-    // wav (wav files loop better)
-    mineActivated: { src: 'assets/audio/mine-loop1.ogg', volume: 0.1, loop: true, preload: true },
-    boss1LazerOn: { src: 'assets/audio/boss1-lazers.wav', volume: 1, loop: true, preload: true },
-
     // ogg
-    astroForcePsy: { src: 'assets/audio/astro-force-psy.ogg', volume: 0.5, loop: true, preload: true },
-    astroInGame: { src: 'assets/audio/astro-force-game-track.ogg', volume: 1, loop: true, preload: true },
+    mineActivated: { src: 'assets/audio/mine-loop1.ogg', volume: 0.03, loop: true, preload: true },
+    boss1LazerOn: { src: 'assets/audio/boss1-lazers.ogg', volume: 1, loop: true, preload: true },
+    astroForcePsy: { src: 'assets/audio/astro-force-psy.ogg', volume: 0.7, loop: true, preload: true },
+    astroInGame: { src: 'assets/audio/astro-force-game-track.ogg', volume: 0.4, loop: true, preload: true },
 
 } as const satisfies Record<string, IAudioManifestEntry>;
 

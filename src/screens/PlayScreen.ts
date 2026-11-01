@@ -4,6 +4,7 @@ import type { DemoScreen } from './DemoScreen';
 import type { GameOverScreen } from './GameOverScreen';
 import { createBasicLevels } from '../systems/stages/levels-basic';
 import { BOSS_WAVE_TEXT, DEBUG, NEXT_LEVEL_FLYBY, NEXT_LEVEL_TEXT } from '../config/data/constants';
+import { TopTenScores } from '../config/data/TopTenScores';
 import { TextFlyby } from '../systems/text/TextFlyby';
 import { GameEvents } from '../config/types/types';
 /**
@@ -30,6 +31,8 @@ export class PlayScreen implements IScreen {
     this.ctx = ctx;
     ctx.game.mode = 'play';
     ctx.game.resetRun();
+    ctx.input.setPlayControls(true);
+    TopTenScores.highlight = null;
 
     ctx.playField.attachTo(ctx.scene.scene);
     // Lock camera for play; free-look stays on Demo
@@ -53,6 +56,7 @@ export class PlayScreen implements IScreen {
     this.session = null;
     this.clearFlybys();
     if (this.ctx) {
+      this.ctx.input.setPlayControls(false);
       this.ctx.camera.controls.enabled = true;
     }
     this.ctx = null;

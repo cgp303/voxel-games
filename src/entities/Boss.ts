@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { BOSS, BOSS_WEAPONS, COLLISION, INVADER_MESH_MATERIAL, PLAYER } from '../config/data/constants';
+import { BOSS, BOSS_WEAPONS, COLLISION, INVADER_MESH_MATERIAL, PLAYER, QUALITY } from '../config/data/constants';
 import type {
     IBossDefinition,
     IBossMountDef,
@@ -105,7 +105,7 @@ export class Boss extends Entity implements ICollisionTarget {
 
         this.mesh = new THREE.Mesh(new THREE.BufferGeometry(), INVADER_MESH_MATERIAL);
         this.mesh.name = `Boss:${definition.id}`;
-        this.mesh.castShadow = true;
+        this.mesh.castShadow = QUALITY.entityCastShadow;
         this.mesh.receiveShadow = true;
         // The mesh is large and changes shape; it is always on screen when it matters.
         this.mesh.frustumCulled = false;
@@ -322,9 +322,11 @@ export class Boss extends Entity implements ICollisionTarget {
 
         if (weapon.def.id === 'side' || weapon.def.id === 'main' && !this.mainLazerActive) {
             this.mainLazerActive = true;
-            this.ctx?.events.emit(GameEvents.boss1LazerOn);
+            // Only emit the audio event if the game is in play mode
+            this.ctx.game.mode == 'play' ? this.ctx?.events.emit(GameEvents.boss1LazerOn) : undefined;
         } else if (weapon.def.id === 'bomb') {
-            this.ctx?.events.emit(GameEvents.boss1Bomb);
+            // Only emit the audio event if the game is in play mode
+            this.ctx.game.mode == 'play' ? this.ctx?.events.emit(GameEvents.boss1Bomb) : undefined;
         }
     }
 

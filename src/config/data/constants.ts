@@ -1,8 +1,85 @@
 import * as THREE from 'three';
 import { Vector3 } from 'three';
 import type { InvaderTypeId, InvaderWeaponType, WeaponType, BossWeaponType, GameEvents } from '../types/types';
-import type { IFxSettings, IInvaderTypeDefinition, IInvaderWeaponConfig, IWeaponConfig, ICollisionSystemConfig, IDebrisConfig, ISparkConfig, ITextDisplay, IMarqueeStyle, IHudConfig, IHighScoreEntryConfig, INextLevelFlyby, IVoxelAssemblyConfig, IBossSettings, IBossPathDef, IBossWeaponConfig } from '../interfaces/interfaces';
+import type { IFxSettings, IRenderQuality, IMobileControlsConfig, IInvaderTypeDefinition, IInvaderWeaponConfig, IWeaponConfig, ICollisionSystemConfig, IDebrisConfig, ISparkConfig, ITextDisplay, IMarqueeStyle, IHudConfig, IHighScoreEntryConfig, INextLevelFlyby, IVoxelAssemblyConfig, IBossSettings, IBossPathDef, IBossWeaponConfig, IVoxelMeshOptions } from '../interfaces/interfaces';
 import { CollisionLayer } from '../types/types';
+
+/** Full-quality render settings, used when MOBILE_QUALITY is not active. */
+const DESKTOP_QUALITY: IRenderQuality = {
+    bloom: {
+        enabled: true,
+        resolution: 0.5,
+        strength: 1,
+        radius: 0.25,
+        threshold: 0,
+    },
+    antialias: true,
+    shadows: true,
+    shadowMapScale: 1,
+    terrainCastShadow: true,
+    entityCastShadow: true,
+    textCastShadow: true,
+    debrisMaxParticles: 4000,
+};
+
+/**
+ * Cheaper render settings for phones. Each factor can be tuned independently; set one back to its
+ * DESKTOP_QUALITY value to re-enable it on mobile.
+ * mode: 'auto' applies these on touch-first devices (coarse pointer), 'on' always (test on desktop), 'off' never.
+ */
+export const MOBILE_QUALITY: IRenderQuality & { mode: 'auto' | 'on' | 'off' } = {
+    mode: 'auto',
+    bloom: {
+        enabled: true,
+        resolution: 0.125,
+        strength: 0.7,
+        radius: 0.1,
+        threshold: 0.7,
+    },
+    antialias: true,
+    shadows: false,
+    shadowMapScale: 0.5,
+    terrainCastShadow: false,
+    entityCastShadow: false,
+    textCastShadow: false,
+    debrisMaxParticles: 1500,
+
+};
+
+/** True when MOBILE_QUALITY is in effect for this session. */
+export const MOBILE_QUALITY_ACTIVE: boolean =
+    MOBILE_QUALITY.mode === 'on' ||
+    (MOBILE_QUALITY.mode === 'auto' && typeof window !== 'undefined' && !!window.matchMedia?.('(pointer: coarse)').matches);
+
+/** The render settings in effect: read these, not MOBILE_QUALITY / DESKTOP_QUALITY. */
+export const QUALITY: IRenderQuality = MOBILE_QUALITY_ACTIVE ? MOBILE_QUALITY : DESKTOP_QUALITY;
+
+/** On-screen joystick + auto-fire for touch devices (the mobileControlHud). */
+export const MOBILE_CONTROLS: IMobileControlsConfig = {
+    mode: 'on',
+    autoFire: true,
+    tapToStart: true,
+    landscapeSide: 'right',
+    portraitAlign: 'center',
+    overlayCorner: 'right',
+    sizeFraction: 0.35,
+    minDiameterPx: 120,
+    maxDiameterPx: 260,
+    marginPx: 16,
+    maxGameShrink: 0.1,
+    response: 'digital',
+    diagonalSectorDeg: 45,
+    deadZone: 0.35,
+    responseExponent: 0.8,
+    knobFraction: 0.3,
+    overlayOpacity: 0.55,
+};
+
+/** True when the mobileControlHud is in use for this session. */
+export const MOBILE_CONTROLS_ACTIVE: boolean =
+    MOBILE_CONTROLS.mode === 'on' ||
+    (MOBILE_CONTROLS.mode === 'auto' && typeof window !== 'undefined' && !!window.matchMedia?.('(pointer: coarse)').matches);
+
 /** Shared gameplay / layout constants (expand in later phases) */
 export const GAME = {
     defaultLives: 3,
@@ -217,13 +294,15 @@ export const COLLISION = {
 
 /** Visual effects. Glow uses a selective bloom pass over meshes on `layer`. */
 export const FX: IFxSettings = {
-    enabled: true,
+    enabled: QUALITY.bloom.enabled,
     layer: 1,
     shotEmissiveIntensity: 0.5,
+    /** Copied from QUALITY.bloom when GameRenderer is created (these are only the starting values). */
     bloom: {
-        strength: 1,
-        radius: 0.25,
-        resolutionScale: 0.5,
+        strength: QUALITY.bloom.strength,
+        radius: QUALITY.bloom.radius,
+        resolutionScale: QUALITY.bloom.resolution,
+        threshold: QUALITY.bloom.threshold,
     },
 };
 
@@ -232,8 +311,8 @@ export const FX: IFxSettings = {
  * is chosen for about 3 texels per world unit on both axes (see Scene.createLights).
  */
 export const SHADOW = {
-    mapWidth: 1024,
-    mapHeight: 2048,
+    mapWidth: Math.round(1024 * QUALITY.shadowMapScale),
+    mapHeight: Math.round(2048 * QUALITY.shadowMapScale),
     /** Half-extent of the frustum on the light's vertical axis (about 0.9 x world Z). */
     halfExtentZ: 300,
     /** World Z the shadow frustum is centred on (the play area runs from the camera at about -170 to z 320). */
@@ -248,7 +327,7 @@ export const SHADOW = {
  * under gravity and bounces off the (scrolling) terrain. See systems/fx.
  */
 export const EXPLOSION: IDebrisConfig = {
-    maxParticles: 4000,
+    maxParticles: QUALITY.debrisMaxParticles,
     gravity: 80,
     airDrag: 0.25,
     restitution: 0.45,
@@ -379,6 +458,10 @@ export const BOSS_PATHS: Record<string, IBossPathDef> = {
             { p0: new Vector3(50, 20, -70), p1: new Vector3(10, 20, 20), p2: new Vector3(-10, 20, 20), p3: new Vector3(-50, 20, -50) },
             { p0: new Vector3(-50, 20, -50), p1: new Vector3(-10, 20, 20), p2: new Vector3(10, 20, 20), p3: new Vector3(50, 20, -50) },
             { p0: new Vector3(50, 20, -50), p1: new Vector3(10, 20, 20), p2: new Vector3(-10, 20, 20), p3: new Vector3(-50, 20, -50) },
+            { p0: new Vector3(-50, 20, -50), p1: new Vector3(0, 20, -70), p2: new Vector3(20, 20, -100), p3: new Vector3(30, 20, -130) },
+            { p0: new Vector3(30, 20, -130), p1: new Vector3(0, 20, -70), p2: new Vector3(-20, 20, -100), p3: new Vector3(-30, 20, -130) },
+            { p0: new Vector3(-30, 20, -130), p1: new Vector3(-70, 20, -30), p2: new Vector3(-60, 20, 0), p3: new Vector3(-50, 20, -50) },
+
             { p0: new Vector3(-50, 20, -50), p1: new Vector3(30, 20, -10), p2: new Vector3(-30, 20, 10), p3: new Vector3(0, 20, 70) },
         ],
     },
@@ -446,6 +529,9 @@ export const DEBUG = {
     /** KeyboardEvent.key values that trigger the wave skip (both cases so Shift/Caps Lock still work). */
     skipWaveKeys: ['l', 'L'],
 
+    /** When true, the terrain is not rendered. */
+    disableTerrain: false,
+
 } as const;
 
 /** Voxel mesh generation options (see VoxelGeometry). */
@@ -456,6 +542,18 @@ export const VOXEL_MESH = {
      */
     flatFaceNormals: true,
 } as const;
+
+/** Mesh options used when a caller passes none: one quad per visible face, nothing culled. */
+export const DEFAULT_VOXEL_MESH_OPTIONS: IVoxelMeshOptions = {
+    greedy: false,
+    cullBottomFaces: false,
+};
+
+/** Terrain mesh options. The camera never sees the terrain from below, so its bottom faces are dropped. */
+export const TERRAIN_MESH: IVoxelMeshOptions = {
+    greedy: true,
+    cullBottomFaces: true,
+};
 
 export const INVADER_MESH_MATERIAL = new THREE.MeshStandardMaterial({
     side: THREE.DoubleSide,
@@ -674,6 +772,8 @@ export const DEMO_TEXT = {
         title: 'HIGH SCORES',
         /** Width in voxels of a row: the name, a run of dots, then the score. */
         rowWidth: 130,
+        /** sRGB colour of the row the player just entered, until the next game starts. */
+        newScoreColor: 0x00ff00,
     },
     invaderValues: {
         title: 'INVADER VALUES',
@@ -734,15 +834,16 @@ export const HIGH_SCORE_SERVER = {
  */
 export const HIGH_SCORE_ENTRY: IHighScoreEntryConfig = {
     /** Close to the camera (and small) so the tilted block sits high above the terrain while looking the same size. */
-    cameraDistance: 100,
+    cameraDistance: 70,
     offsetX: 0,
     /** High enough that the lowest line (the entered handle) stays clear of the terrain, low enough to clear the HUD. */
-    offsetY: 35,
+    offsetY: 5,
     pitch: HUD.pitch,
     scale: 0.67,
     brightness: 0.8,
     glowIntensity: 0.5,
     castShadow: true,
+
     lineHeight: 14,
     sectionGap: 8,
     header: {

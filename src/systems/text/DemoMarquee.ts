@@ -8,6 +8,8 @@ import { placeTextInFrontOfCamera } from './placeText';
 export interface IMarqueeSlide {
     style: IMarqueeStyle;
     lines: () => readonly string[];
+    /** Colours for individual lines (by line index), read each time the display starts; other lines keep the style's colour. */
+    lineColors?: () => ReadonlyMap<number, THREE.ColorRepresentation>;
 }
 
 export interface IMarqueeSequenceConfig {
@@ -119,8 +121,9 @@ export class DemoMarquee {
     }
 
     private spawn(index: number): void {
-        const { style, lines } = this.slides[index];
+        const { style, lines, lineColors } = this.slides[index];
         const block = new VoxelTextBlock(this.font, style, lines(), style.lineHeight);
+        lineColors?.().forEach((color, line) => block.setLineColor(line, color));
         placeTextInFrontOfCamera(block, this.camera, style);
         this.scene.add(block.group);
 
