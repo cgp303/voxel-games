@@ -8,6 +8,7 @@ import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { FXAAShader } from 'three/examples/jsm/shaders/FXAAShader.js';
 import { FX, QUALITY, TEXT, VIEW } from '../config/data/constants';
 import { bloomPass } from '../systems/fx/bloomPass';
+import type { FitRect } from '../config/types/types';
 import {
     applyFitRect,
     applyUiScale,
@@ -112,14 +113,12 @@ export class GameRenderer {
     }
 
     /**
-     * Contain-fit #game-frame in the window and scale #ui-root to design res.
+     * Places #game-frame at `fit` (by default a contain-fit in the window) and scales #ui-root to design res.
      * Does not change the WebGL buffer size (stays VIEW.internal*).
      */
     public applyFrameToWindow(
-        windowW: number = window.innerWidth,
-        windowH: number = window.innerHeight,
+        fit: FitRect = fitContain(window.innerWidth, window.innerHeight, viewAspect()),
     ): void {
-        const fit = fitContain(windowW, windowH, viewAspect());
         applyFitRect(this.gameFrame, fit);
         applyUiScale(this.uiRoot, fit);
         document.body.style.background = VIEW.bezelColor;

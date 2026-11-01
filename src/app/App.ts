@@ -21,8 +21,9 @@ import { loadHighScores } from '../config/data/highscores';
 import { TerrainService } from '../world/TerrainService';
 import { PlayField } from '../world/PlayField';
 import { CRYSTAL_TERRAIN_CONFIG } from '../voxel-landscape/TerrainConfig';
-import { VIEW, INSTANCED_ASSETS, BOSS, HUD, MOBILE_QUALITY_ACTIVE } from '../config/data/constants';
-import { getUiRoot } from '../core/viewport';
+import { VIEW, INSTANCED_ASSETS, BOSS, HUD, MOBILE_QUALITY_ACTIVE, MOBILE_CONTROLS, MOBILE_CONTROLS_ACTIVE } from '../config/data/constants';
+import { computeMobileLayout, getUiRoot } from '../core/viewport';
+import { MobileControlHud } from '../ui/MobileControlHud';
 import { ScoreHud } from '../systems/text/ScoreHud';
 import { AudioManager } from '../audio/AudioManager';
 import { Preloader } from '../ui/Preloader';
@@ -55,6 +56,7 @@ export class App {
 
     private fpsDisplay: HTMLDivElement | null = null;
     private scoreHud: ScoreHud | null = null;
+    private mobileControlHud: MobileControlHud | null = null;
     private frameCount = 0;
     private fpsLastMs = performance.now();
     private worldReady = false;
@@ -95,9 +97,15 @@ export class App {
         this.game.highScores = loadHighScores();
         this.createFpsDisplay();
 
+        if (MOBILE_CONTROLS_ACTIVE) {
+            this.mobileControlHud = new MobileControlHud(this.input, MOBILE_CONTROLS);
+            this.input.setAutoFireEnabled(MOBILE_CONTROLS.autoFire);
+        }
+
         // Initial frame fit (Renderer also fits in ctor; re-assert after FPS mount)
         this.onResize();
         window.addEventListener('resize', () => this.onResize());
+        window.addEventListener('orientationchange', () => this.onResize());
     }
 
     public async start(): Promise<void> {
@@ -105,12 +113,14 @@ export class App {
         void TopTenScores.fetchFromServer();
 
         this.input.start();
+        this.input.setTapListening(MOBILE_CONTROLS_ACTIVE && MOBILE_CONTROLS.tapToStart);
 
         // Engine owns the only animation loop (do not call renderer.startAnimation)
         this.engine.setTick((time) => {
             this.playField.updateScroll(time.delta);
             this.screens.update(time.delta);
             this.scoreHud?.update();
+            this.mobileControlHud?.update();
             this.renderer.render();
             this.input.endFrame();
             this.updateFps();
@@ -138,6 +148,8 @@ export class App {
         this.audioEventTrigger = null;
         this.scoreHud?.dispose();
         this.scoreHud = null;
+        this.mobileControlHud?.dispose();
+        this.mobileControlHud = null;
         this.screens.getActive()?.exit();
     }
 
@@ -197,7 +209,13 @@ export class App {
     }
 
     private onResize(): void {
-        this.renderer.applyFrameToWindow();
+        if (this.mobileControlHud) {
+            const layout = computeMobileLayout(window.innerWidth, window.innerHeight, MOBILE_CONTROLS);
+            this.renderer.applyFrameToWindow(layout.game);
+            this.mobileControlHud.layout(layout);
+        } else {
+            this.renderer.applyFrameToWindow();
+        }
         this.camera.onWindowResize();
         this.screens.resize(VIEW.internalWidth, VIEW.internalHeight);
     }

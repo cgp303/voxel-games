@@ -38,6 +38,45 @@ body {
   transform-origin: 0 0;
 }
 
+/* Mobile joystick (MobileControlHud); left/top/width/height set by JS */
+#mobile-control-hud {
+  position: absolute;
+  z-index: 20;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  pointer-events: none;
+}
+
+/* Only takes touches during play; elsewhere taps fall through (e.g. tap-to-start). */
+#mobile-control-hud.mch-active {
+  pointer-events: auto;
+}
+
+#mobile-control-hud .mch-base {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 3px solid rgba(57, 255, 20, 0.6);
+  background: rgba(57, 255, 20, 0.08);
+}
+
+#mobile-control-hud .mch-knob {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  border-radius: 50%;
+  background: rgba(57, 255, 20, 0.45);
+  border: 2px solid rgba(57, 255, 20, 0.9);
+  transform: translate(-50%, -50%);
+}
+
+#mobile-control-hud:not(.mch-active) .mch-base,
+#mobile-control-hud:not(.mch-active) .mch-knob {
+  opacity: 0.35;
+}
+
 #ui-container {
   position: absolute;
   top: 20px;

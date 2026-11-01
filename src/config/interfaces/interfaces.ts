@@ -17,7 +17,7 @@ import type { PlayField } from '../../world/PlayField';
 import type { Game } from '../../app/Game';
 import type { ScreenManager } from '../../screens/ScreenManager';
 import { StageQueue } from '../../systems/stages/StageQueue';
-import type { BossCyclePhase, BossPartRole, BossWeaponType, CollisionLayerFlag, ExplosionKind } from '../types/types';
+import type { BossCyclePhase, BossPartRole, BossWeaponType, CollisionLayerFlag, ExplosionKind, FitRect } from '../types/types';
 import type { Boss } from '../../entities/Boss';
 import type { HeightField } from '../../world/HeightField';
 
@@ -683,6 +683,62 @@ export interface IRenderQuality {
     textCastShadow: boolean;
     /** Size of the gameplay explosion debris pool (EXPLOSION.maxParticles). */
     debrisMaxParticles: number;
+}
+
+/** Which side of the screen the mobile joystick sits on. */
+export type MobileControlSide = 'left' | 'right';
+
+/** The on-screen joystick and auto-fire used on touch devices (see MobileControlHud). */
+export interface IMobileControlsConfig {
+    /** 'auto' shows it on touch-first devices (coarse pointer), 'on' always (test on desktop), 'off' never. */
+    mode: 'auto' | 'on' | 'off';
+    /** The ship fires continuously during play (at the weapon's fire rate). */
+    autoFire: boolean;
+    /** A tap anywhere starts a game from the demo screen (there is no Enter key on a phone). */
+    tapToStart: boolean;
+    /** Landscape with room beside the game: the panel goes on this side. */
+    landscapeSide: MobileControlSide;
+    /** Portrait with room below the game: where the joystick sits along the bottom strip. */
+    portraitAlign: MobileControlSide | 'center';
+    /** No room outside the game (window has the game's aspect): the joystick overlays this bottom corner. */
+    overlayCorner: MobileControlSide;
+    /** Joystick diameter as a fraction of the window's shorter side, clamped to [minDiameterPx, maxDiameterPx]. */
+    sizeFraction: number;
+    minDiameterPx: number;
+    maxDiameterPx: number;
+    /** Space between the joystick and the panel / screen edges (CSS px). */
+    marginPx: number;
+    /**
+     * When the spare space beside / below the game is too small for the panel, the game may shrink by up to this
+     * fraction of its size to make room. Beyond that the joystick overlays the game instead.
+     */
+    maxGameShrink: number;
+    /**
+     * How the stick's direction becomes movement once it is outside the dead zone:
+     * 'digital' = 8-way, each axis -1, 0 or 1, exactly like the keys;
+     * 'constant' = full speed in any direction (the circle is mapped onto a square, so diagonals match the keys);
+     * 'analog' = speed grows with distance from the centre (shaped by responseExponent).
+     */
+    response: 'digital' | 'constant' | 'analog';
+    /** 'digital' only: angular width (degrees) of each diagonal sector. 45 = eight equal sectors; smaller favours straight lines. */
+    diagonalSectorDeg: number;
+    /** Fraction of the radius around the centre that produces no movement. */
+    deadZone: number;
+    /** 'analog' only. Shapes the response: 1 = linear, above 1 = finer control near the centre. */
+    responseExponent: number;
+    /** Knob diameter as a fraction of the joystick's diameter. */
+    knobFraction: number;
+    /** Opacity of the joystick when it is drawn over the game (overlay mode). */
+    overlayOpacity: number;
+}
+
+/** Where the game frame and the joystick go in the window. Rects are in CSS px relative to the window. */
+export interface IMobileLayout {
+    game: FitRect;
+    /** Square that holds the joystick. */
+    joystick: FitRect;
+    /** 'side' / 'bottom' = the joystick is outside the game; 'overlay' = it is drawn over the game. */
+    mode: 'side' | 'bottom' | 'overlay';
 }
 
 /** World-space movement limits for the player ship. */

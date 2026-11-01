@@ -827,13 +827,14 @@ export class PlaySession {
             player.respawn();
         }
 
-        const axisX = anyDown(PLAYER.keys.right) - anyDown(PLAYER.keys.left);
-        const axisZ = anyDown(PLAYER.keys.forward) - anyDown(PLAYER.keys.back);
+        const clampAxis = (v: number): number => Math.max(-1, Math.min(1, v));
+        const axisX = clampAxis(anyDown(PLAYER.keys.right) - anyDown(PLAYER.keys.left) + input.analogX);
+        const axisZ = clampAxis(anyDown(PLAYER.keys.forward) - anyDown(PLAYER.keys.back) + input.analogZ);
         player.setInput(axisX, axisZ);
         player.update(dt);
 
         this.playerWeapon?.update(dt);
-        if (anyDown(PLAYER.keys.fire) && player.canFire) {
+        if ((anyDown(PLAYER.keys.fire) || input.autoFire) && player.canFire) {
             this.playerWeapon?.tryFire(player.position);
         }
     }

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { Vector3 } from 'three';
 import type { InvaderTypeId, InvaderWeaponType, WeaponType, BossWeaponType, GameEvents } from '../types/types';
-import type { IFxSettings, IRenderQuality, IInvaderTypeDefinition, IInvaderWeaponConfig, IWeaponConfig, ICollisionSystemConfig, IDebrisConfig, ISparkConfig, ITextDisplay, IMarqueeStyle, IHudConfig, IHighScoreEntryConfig, INextLevelFlyby, IVoxelAssemblyConfig, IBossSettings, IBossPathDef, IBossWeaponConfig, IVoxelMeshOptions } from '../interfaces/interfaces';
+import type { IFxSettings, IRenderQuality, IMobileControlsConfig, IInvaderTypeDefinition, IInvaderWeaponConfig, IWeaponConfig, ICollisionSystemConfig, IDebrisConfig, ISparkConfig, ITextDisplay, IMarqueeStyle, IHudConfig, IHighScoreEntryConfig, INextLevelFlyby, IVoxelAssemblyConfig, IBossSettings, IBossPathDef, IBossWeaponConfig, IVoxelMeshOptions } from '../interfaces/interfaces';
 import { CollisionLayer } from '../types/types';
 
 /** Full-quality render settings, used when MOBILE_QUALITY is not active. */
@@ -53,6 +53,32 @@ export const MOBILE_QUALITY_ACTIVE: boolean =
 
 /** The render settings in effect: read these, not MOBILE_QUALITY / DESKTOP_QUALITY. */
 export const QUALITY: IRenderQuality = MOBILE_QUALITY_ACTIVE ? MOBILE_QUALITY : DESKTOP_QUALITY;
+
+/** On-screen joystick + auto-fire for touch devices (the mobileControlHud). */
+export const MOBILE_CONTROLS: IMobileControlsConfig = {
+    mode: 'on',
+    autoFire: true,
+    tapToStart: true,
+    landscapeSide: 'right',
+    portraitAlign: 'center',
+    overlayCorner: 'right',
+    sizeFraction: 0.35,
+    minDiameterPx: 120,
+    maxDiameterPx: 260,
+    marginPx: 16,
+    maxGameShrink: 0.1,
+    response: 'digital',
+    diagonalSectorDeg: 45,
+    deadZone: 0.35,
+    responseExponent: 0.8,
+    knobFraction: 0.3,
+    overlayOpacity: 0.55,
+};
+
+/** True when the mobileControlHud is in use for this session. */
+export const MOBILE_CONTROLS_ACTIVE: boolean =
+    MOBILE_CONTROLS.mode === 'on' ||
+    (MOBILE_CONTROLS.mode === 'auto' && typeof window !== 'undefined' && !!window.matchMedia?.('(pointer: coarse)').matches);
 
 /** Shared gameplay / layout constants (expand in later phases) */
 export const GAME = {

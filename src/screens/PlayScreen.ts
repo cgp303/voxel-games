@@ -31,6 +31,7 @@ export class PlayScreen implements IScreen {
     this.ctx = ctx;
     ctx.game.mode = 'play';
     ctx.game.resetRun();
+    ctx.input.setPlayControls(true);
     TopTenScores.highlight = null;
 
     ctx.playField.attachTo(ctx.scene.scene);
@@ -55,6 +56,7 @@ export class PlayScreen implements IScreen {
     this.session = null;
     this.clearFlybys();
     if (this.ctx) {
+      this.ctx.input.setPlayControls(false);
       this.ctx.camera.controls.enabled = true;
     }
     this.ctx = null;
