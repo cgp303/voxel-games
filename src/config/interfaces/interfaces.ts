@@ -19,7 +19,7 @@ import type { ScreenManager } from '../../screens/ScreenManager';
 import { StageQueue } from '../../systems/stages/StageQueue';
 import type { BossCyclePhase, BossPartRole, BossWeaponType, CollisionLayerFlag, ExplosionKind, FitRect } from '../types/types';
 import type { Boss } from '../../entities/Boss';
-import type { HeightField } from '../../world/HeightField';
+import type { VoxelColorPalette } from '../types/types';
 
 
 /**
@@ -845,6 +845,23 @@ export interface IGreedyQuads {
     count: number;
 }
 
+/** Tuning for GreedyMesher.greedyQuadsFromCells(). With every flag off it behaves like greedyQuads(). */
+export interface IGreedyOptions {
+    /** Drop the -Y faces of the bottom layer (y = 0). */
+    cullBottomFaces: boolean;
+    /** Drop every -Y face, for terrain that is only ever seen from above (the faces under a floating voxel can never show). */
+    cullDownFaces?: boolean;
+    /**
+     * Faces hidden by a neighbouring voxel merge with any colour, so rectangles can grow across them.
+     * The extra area lies inside solid voxels, but quads may then overlap there.
+     */
+    coverHiddenFaces: boolean;
+    /** Treat the space beyond the +/-X and +/-Z borders as solid, so faces on those borders are hidden (tiled chunks). */
+    solidLateralBorders: boolean;
+    /** Grow each rectangle both along u first and along v first and keep the one covering more faces. */
+    tryBothOrientations: boolean;
+}
+
 // Options for configuring the invader grid layout from PlayField.ts
 export interface IInvaderGridOptions {
     cols?: number;
@@ -892,26 +909,115 @@ export interface ITerrainConfig {
 }
 
 
-// Terrain build results for the voxel terrain service
-export interface ITerrainBuildResult {
-    mesh: THREE.Mesh;
-    width: number;
-    height: number;
-    depth: number;
-    /** Column heights of the terrain, for ground lookups (see IGroundSampler). */
-    heightField: HeightField;
+// Terrain chunks, styles and the scrolling belt (see world/terrain)
+
+/** The voxels of one terrain chunk plus the palette its cell values (colorIndex + 1) refer to. */
+export interface IChunkSource {
+    name?: string;
+    /** CHUNK_SIZE.x * CHUNK_SIZE.y * CHUNK_SIZE.z cells, index x + y * 32 + z * 32 * 8. 0 = empty. */
+    cells: Uint16Array;
+    palette: VoxelColorPalette;
+    /**
+     * 'neutral' (default): the borders follow the library's edge profile, which is checked, so the chunk can sit next to
+     * any other neutral chunk with its border faces dropped. 'open': any content; its border faces are kept.
+     */
+    borders?: 'neutral' | 'open';
 }
 
-/** Two tiles abutted on Z for wrap-around scrolling */
-export interface IScrollingTerrainBuildResult {
-    meshA: THREE.Mesh;
-    meshB: THREE.Mesh;
-    width: number;
-    height: number;
-    /** Length of one tile along Z (wrap distance) */
-    tileDepth: number;
-    /** Column heights of one tile; both tiles are identical so this describes the whole belt. */
-    heightField: HeightField;
+/** A chunk registered in a ChunkLibrary: its mesh (chunk-local voxel units) and ground heights. */
+export interface IChunkEntry {
+    id: number;
+    name: string;
+    /** True for a 'neutral' chunk: its mesh has no border faces, which is only right beside other neutral chunks. */
+    sealed: boolean;
+    /** Greedy mesh with flat normals; no quads for an empty chunk. */
+    buffers: IVoxelMeshBuffers;
+    /** Height of the highest solid voxel + 1 per column, index x + z * 32. */
+    heights: Uint8Array;
+}
+
+/**
+ * A hand-authored style: tiles drawn in MagicaVoxel (32 x 8 x 32 voxels, see VoxChunkLoader) placed on a grid.
+ * Rows run along the direction of travel; the grid wraps in both directions.
+ */
+export interface IHandAuthoredStyleSpec {
+    name: string;
+    /** Manifest keys (ASSET_PATHS) of the tile models, referred to by index in `grid`. */
+    tiles: readonly string[];
+    /** grid[row][col] is an index into `tiles`. Every row has the same length. */
+    grid: ReadonlyArray<readonly number[]>;
+    introRows?: number;
+    loopStartRow?: number;
+    loopEndRow?: number;
+}
+
+/**
+ * A terrain style: a 2D array of chunk ids that wraps in both directions.
+ * Rows run along the direction of travel. Rows [0, loopEndRow) play in order (the first `introRows` of them
+ * once only); after that the style wraps back to `loopStartRow`.
+ */
+export interface ITerrainStyle {
+    readonly name: string;
+    readonly cols: number;
+    readonly rows: number;
+    /** Chunk ids, ids[row * cols + col]. */
+    readonly ids: Uint16Array;
+    /** Leading rows that are an introduction to this style: played when the style starts and never again. */
+    readonly introRows: number;
+    /** Row the style wraps back to. At least `introRows`. */
+    readonly loopStartRow: number;
+    /** Row after the last one that plays before wrapping (exclusive). At most `rows`. */
+    readonly loopEndRow: number;
+}
+
+export interface ITerrainStyleSpec {
+    name: string;
+    cols: number;
+    rows: number;
+    ids: ArrayLike<number>;
+    introRows?: number;
+    loopStartRow?: number;
+    loopEndRow?: number;
+}
+
+/** When a queued style takes over: on the next row to be generated, or once the current loop has finished its pass. */
+export type TerrainTransitionAt = 'nextRow' | 'loopEnd';
+
+/** How a procedural style is generated; noise, colours and seed come from `config`. */
+export interface IProceduralStyleOptions {
+    name: string;
+    config: ITerrainConfig;
+    cols: number;
+    rows: number;
+    /** Voxels over which chunk borders blend towards the library's neutral edge profile. */
+    edgeBlend: number;
+    /** Slope shades per height colour. Fewer shades means larger merged faces. */
+    slopeLevels: number;
+    introRows?: number;
+    loopStartRow?: number;
+    loopEndRow?: number;
+}
+
+/** Range of world Z that can be seen (see visibleGroundRange). */
+export interface IZRange {
+    min: number;
+    max: number;
+}
+
+/** The camera pose needed to find what ground is visible. */
+export interface IViewFrustum {
+    origin: IVec3;
+    right: IVec3;
+    up: IVec3;
+    forward: IVec3;
+    tanHalfFovX: number;
+    tanHalfFovY: number;
+}
+
+export interface IVec3 {
+    x: number;
+    y: number;
+    z: number;
 }
 
 /////////////ground and voxel data for effects

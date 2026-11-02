@@ -56,7 +56,7 @@ export const QUALITY: IRenderQuality = MOBILE_QUALITY_ACTIVE ? MOBILE_QUALITY : 
 
 /** On-screen joystick + auto-fire for touch devices (the mobileControlHud). */
 export const MOBILE_CONTROLS: IMobileControlsConfig = {
-    mode: 'on',
+    mode: 'auto',
     autoFire: true,
     tapToStart: true,
     landscapeSide: 'right',
@@ -549,12 +549,6 @@ export const DEFAULT_VOXEL_MESH_OPTIONS: IVoxelMeshOptions = {
     cullBottomFaces: false,
 };
 
-/** Terrain mesh options. The camera never sees the terrain from below, so its bottom faces are dropped. */
-export const TERRAIN_MESH: IVoxelMeshOptions = {
-    greedy: true,
-    cullBottomFaces: true,
-};
-
 export const INVADER_MESH_MATERIAL = new THREE.MeshStandardMaterial({
     side: THREE.DoubleSide,
     vertexColors: true,
@@ -875,12 +869,20 @@ export const TEXT = {
     letterGap: 1,
 } as const;
 
-/** Infinite-looking ground: two meshes loop on Z */
+/** Infinite-looking ground: a belt of 32x8x32 chunks scrolling toward the camera (see world/terrain). */
 export const TERRAIN = {
-    /** World units per second along Z (positive = +Z) */
+    /** World units per second along Z; the ground only scrolls toward the camera (negative). */
     scrollSpeedZ: -48,
-    /** When false, PlayField.updateScroll is a no-op */
+    /** When false, the terrain does not scroll */
     scrollEnabledDefault: true,
+    /** Chunks across the belt, centred on X = 0. 8 chunks = 256 units. */
+    cols: 8,
+    /** Most chunk rows built at once. The visible rows (frustum, up to the fog) need ~30; this is the ceiling. */
+    maxRows: 48,
+    /** Extra rows built beyond each edge of the visible range, so rows pop in out of sight. */
+    rowMargin: 1,
+    /** Terrain length the camera framing is based on (PlayField.frameCamera uses max(width, depth)). */
+    framingDepth: 512,
 } as const;
 
 

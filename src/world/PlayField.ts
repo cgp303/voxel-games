@@ -1,20 +1,18 @@
-﻿import * as THREE from 'three';
+import * as THREE from 'three';
 import type { GameCamera } from '../scene/Camera';
 import { CAMERA, DEBUG, GAME, TERRAIN } from '../config/data/constants';
 import type {
     IGradient2,
     IGroundSampler,
     IInvaderGridOptions,
-    ITerrainBuildResult,
-    IScrollingTerrainBuildResult,
 } from '../config/interfaces/interfaces';
-import type { HeightField } from './HeightField';
+import type { ScrollingTerrain } from './terrain/ScrollingTerrain';
 
 /**
  * Play area: terrain + formation under one root group.
  * Built once by App and shared across Demo/Play/GameOver.
  *
- * Terrain lives under terrainRoot (may scroll).
+ * Terrain lives under terrainRoot (it scrolls toward the camera, see ScrollingTerrain).
  * Invaders live under invaderRoot (do NOT parent under terrain).
  */
 export class PlayField implements IGroundSampler {
@@ -24,14 +22,7 @@ export class PlayField implements IGroundSampler {
     private readonly terrainRoot: THREE.Group;
     private readonly invaderRoot: THREE.Group;
 
-    /** Legacy single-tile path */
-    private terrainMesh: THREE.Mesh | null = null;
-
-    /** Scrolling pair */
-    private terrainMeshA: THREE.Mesh | null = null;
-    private terrainMeshB: THREE.Mesh | null = null;
-    private tileDepth = 0;
-    private heightField: HeightField | null = null;
+    private terrain: ScrollingTerrain | null = null;
     private scrollSpeedZ: number = TERRAIN.scrollSpeedZ;
     private scrollEnabled: boolean = TERRAIN.scrollEnabledDefault;
 
@@ -64,38 +55,18 @@ export class PlayField implements IGroundSampler {
         this.invaderRoot.add(object);
     }
 
-    /**
-     * Legacy: one static terrain mesh (no scroll pair).
-     * Still supported so Step 2 can land before App wiring.
-     */
-    public setTerrain(result: ITerrainBuildResult): void {
+    /** Replaces the terrain. Call updateTerrain(dt, camera, fogDepth) each frame to scroll it and keep its visible rows built. */
+    public setTerrain(terrain: ScrollingTerrain): void {
         this.clearTerrainOnly();
 
-        this.terrainMesh = result.mesh;
-        this.terrainRoot.add(result.mesh);
-        this.tileDepth = result.depth;
-        this.heightField = result.heightField;
-        this.setBounds(result.width, result.height, result.depth);
+        this.terrain = terrain;
+        this.terrainRoot.add(terrain.field.mesh);
+        this.setBounds(terrain.bounds.width, terrain.bounds.height, terrain.bounds.depth);
     }
 
-    /**
-     * Two Z-abutted tiles. Call updateScroll(dt) each frame to animate.
-     * terrainRoot is shifted so the pair is centered on Z around 0 at start.
-     */
-    public setScrollingTerrain(result: IScrollingTerrainBuildResult): void {
-        this.clearTerrainOnly();
-
-        this.terrainMeshA = result.meshA;
-        this.terrainMeshB = result.meshB;
-        this.tileDepth = result.tileDepth;
-        this.heightField = result.heightField;
-
-        this.terrainRoot.add(result.meshA);
-        this.terrainRoot.add(result.meshB);
-
-        // Pair spans [0, 2*tileDepth] in local mesh space; center that belt on z=0
-        this.terrainRoot.position.set(0, 0, -result.tileDepth);
-        this.setBounds(result.width, result.height, result.tileDepth);
+    /** The current terrain, e.g. to queue a style transition. */
+    public getTerrain(): ScrollingTerrain | null {
+        return this.terrain;
     }
 
     public setBounds(width: number, height: number, depth: number): void {
@@ -115,68 +86,31 @@ export class PlayField implements IGroundSampler {
     }
 
     public getGroundHeight(x: number, z: number): number {
-        const field = this.heightField;
-        const tile = this.terrainMeshA ?? this.terrainMesh;
-        if (!field || !tile) return -Infinity;
-
-        // Both belt tiles are identical and a whole number of tile depths apart, so one tile is enough.
-        const root = this.terrainRoot.position;
-        const surface = field.heightAt(x - root.x - tile.position.x, z - root.z - tile.position.z);
-        return root.y + tile.position.y + surface;
+        return this.terrain?.heightAt(x, z) ?? -Infinity;
     }
 
     public getGroundGradient(x: number, z: number, out: IGradient2): IGradient2 {
-        const field = this.heightField;
-        const tile = this.terrainMeshA ?? this.terrainMesh;
-        if (!field || !tile) {
+        if (!this.terrain) {
             out.x = 0;
             out.z = 0;
             return out;
         }
-        const root = this.terrainRoot.position;
-        return field.gradientAt(x - root.x - tile.position.x, z - root.z - tile.position.z, out);
+        return this.terrain.gradientAt(x, z, out);
     }
 
     public getGroundScrollVelocityZ(): number {
-        return this.scrollEnabled && this.terrainMeshA ? this.scrollSpeedZ : 0;
+        return this.scrollEnabled && this.terrain ? Math.min(0, this.scrollSpeedZ) : 0;
     }
 
     /**
-     * Slide both tiles on Z and wrap when one fully leaves the belt.
-     * Safe no-op if scrolling pair is not set or scroll is disabled.
+     * Scrolls the ground and builds the rows `camera` can see, as far as the fog lets it (`fogDepth`).
+     * The ground only scrolls toward the camera (-Z); a positive scroll speed holds it still.
+     * Safe no-op when no terrain is set.
      */
-    public updateScroll(dt: number): void {
-        if (!this.scrollEnabled || !this.terrainMeshA || !this.terrainMeshB) {
-            return;
-        }
-        if (this.tileDepth <= 0 || dt === 0) return;
-
-        const dz = this.scrollSpeedZ * dt;
-        this.terrainMeshA.position.z += dz;
-        this.terrainMeshB.position.z += dz;
-
-        // Meshes start at z=0 and z=tileDepth (local). After centering via terrainRoot,
-        // wrap when a tile has scrolled one full tile length out of the 2-tile window.
-        this.wrapTile(this.terrainMeshA);
-        this.wrapTile(this.terrainMeshB);
-    }
-
-    private wrapTile(mesh: THREE.Mesh): void {
-        const depth = this.tileDepth;
-        const wrapPoint = -307.19 / 1.9;
-        // Positive scroll (+Z): when tile goes past the far end of the 2-tile span,
-        // jump it back by 2*depth so it leads again.
-        // Negative scroll (−Z): mirror.
-        if (this.scrollSpeedZ >= 0) {
-            // Local positions drift upward; keep each tile inside ~[0, 2*depth)
-            if (mesh.position.z >= depth * 2) {
-                mesh.position.z -= depth * 2;
-            }
-        } else {
-            if (mesh.position.z < wrapPoint) {
-                mesh.position.z += depth * 2;
-            }
-        }
+    public updateTerrain(dt: number, camera: THREE.PerspectiveCamera, fogDepth: number): void {
+        if (!this.terrain) return;
+        const scrolled = this.scrollEnabled ? -this.scrollSpeedZ * dt : 0;
+        this.terrain.update(scrolled, camera, fogDepth);
     }
 
     /**
@@ -230,16 +164,8 @@ export class PlayField implements IGroundSampler {
     }
 
     private clearTerrainOnly(): void {
-        while (this.terrainRoot.children.length > 0) {
-            const child = this.terrainRoot.children[0];
-            this.terrainRoot.remove(child);
-            disposeObject3D(child);
-        }
-        this.terrainMesh = null;
-        this.terrainMeshA = null;
-        this.terrainMeshB = null;
-        this.heightField = null;
-        this.tileDepth = 0;
+        this.terrain?.dispose();
+        this.terrain = null;
         this.terrainRoot.position.set(0, 0, 0);
     }
 

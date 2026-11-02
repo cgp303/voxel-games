@@ -21,6 +21,12 @@ export const ASSET_PATHS = {
     minehit2: { src: 'assets/vox/bomb1hit2.vox', preload: true },
     invlazer1: { src: 'assets/vox/inv-lazer1.vox', preload: true },
     invlazer2: { src: 'assets/vox/inv-lazer2.vox', preload: true },
+    // Hand-authored terrain tiles: 32 x 8 x 32 voxels each, placed by a style in config/data (see world/terrain)
+    terrainAtaria1_0: { src: 'assets/vox/terrains/ataria-1/ataria-1-0.vox', preload: true },
+    terrainAtaria1_1: { src: 'assets/vox/terrains/ataria-1/ataria-1-1.vox', preload: true },
+    terrainAtaria1_2: { src: 'assets/vox/terrains/ataria-1/ataria-1-2.vox', preload: true },
+    terrainAtaria1_7: { src: 'assets/vox/terrains/ataria-1/ataria-1-7.vox', preload: true },
+
 } as const satisfies Record<string, IManifestEntry>;
 
 export type AssetKey = keyof typeof ASSET_PATHS;

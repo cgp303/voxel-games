@@ -1,4 +1,5 @@
 ﻿import '../style.css';
+import * as THREE from 'three';
 import { GameScene } from '../scene/Scene';
 import { AudioEventTrigger } from '../audio/AudioEventTrigger';
 import { GameCamera } from '../scene/Camera';
@@ -16,12 +17,15 @@ import { GameOverScreen } from '../screens/GameOverScreen';
 import { HighScoreEntryScreen } from '../screens/HighScoreEntryScreen';
 import { TopTenScores } from '../config/data/TopTenScores';
 import { Game } from './Game';
-import type { IGameContext } from '../config/interfaces/interfaces';
+import type { IGameContext, IHandAuthoredStyleSpec, IParsedVoxModel, ITerrainStyle } from '../config/interfaces/interfaces';
 import { loadHighScores } from '../config/data/highscores';
-import { TerrainService } from '../world/TerrainService';
 import { PlayField } from '../world/PlayField';
-import { CRYSTAL_TERRAIN_CONFIG } from '../voxel-landscape/TerrainConfig';
-import { VIEW, INSTANCED_ASSETS, BOSS, HUD, MOBILE_QUALITY_ACTIVE, MOBILE_CONTROLS, MOBILE_CONTROLS_ACTIVE } from '../config/data/constants';
+import { ChunkLibrary } from '../world/terrain/ChunkLibrary';
+import { ScrollingTerrain } from '../world/terrain/ScrollingTerrain';
+import { buildProceduralStyle } from '../world/terrain/ProceduralStyleBuilder';
+import { buildHandAuthoredStyle } from '../world/terrain/HandAuthoredStyle';
+import { ATARI_STYLE, ATARIA_1_STYLE, CRYSTAL_STYLE, STEEL_BLOCK_STYLE } from '../voxel-landscape/TerrainConfig';
+import { VIEW, INSTANCED_ASSETS, BOSS, HUD, MOBILE_QUALITY_ACTIVE, MOBILE_CONTROLS, MOBILE_CONTROLS_ACTIVE, TERRAIN, QUALITY } from '../config/data/constants';
 import { computeMobileLayout, getUiRoot } from '../core/viewport';
 import { MobileControlHud } from '../ui/MobileControlHud';
 import { ScoreHud } from '../systems/text/ScoreHud';
@@ -45,7 +49,6 @@ export class App {
     private readonly font = new VoxelFont();
     private readonly game = new Game();
     private readonly screens = new ScreenManager();
-    private readonly terrainService = new TerrainService();
     private readonly playField = new PlayField();
     private readonly preloader = new Preloader();
 
@@ -117,7 +120,7 @@ export class App {
 
         // Engine owns the only animation loop (do not call renderer.startAnimation)
         this.engine.setTick((time) => {
-            this.playField.updateScroll(time.delta);
+            this.playField.updateTerrain(time.delta, this.camera.camera, this.terrainFogDepth());
             this.screens.update(time.delta);
             this.scoreHud?.update();
             this.mobileControlHud?.update();
@@ -153,18 +156,42 @@ export class App {
         this.screens.getActive()?.exit();
     }
 
+    /** Builds a style from hand-authored tiles, loading their models through the asset manifest first. */
+    private async buildHandAuthoredStyle(library: ChunkLibrary, spec: IHandAuthoredStyleSpec): Promise<ITerrainStyle> {
+        const models: Record<string, IParsedVoxModel> = {};
+        await Promise.all(
+            spec.tiles.map(async (key) => {
+                models[key] = await this.assets.loadManifestAsset(key as AssetKey);
+            }),
+        );
+        return buildHandAuthoredStyle(library, spec, models);
+    }
+
     /** Generate terrain, load invader mesh, attach PlayField once. */
     private async bootstrapWorld(): Promise<void> {
         if (this.worldReady) return;
 
-        console.log('[App] generating scrolling terrain…');
-        const terrain = this.terrainService.buildScrollingPair(CRYSTAL_TERRAIN_CONFIG);
-        this.playField.setScrollingTerrain(terrain);
+        console.log('[App] generating terrain…');
+        const buildStart = performance.now();
+        const library = new ChunkLibrary();
+        const style = buildProceduralStyle(library, CRYSTAL_STYLE);
+        //const style = await this.buildHandAuthoredStyle(library, ATARIA_1_STYLE);
+        const terrain = new ScrollingTerrain(library, style, {
+            cols: TERRAIN.cols,
+            maxRows: TERRAIN.maxRows,
+            rowMargin: TERRAIN.rowMargin,
+            framingDepth: TERRAIN.framingDepth,
+            castShadow: QUALITY.terrainCastShadow,
+        });
+        this.playField.setTerrain(terrain);
+        console.log(
+            `[App] terrain "${style.name}": ${library.size} unique chunks of ${style.cols * style.rows} in ${(performance.now() - buildStart).toFixed(0)} ms`,
+        );
 
         this.scene.setTerrainDimensions({
-            w: terrain.width,
-            h: terrain.height,
-            d: terrain.tileDepth,
+            w: terrain.bounds.width,
+            h: terrain.bounds.height,
+            d: terrain.bounds.depth,
         });
         this.scene.createLights();
 
@@ -204,8 +231,14 @@ export class App {
 
         this.worldReady = true;
         console.log(
-            `[App] world ready — terrain ${terrain.width}x${terrain.tileDepth} (x2 scroll), invader template cached (no static grid)`,
+            `[App] world ready — ${terrain.bounds.width}-wide chunk terrain, invader template cached (no static grid)`,
         );
+    }
+
+    /** Depth at which the fog fully hides the ground; the terrain is only built that far. */
+    private terrainFogDepth(): number {
+        const fog = this.scene.scene.fog;
+        return fog instanceof THREE.Fog ? fog.far : this.camera.camera.far;
     }
 
     private onResize(): void {

@@ -1,4 +1,4 @@
-﻿# Voxel Galaga — How This Project Fits Together
+# Voxel Galaga — How This Project Fits Together
 
 This README explains the **current game structure** in plain language.
 It is written so you can understand what each part does, why folders exist, and where to put new code — without needing to reverse-engineer everything.
@@ -80,7 +80,7 @@ PlaySession (per Demo/Play enter)
 3. First screen = **Demo** (starts entry intro)
 
 ### Every frame
-1. `playField.updateScroll(dt)`
+1. `playField.updateTerrain(dt, camera, fogDepth)`
 2. `screens.update(dt)` → active screen → `session.update(dt)` when Demo/Play
 3. `renderer.render()`
 4. `input.endFrame()`
@@ -276,7 +276,15 @@ Combat should write score via events → `Game.addScore` later (not fully wired 
 2. App bootstrap preloads it (`preloadManifest`, behind the preload curtain) + `getOrCreateMeshTemplate`
 3. EntryDirector clones template per ship
 
-**Terrain path:** `TerrainService.buildScrollingPair` → `playField.setScrollingTerrain`.
+**Terrain path:** `buildProceduralStyle` (fills a `ChunkLibrary`) → `new ScrollingTerrain(library, style, …)` → `playField.setTerrain`.
+
+**Terrain system** ([`src/world/terrain/`](src/world/terrain/)):
+- Terrain is built from 32×8×32 voxel **chunks**. Each is greedy meshed once into a `ChunkLibrary`; its id is what styles store.
+- A **style** (`ITerrainStyle`) is a wrapping 2D array of chunk ids with `introRows` (played once) and a `loopStartRow`/`loopEndRow` wrap point.
+- `TerrainTrack` is the endless row sequence. `track.queueStyle(style)` (or via `playField.getTerrain()`) switches style on the next row nobody has asked for yet, i.e. beyond the fog.
+- `ScrollingTerrain` draws only the rows inside the camera frustum up to the fog depth (one `BatchedMesh` draw call, per-chunk frustum culling) and answers ground height/slope queries.
+- **Edge convention:** every *neutral* chunk (procedural ones) must follow `ChunkLibrary.edgeProfile` (flat height 3 by default); `add()` rejects chunks that do not. That is what lets any neutral chunk or style sit next to any other and lets border faces be dropped.
+- **Hand-authored tiles:** MagicaVoxel tiles of exactly 32×8×32 voxels (file x across, **file y up**, file z along travel; no z-up swap). Add the `.vox` to `ASSET_PATHS`, list it in an `IHandAuthoredStyleSpec` (see `ATARIA_1_STYLE` in `TerrainConfig.ts`: `tiles` are manifest keys, `grid[row][col]` indexes them) and build it with `buildHandAuthoredStyle` (`App.buildHandAuthoredStyle` loads the models first). Tiles are *open* chunks: any content, floating voxels allowed, border faces kept; neutral chunks beside them get their border faces back automatically.
 
 ---
 
@@ -288,7 +296,7 @@ Combat should write score via events → `Game.addScore` later (not fully wired 
 | `ENTRY` | spawn cadence, off-screen margin, Bezier bulge, path duration, bank/orient/dock |
 | `VIEW` / `CAMERA` | letterbox buffer + framing |
 | `DEMO` / `GAME_OVER` | panel and card timings |
-| `TERRAIN` | scroll speed |
+| `TERRAIN` | scroll speed, belt width (`cols`), row pool (`maxRows`) |
 | `GAME` | lives (+ deprecated legacy grid fields) |
 
 **If the intro feels wrong, tune `ENTRY` first** (`pathDuration`, `bulgeDepth`, `bankGain`, `orientSmooth`), then `FORMATION.originZ` / `spacing`.
@@ -360,7 +368,7 @@ src/
   app/           App, Game, GameContext, types (GameEvents, Entry/Formation types)
   core/          Engine, Time, Input, EventBus, viewport
   screens/       Demo, Play, GameOver + manager
-  world/         PlayField, TerrainService
+  world/         PlayField, terrain/ (chunks, styles, track, scrolling belt)
   scene/         Scene, Camera, Renderer
   assets/        AssetManager, manifests
   voxel/         .vox parse + mesh

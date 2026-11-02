@@ -1,4 +1,4 @@
-import type { ITerrainConfig } from '../config/interfaces/interfaces';
+import type { IHandAuthoredStyleSpec, IProceduralStyleOptions, ITerrainConfig } from '../config/interfaces/interfaces';
 
 /**
  * Default terrain configuration - balanced for a retro voxel landscape
@@ -87,19 +87,114 @@ export const DEFAULT_TERRAIN_CONFIG: ITerrainConfig = {
 
 export const CRYSTAL_TERRAIN_CONFIG: ITerrainConfig = {
     ...DEFAULT_TERRAIN_CONFIG,
-    noiseScale: 2.5,
-    noiseOctaves: 7,
+    noiseScale: 4.35,
+    noiseOctaves: 4,
     noiseExponent: 0.3,
-    noisePersistence: 0.25,
-    noiseLacunarity: 0.15,
+    noisePersistence: 0.15,
+    noiseLacunarity: 0.1,
     colorBands: [
-        { height: 0.15, color: { r: 3, g: 0, b: 40 } },     // Absolute void‑black with a blood tint
+        { height: 0.25, color: { r: 3, g: 0, b: 40 } },     // Absolute void‑black with a blood tint
         { height: 0.25, color: { r: 12, g: 2, b: 2 } },     // Subsurface black‑crimson
         { height: 0.60, color: { r: 28, g: 6, b: 6 } },     // Crushed dark‑red slate
         { height: 0.85, color: { r: 70, g: 20, b: 20 } },    // Faint abyssal red‑steel
         { height: 1.00, color: { r: 160, g: 160, b: 160 } },    // Ghost‑red crest (dim, not bright)
     ],
-    seed: 98765,
+    seed: 61232,
+};
+
+/**
+ * The crystal terrain as a chunk style (see world/terrain/ProceduralStyleBuilder): 8 x 16 chunks, the same
+ * 256 x 512 voxels the old single tile had. Rows [0, introRows) play once when the style starts; after the
+ * last row the style wraps back to loopStartRow.
+ */
+export const CRYSTAL_STYLE: IProceduralStyleOptions = {
+    name: 'crystal',
+    config: CRYSTAL_TERRAIN_CONFIG,
+    cols: 8,
+    rows: 16,
+    edgeBlend: 4,
+    slopeLevels: 3,
+    introRows: 0,
+    loopStartRow: 0,
+};
+
+
+/**
+ * The hand-authored "ataria-1" terrain: one MagicaVoxel tile (32 x 8 x 32, public/assets/vox/terrains/ataria-1) repeated
+ * across the belt and along the direction of travel. `tiles` are ASSET_PATHS keys; `grid[row][col]` indexes them.
+ */
+export const ATARIA_1_STYLE: IHandAuthoredStyleSpec = {
+    name: 'ataria-1',
+    tiles: ['terrainAtaria1_0', 'terrainAtaria1_1', 'terrainAtaria1_2', 'terrainAtaria1_7'],
+    grid: [[3, 1, 2, 0, 3, 2, 1, 0]],
+};
+
+export const STEEL_BLOCK_TERRAIN_CONFIG: ITerrainConfig = {
+    ...DEFAULT_TERRAIN_CONFIG,
+    noiseScale: 2.4,
+    noiseOctaves: 1.5,
+    noiseExponent: 5.6,
+    noisePersistence: 3.5,
+    noiseLacunarity: 4.5,
+    colorBands: [
+        { height: 0.1, color: { r: 52, g: 52, b: 52 } },     // Absolute void‑black with a blood tint
+        { height: 0.5, color: { r: 94, g: 94, b: 94 } },     // Subsurface black‑crimson
+        { height: 0.60, color: { r: 12, g: 12, b: 25 } },     // Crushed dark‑red slate
+        { height: 0.85, color: { r: 94, g: 94, b: 94 } },    // Faint abyssal red‑steel
+        { height: 0.90, color: { r: 52, g: 52, b: 52 } },    // Ghost‑red crest (dim, not bright)
+    ],
+    seed: 61232,
+};
+
+/**
+ * The crystal terrain as a chunk style (see world/terrain/ProceduralStyleBuilder): 8 x 16 chunks, the same
+ * 256 x 512 voxels the old single tile had. Rows [0, introRows) play once when the style starts; after the
+ * last row the style wraps back to loopStartRow.
+ */
+export const STEEL_BLOCK_STYLE: IProceduralStyleOptions = {
+    name: 'steel_block',
+    config: STEEL_BLOCK_TERRAIN_CONFIG,
+    cols: 8,
+    rows: 16,
+    edgeBlend: 4,
+    slopeLevels: 3,
+    introRows: 0,
+    loopStartRow: 0,
+};
+
+
+export const ATARI_TERRAIN_CONFIG: ITerrainConfig = {
+    ...DEFAULT_TERRAIN_CONFIG,
+    noiseScale: 1.4,
+    noiseOctaves: 1.5,
+    noiseExponent: 2.6,
+    noisePersistence: 3.5,
+    noiseLacunarity: 4.5,
+    colorBands: [
+        { height: 0.4, color: { r: 51, g: 22, b: 19 } },     // Absolute void‑black with a blood tint
+        { height: 0.5, color: { r: 56, g: 33, b: 14 } },     // Subsurface black‑crimson
+        { height: 0.60, color: { r: 60, g: 42, b: 8 } },     // Crushed dark‑red slate
+        // { height: 0.75, color: { r: 248, g: 215, b: 159 } },    // Faint abyssal red‑steel
+        { height: 0.90, color: { r: 56, g: 33, b: 14 } },    // Ghost‑red crest (dim, not bright)
+        { height: 1.00, color: { r: 51, g: 100, b: 19 } },
+    ],
+    seed: 61232,
+};
+
+/**
+ * The crystal terrain as a chunk style (see world/terrain/ProceduralStyleBuilder): 8 x 16 chunks, the same
+ * 256 x 512 voxels the old single tile had. Rows [0, introRows) play once when the style starts; after the
+ * last row the style wraps back to loopStartRow.
+ */
+export const ATARI_STYLE: IProceduralStyleOptions = {
+    name: 'atari',
+    config: ATARI_TERRAIN_CONFIG,
+    cols: 8,
+    rows: 16,
+    edgeBlend: 4,
+    slopeLevels: 3,
+    introRows: 0,
+    loopStartRow: 0,
 };
 
 
