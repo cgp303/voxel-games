@@ -40,6 +40,7 @@ export class ScrollingTerrain {
 
     private readonly rowMargin: number;
     private anchored = false;
+    private visibleNear: number | null = null;
 
     constructor(
         library: ChunkLibrary,
@@ -57,9 +58,27 @@ export class ScrollingTerrain {
         this.bounds = { width: options.cols * CHUNK_X, height: CHUNK_Y, depth: options.framingDepth };
     }
 
-    /** Makes `style` take over from a row that is not on screen yet; see TerrainTrack.queueStyle. */
-    public queueStyle(style: ITerrainStyle, at: TerrainTransitionAt = 'nextRow'): number {
+    /** The style the terrain ends on: the one playing, or the latest queued (which may not be on screen yet). */
+    public get currentStyle(): ITerrainStyle {
+        return this.track.currentStyle;
+    }
+
+    /**
+     * Makes `style` take over from a row that is not on screen yet and returns that row; null when `style` is already
+     * what the terrain ends on. A style queued earlier that has not appeared yet is replaced. See TerrainTrack.queueStyle.
+     */
+    public queueStyle(style: ITerrainStyle, at: TerrainTransitionAt = 'nextRow'): number | null {
         return this.track.queueStyle(style, at);
+    }
+
+    /** World Z of the near edge of `row` right now; it moves toward -Z as the ground scrolls. */
+    public rowNearZ(row: number): number {
+        return this.field.belt.rowMinZ(row);
+    }
+
+    /** World Z of the bottom of the visible ground as of the latest update (null before the first, or when no ground is in view). */
+    public get visibleNearZ(): number | null {
+        return this.visibleNear;
     }
 
     /**
@@ -70,6 +89,7 @@ export class ScrollingTerrain {
     public update(scrolled: number, camera: THREE.PerspectiveCamera, fogDepth: number): void {
         const frustum = readView(camera);
         const visible = visibleGroundRange(frustum, 0, CHUNK_Y, Math.min(fogDepth, camera.far));
+        this.visibleNear = visible ? visible.min : null;
 
         if (!this.anchored && visible && frustum.origin.y > CHUNK_Y) {
             this.field.belt.zBase = Math.floor(visible.min / CHUNK_Z) * CHUNK_Z;

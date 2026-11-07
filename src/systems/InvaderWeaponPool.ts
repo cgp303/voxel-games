@@ -5,7 +5,7 @@ import { MineWeapon } from '../entities/MineWeapon';
 import { MissileWeapon } from '../entities/MissileWeapon';
 import type { AssetManager } from '../assets/AssetManager';
 import { COLLISION, INVADER_WEAPONS, INVADER_WEAPON_TYPES, PLAYER, QUALITY } from '../config/data/constants';
-import type { IBossWeaponConfig, IGameContext, ILazerDespawnBounds } from '../config/interfaces/interfaces';
+import type { IBossWeaponConfig, IGameContext, IInvaderWeaponConfig, ILazerDespawnBounds } from '../config/interfaces/interfaces';
 import { type CollisionLayerFlag, type PooledWeaponKey, GameEvents } from '../config/types/types';
 import { applyShotGlow } from './fx/ShotGlow';
 import type { EventBus } from '../core/EventBus';
@@ -13,6 +13,10 @@ import type { EventBus } from '../core/EventBus';
 
 /** How far past the collision grid a lazer may fly sideways or toward +Z before it is recycled. */
 const LAZER_DESPAWN_MARGIN = 40;
+
+function isMine(type: PooledWeaponKey): boolean {
+    return (INVADER_WEAPONS as Record<string, IInvaderWeaponConfig | undefined>)[type]?.kind === 'mine';
+}
 
 interface IWeaponBucket {
     /** Intact model first, then (for mines) one mesh per config.hitMeshes entry; every weapon owns the same slot in each. */
@@ -138,7 +142,7 @@ export class InvaderWeaponPool {
         this.live.push(weapon);
 
         // The first mine into an empty field starts the mine loop.
-        if (type === 'Mine' && this.activeMines++ === 0) this.eventBus.emit(GameEvents.mineActivated);
+        if (isMine(type) && this.activeMines++ === 0) this.eventBus.emit(GameEvents.mineActivated);
         return true;
     }
 
@@ -155,7 +159,7 @@ export class InvaderWeaponPool {
         if (!weapon.active) return;
         weapon.hide();
         this.flagMeshes(this.buckets.get(weapon.type)!);
-        if (weapon.type === 'Mine') {
+        if (isMine(weapon.type)) {
             this.eventBus.emit(GameEvents.mineDestroyed, { wasLast: --this.activeMines === 0 });
         }
     }
@@ -179,7 +183,7 @@ export class InvaderWeaponPool {
             if (weapon.update(dt)) continue;
             // Still active before the call, so it left play by passing despawnZ this frame.
             // A mine released by a hit is already inactive here and was counted down in release().
-            if (weapon.type === 'Mine' && wasActive) {
+            if (isMine(weapon.type) && wasActive) {
                 this.activeMines--;
                 mineLeftPlay = true;
             }

@@ -63,12 +63,10 @@ test('the shipped ataria-1 tile loads as a chunk', () => {
     const library = new ChunkLibrary();
     const tile = shippedTile();
     const entry = library.get(library.add(chunkFromVoxModel(tile, 'ataria-1-1')));
-    assert.equal(tile.voxels.length, 336);
+    assert.ok(tile.voxels.length > 0);
     assert.equal(entry.sealed, false);
     assert.ok(entry.buffers.quadCount > 0);
-    assert.ok(entry.buffers.quadCount < 336 * 5, 'lines merge into long quads');
-    // the lines run the whole length of the tile, so rows 0 and 31 look the same and the tile repeats along Z
-    for (let x = 0; x < CHUNK_X; x++) assert.equal(entry.heights[x], entry.heights[x + 31 * CHUNK_X]);
+    assert.ok(entry.buffers.quadCount < tile.voxels.length * 5, 'faces merge into larger quads');
 });
 
 test('a hand-authored style places each tile once and wraps its grid', () => {

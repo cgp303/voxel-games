@@ -1,12 +1,15 @@
 import * as THREE from 'three';
 import type { GameCamera } from '../scene/Camera';
-import { CAMERA, DEBUG, GAME, TERRAIN } from '../config/data/constants';
+import { CAMERA, DEBUG, GAME, TERRAIN, TERRAIN_TRANSITION } from '../config/data/constants';
 import type {
     IGradient2,
     IGroundSampler,
     IInvaderGridOptions,
 } from '../config/interfaces/interfaces';
+import type { TerrainStyleId } from '../config/types/types';
 import type { ScrollingTerrain } from './terrain/ScrollingTerrain';
+import type { TerrainStyleRegistry } from './terrain/TerrainStyleRegistry';
+import { TerrainTransition } from './terrain/TerrainTransition';
 
 /**
  * Play area: terrain + formation under one root group.
@@ -23,8 +26,13 @@ export class PlayField implements IGroundSampler {
     private readonly invaderRoot: THREE.Group;
 
     private terrain: ScrollingTerrain | null = null;
+    private terrainStyles: TerrainStyleRegistry | null = null;
     private scrollSpeedZ: number = TERRAIN.scrollSpeedZ;
     private scrollEnabled: boolean = TERRAIN.scrollEnabledDefault;
+    /** Speed the ground actually scrolled at in the latest updateTerrain (units/s toward -Z). */
+    private appliedSpeed = 0;
+    /** The speed boost for the terrain change in progress, if any. */
+    private transition: { controller: TerrainTransition; startRow: number } | null = null;
 
 
     constructor() {
@@ -60,11 +68,12 @@ export class PlayField implements IGroundSampler {
         this.clearTerrainOnly();
 
         this.terrain = terrain;
+        this.appliedSpeed = this.baseSpeed();
         this.terrainRoot.add(terrain.field.mesh);
         this.setBounds(terrain.bounds.width, terrain.bounds.height, terrain.bounds.depth);
     }
 
-    /** The current terrain, e.g. to queue a style transition. */
+    /** The current terrain. */
     public getTerrain(): ScrollingTerrain | null {
         return this.terrain;
     }
@@ -99,18 +108,80 @@ export class PlayField implements IGroundSampler {
     }
 
     public getGroundScrollVelocityZ(): number {
-        return this.scrollEnabled && this.terrain ? Math.min(0, this.scrollSpeedZ) : 0;
+        return this.terrain ? -this.appliedSpeed : 0;
     }
 
     /**
      * Scrolls the ground and builds the rows `camera` can see, as far as the fog lets it (`fogDepth`).
-     * The ground only scrolls toward the camera (-Z); a positive scroll speed holds it still.
+     * The ground only scrolls toward the camera (-Z); a positive scroll speed holds it still. While a terrain
+     * change is under way (see requestTerrainStyle) the ground goes faster than normal.
      * Safe no-op when no terrain is set.
      */
     public updateTerrain(dt: number, camera: THREE.PerspectiveCamera, fogDepth: number): void {
-        if (!this.terrain) return;
-        const scrolled = this.scrollEnabled ? -this.scrollSpeedZ * dt : 0;
-        this.terrain.update(scrolled, camera, fogDepth);
+        const terrain = this.terrain;
+        if (!terrain) return;
+
+        let speed = this.baseSpeed();
+        const transition = this.transition;
+        if (transition && speed > 0) {
+            speed = transition.controller.update(dt, terrain.rowNearZ(transition.startRow) - this.arrivalZ(terrain));
+            if (transition.controller.done) this.transition = null;
+        }
+        this.appliedSpeed = speed;
+        terrain.update(speed * dt, camera, fogDepth);
+    }
+
+    /** World Z the new terrain's near edge must reach: the bottom of what the camera sees, less the allowed margin. */
+    private arrivalZ(terrain: ScrollingTerrain): number {
+        const bottom = terrain.visibleNearZ;
+        return bottom === null ? TERRAIN_TRANSITION.arrivalZ : bottom + TERRAIN_TRANSITION.arrivalMarginZ;
+    }
+
+    /** The terrain styles a wave can ask for by id. Must be built into the same ChunkLibrary as the terrain. */
+    public setTerrainStyles(styles: TerrainStyleRegistry): void {
+        this.terrainStyles = styles;
+    }
+
+    /**
+     * Changes the terrain to the style `id`, from the far edge of what is on screen, and speeds the ground up so the
+     * new terrain covers the view (see TERRAIN_TRANSITION) by `seconds` from now. The speed is capped by
+     * TERRAIN_TRANSITION.maxSpeedZ, so when that is too slow the terrain lands a little late. Does nothing when that
+     * style is already showing or on its way. A change that has not appeared yet is replaced by the newer request.
+     */
+    public requestTerrainStyle(id: TerrainStyleId, seconds: number): void {
+        const terrain = this.terrain;
+        const styles = this.terrainStyles;
+        if (!terrain || !styles) return;
+
+        const style = styles.get(id);
+        // Already showing it, or already on its way (the wave that follows the pause asks again): keep what is running.
+        if (style === terrain.currentStyle) return;
+
+        const startRow = terrain.queueStyle(style);
+        if (startRow === null) {
+            // The request put the style before the pending one back, so the pending one was dropped: stop its boost.
+            this.transition?.controller.cancel();
+            return;
+        }
+
+        const base = this.baseSpeed();
+        if (base <= 0) return;
+        this.transition = {
+            startRow,
+            controller: new TerrainTransition({
+                baseSpeed: base,
+                maxSpeed: Math.max(base, TERRAIN_TRANSITION.maxSpeedZ),
+                seconds,
+                rampUpSeconds: TERRAIN_TRANSITION.rampUpSeconds,
+                rampDownSeconds: TERRAIN_TRANSITION.rampDownSeconds,
+                startSpeed: this.appliedSpeed > 0 ? this.appliedSpeed : base,
+            }),
+        };
+    }
+
+    /** Normal scroll speed (units/s toward -Z): 0 when scrolling is off or the speed points away from the camera. */
+    private baseSpeed(): number {
+        return this.scrollEnabled ? Math.max(0, -this.scrollSpeedZ) : 0;
     }
 
     /**
@@ -166,6 +237,8 @@ export class PlayField implements IGroundSampler {
     private clearTerrainOnly(): void {
         this.terrain?.dispose();
         this.terrain = null;
+        this.transition = null;
+        this.appliedSpeed = 0;
         this.terrainRoot.position.set(0, 0, 0);
     }
 

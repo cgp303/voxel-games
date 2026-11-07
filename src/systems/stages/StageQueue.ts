@@ -3,7 +3,7 @@
 import { Stage } from './Stage';
 import { BossDirector } from '../patterns/directors/BossDirector';
 import { IFormationDescriptor } from '../../config/interfaces/interfaces';
-import type { InvaderRowRoster, InvaderTypeId } from '../../config/types/types';
+import type { InvaderRowRoster, InvaderTypeId, TerrainStyleId } from '../../config/types/types';
 
 export class StageQueue {
     stages: Stage[];
@@ -11,12 +11,15 @@ export class StageQueue {
     loopStartIndex: number;
     formationDescription: IFormationDescriptor | null;
     rowRoster: InvaderRowRoster;
+    /** The terrain style this wave is played on. */
+    readonly terrainStyle: TerrainStyleId;
 
     constructor(
         stages: Stage[],
         loopStartIndex: number = 0,
         formationDescription: IFormationDescriptor,
-        rowRoster: InvaderRowRoster
+        rowRoster: InvaderRowRoster,
+        terrainStyle: TerrainStyleId,
     ) {
         const rowCount = formationDescription.maxRow + 1;
         if (rowRoster.length !== rowCount) {
@@ -30,6 +33,7 @@ export class StageQueue {
         this.loopStartIndex = loopStartIndex;
         this.formationDescription = formationDescription;
         this.rowRoster = rowRoster;
+        this.terrainStyle = terrainStyle;
     }
 
     /** True when one of the wave's stages is a boss fight. */

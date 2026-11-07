@@ -31,13 +31,26 @@ export class TerrainTrack {
         if (row >= this.nextUnrequested) this.nextUnrequested = row + 1;
     }
 
+    /** The style the track ends up on: the last one queued (possibly not on screen yet). */
+    public get currentStyle(): ITerrainStyle {
+        return this.segments[this.segments.length - 1].style;
+    }
+
     /**
      * Makes `style` take over from a future row and returns that row. 'nextRow' starts on the first row nobody has
      * asked for yet; 'loopEnd' waits until the current style has finished its loop pass, so a style is never cut mid-pass.
      * Styles queued back to back follow each other, at least one row apart.
+     *
+     * Styles queued earlier that have not started on screen yet are dropped first, so the newest request wins. When that
+     * leaves `style` already playing, nothing is queued and null is returned.
      */
-    public queueStyle(style: ITerrainStyle, at: TerrainTransitionAt = 'nextRow'): number {
+    public queueStyle(style: ITerrainStyle, at: TerrainTransitionAt = 'nextRow'): number | null {
+        while (this.segments.length > 1 && this.segments[this.segments.length - 1].startRow >= this.nextUnrequested) {
+            this.segments.pop();
+        }
         const last = this.segments[this.segments.length - 1];
+        if (last.style === style) return null;
+
         let startRow = Math.max(this.nextUnrequested, last.startRow + 1);
 
         if (at === 'loopEnd') {

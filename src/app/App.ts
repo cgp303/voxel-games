@@ -17,15 +17,15 @@ import { GameOverScreen } from '../screens/GameOverScreen';
 import { HighScoreEntryScreen } from '../screens/HighScoreEntryScreen';
 import { TopTenScores } from '../config/data/TopTenScores';
 import { Game } from './Game';
-import type { IGameContext, IHandAuthoredStyleSpec, IParsedVoxModel, ITerrainStyle } from '../config/interfaces/interfaces';
+import type { IGameContext } from '../config/interfaces/interfaces';
 import { loadHighScores } from '../config/data/highscores';
 import { PlayField } from '../world/PlayField';
 import { ChunkLibrary } from '../world/terrain/ChunkLibrary';
 import { ScrollingTerrain } from '../world/terrain/ScrollingTerrain';
-import { buildProceduralStyle } from '../world/terrain/ProceduralStyleBuilder';
-import { buildHandAuthoredStyle } from '../world/terrain/HandAuthoredStyle';
-import { ATARI_STYLE, ATARIA_1_STYLE, CRYSTAL_STYLE, STEEL_BLOCK_STYLE } from '../voxel-landscape/TerrainConfig';
-import { VIEW, INSTANCED_ASSETS, BOSS, HUD, MOBILE_QUALITY_ACTIVE, MOBILE_CONTROLS, MOBILE_CONTROLS_ACTIVE, TERRAIN, QUALITY } from '../config/data/constants';
+import { TerrainStyleRegistry } from '../world/terrain/TerrainStyleRegistry';
+import { TERRAIN_STYLES } from '../voxel-landscape/TerrainConfig';
+import { WAVE_DEMO } from '../systems/stages/levels/waves';
+import { VIEW, INSTANCED_ASSETS, BOSS, HUD, MOBILE_QUALITY_ACTIVE, MOBILE_CONTROLS, MOBILE_CONTROLS_ACTIVE, TERRAIN, QUALITY, DEBUG } from '../config/data/constants';
 import { computeMobileLayout, getUiRoot } from '../core/viewport';
 import { MobileControlHud } from '../ui/MobileControlHud';
 import { ScoreHud } from '../systems/text/ScoreHud';
@@ -98,7 +98,7 @@ export class App {
         this.screens.setContext(ctx);
 
         this.game.highScores = loadHighScores();
-        this.createFpsDisplay();
+        DEBUG.showFPS ? this.createFpsDisplay() : null;
 
         if (MOBILE_CONTROLS_ACTIVE) {
             this.mobileControlHud = new MobileControlHud(this.input, MOBILE_CONTROLS);
@@ -126,7 +126,7 @@ export class App {
             this.mobileControlHud?.update();
             this.renderer.render();
             this.input.endFrame();
-            this.updateFps();
+            DEBUG.showFPS ? this.updateFps() : null;
         });
         this.engine.start();
 
@@ -156,44 +156,9 @@ export class App {
         this.screens.getActive()?.exit();
     }
 
-    /** Builds a style from hand-authored tiles, loading their models through the asset manifest first. */
-    private async buildHandAuthoredStyle(library: ChunkLibrary, spec: IHandAuthoredStyleSpec): Promise<ITerrainStyle> {
-        const models: Record<string, IParsedVoxModel> = {};
-        await Promise.all(
-            spec.tiles.map(async (key) => {
-                models[key] = await this.assets.loadManifestAsset(key as AssetKey);
-            }),
-        );
-        return buildHandAuthoredStyle(library, spec, models);
-    }
-
     /** Generate terrain, load invader mesh, attach PlayField once. */
     private async bootstrapWorld(): Promise<void> {
         if (this.worldReady) return;
-
-        console.log('[App] generating terrain…');
-        const buildStart = performance.now();
-        const library = new ChunkLibrary();
-        const style = buildProceduralStyle(library, CRYSTAL_STYLE);
-        //const style = await this.buildHandAuthoredStyle(library, ATARIA_1_STYLE);
-        const terrain = new ScrollingTerrain(library, style, {
-            cols: TERRAIN.cols,
-            maxRows: TERRAIN.maxRows,
-            rowMargin: TERRAIN.rowMargin,
-            framingDepth: TERRAIN.framingDepth,
-            castShadow: QUALITY.terrainCastShadow,
-        });
-        this.playField.setTerrain(terrain);
-        console.log(
-            `[App] terrain "${style.name}": ${library.size} unique chunks of ${style.cols * style.rows} in ${(performance.now() - buildStart).toFixed(0)} ms`,
-        );
-
-        this.scene.setTerrainDimensions({
-            w: terrain.bounds.width,
-            h: terrain.bounds.height,
-            d: terrain.bounds.depth,
-        });
-        this.scene.createLights();
 
         console.log('[App] preloading assets…');
         const track = this.preloader.track;
@@ -208,6 +173,32 @@ export class App {
             ),
             this.audioManager?.preload(track),
         ]);
+
+        // Terrain comes after the assets: hand-authored styles are made from tile models that are loaded by now.
+        console.log('[App] generating terrain…');
+        const buildStart = performance.now();
+        const library = new ChunkLibrary();
+        const styles = new TerrainStyleRegistry(library, TERRAIN_STYLES, (key) => this.assets.getModel(key));
+        styles.buildAll();
+        const terrain = new ScrollingTerrain(library, styles.get(WAVE_DEMO.terrain), {
+            cols: TERRAIN.cols,
+            maxRows: TERRAIN.maxRows,
+            rowMargin: TERRAIN.rowMargin,
+            framingDepth: TERRAIN.framingDepth,
+            castShadow: QUALITY.terrainCastShadow,
+        });
+        this.playField.setTerrain(terrain);
+        this.playField.setTerrainStyles(styles);
+        console.log(
+            `[App] terrain: ${Object.keys(TERRAIN_STYLES).length} styles, ${library.size} unique chunks in ${(performance.now() - buildStart).toFixed(0)} ms`,
+        );
+
+        this.scene.setTerrainDimensions({
+            w: terrain.bounds.width,
+            h: terrain.bounds.height,
+            d: terrain.bounds.depth,
+        });
+        this.scene.createLights();
         // Cache mesh template for EntryDirector / PlaySession (Phase 5+).
         // Combat invaders are not pre-placed; Demo/Play intro spawns them off-stage.
 

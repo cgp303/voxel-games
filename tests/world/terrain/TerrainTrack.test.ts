@@ -77,11 +77,49 @@ test('a style queued for the loop end waits for the current pass to finish', () 
     assert.equal(second.queueStyle(style('c', 2, 300), 'loopEnd'), 5);
 });
 
-test('styles queued back to back follow each other', () => {
+test('styles queued back to back follow each other once the first is on screen', () => {
     const track = new TerrainTrack(style('a', 3, 100));
-    const first = track.queueStyle(style('b', 2, 200));
-    const second = track.queueStyle(style('c', 2, 300));
+    const first = track.queueStyle(style('b', 2, 200))!;
+    track.markRequested(first); // b's first row is now on screen
+    const second = track.queueStyle(style('c', 2, 300))!;
     assert.ok(second > first);
     assert.equal(track.styleAt(first)?.name, 'b');
     assert.equal(track.styleAt(second)?.name, 'c');
+});
+
+test('a style that has not appeared yet is replaced by a newer request', () => {
+    const track = new TerrainTrack(style('a', 3, 100));
+    track.markRequested(4);
+    const b = style('b', 2, 200);
+    const c = style('c', 2, 300);
+    assert.equal(track.queueStyle(b), 5);
+    assert.equal(track.currentStyle, b);
+    assert.equal(track.queueStyle(c), 5, 'c takes the row b was going to start on');
+    assert.equal(track.currentStyle, c);
+    assert.equal(track.styleAt(5)?.name, 'c');
+    assert.equal(track.styleAt(9)?.name, 'c');
+});
+
+test('asking again for the style that is already playing queues nothing', () => {
+    const a = style('a', 3, 100);
+    const track = new TerrainTrack(a);
+    track.markRequested(4);
+    const b = style('b', 2, 200);
+    assert.equal(track.queueStyle(b), 5);
+    assert.equal(track.queueStyle(a), null, 'cancelling b leaves a playing');
+    assert.equal(track.currentStyle, a);
+    assert.equal(track.styleAt(20)?.name, 'a');
+    assert.equal(track.queueStyle(a), null);
+});
+
+test('a style already on screen is not replaced', () => {
+    const track = new TerrainTrack(style('a', 3, 100));
+    track.markRequested(4);
+    const b = style('b', 2, 200);
+    const startB = track.queueStyle(b)!;
+    track.markRequested(startB); // b's first row is on screen
+    const c = style('c', 2, 300);
+    const startC = track.queueStyle(c)!;
+    assert.ok(startC > startB);
+    assert.equal(track.styleAt(startB)?.name, 'b');
 });

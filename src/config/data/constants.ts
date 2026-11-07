@@ -106,12 +106,20 @@ export const INSTANCED_ASSETS: { key: string; maxCount: number }[] = [
     { key: 'invader1', maxCount: 80 },
     { key: 'invader2', maxCount: 80 },
     { key: 'invader3', maxCount: 80 },
+    { key: 'invader4', maxCount: 80 },
+    { key: 'invader5', maxCount: 80 },
+    { key: 'invader6', maxCount: 80 },
+    { key: 'invader7', maxCount: 80 },
+    { key: 'invader8', maxCount: 80 },
     { key: 'invader', maxCount: 80 },
     { key: 'player', maxCount: 1 },
     { key: 'lazer', maxCount: 32 },
     { key: 'mine', maxCount: 32 },
     { key: 'minehit1', maxCount: 32 },
     { key: 'minehit2', maxCount: 32 },
+    { key: 'mine2', maxCount: 32 },
+    { key: 'mine2hit1', maxCount: 32 },
+    { key: 'mine2hit2', maxCount: 32 },
     { key: 'invlazer1', maxCount: 32 },
     { key: 'invlazer2', maxCount: 32 },
 ];
@@ -122,6 +130,11 @@ export const INVADER_TYPES: Record<InvaderTypeId, IInvaderTypeDefinition> = {
     fighter: { assetKey: 'invader2', scoreValue: 100, hitPoints: 1 },
     elite: { assetKey: 'invader3', scoreValue: 200, hitPoints: 2 },
     tie: { assetKey: 'invader', scoreValue: 800, hitPoints: 4 },
+    green1: { assetKey: 'invader4', scoreValue: 400, hitPoints: 2 },
+    green2: { assetKey: 'invader5', scoreValue: 500, hitPoints: 2 },
+    green3: { assetKey: 'invader6', scoreValue: 600, hitPoints: 3 },
+    neon1: { assetKey: 'invader7', scoreValue: 700, hitPoints: 3 },
+    neon2: { assetKey: 'invader8', scoreValue: 800, hitPoints: 3 },
 };
 
 /** Instanced mesh keys used by invaders only (INSTANCED_ASSETS also holds the player mesh). */
@@ -216,12 +229,36 @@ export const INVADER_WEAPONS: Record<InvaderWeaponType, IInvaderWeaponConfig> = 
         velocity: new THREE.Vector3(0, 0, -36),
         hitMeshes: ['minehit1', 'minehit2'],
     },
+
+    Mine2: {
+        kind: 'mine',
+        assetKey: 'mine2',
+        maxCount: 32,
+        dropChancePerFrame: { groupAttack1: [0.1, 0.07, 0.05], kamakaziDrops: [0.1, 0.07] },
+        releaseXRange: { min: -70, max: 70 },
+        maxPerAttack: 1,
+        allowedInvaderTypes: ['green1', 'green2'],
+        allowedSegments: { groupAttack1: [1, 2, 3], kamakaziDrops: [0, 1] },
+        despawnMarginPastPlayer: 25,
+        fadeAudioAt: 5,
+        spinRateRadPerSec: Math.PI * 4,
+        hitPoints: 3,
+        knockbackDistance: 24,
+        knockbackSpeed: 90,
+        collisionRadius: 2,
+        castShadow: true,
+        velocity: new THREE.Vector3(0, 0, -36),
+        hitMeshes: ['mine2hit1', 'mine2hit2'],
+    },
+
+
+
     /** Two lazers per column-vertical attack, each flying the way the invader was heading. */
     LazerA: {
         kind: 'lazer',
         assetKey: 'invlazer1',
         maxCount: 32,
-        allowedInvaderTypes: ['scout', 'fighter', 'elite', 'tie'],
+        allowedInvaderTypes: ['scout', 'fighter', 'elite', 'tie', 'neon1', 'neon2'],
         allowedSegments: { columnVertical: [2], columnDives: [1] },
         despawnMarginPastPlayer: 50,
         collisionRadius: 2,
@@ -237,13 +274,13 @@ export const INVADER_WEAPONS: Record<InvaderWeaponType, IInvaderWeaponConfig> = 
         kind: 'lazer',
         assetKey: 'invlazer2',
         maxCount: 32,
-        allowedInvaderTypes: ['scout', 'fighter', 'elite', 'tie'],
+        allowedInvaderTypes: ['scout', 'fighter', 'elite', 'tie', 'green3'],
         allowedSegments: { lazerBAttack: [0, 2] },
         despawnMarginPastPlayer: 50,
         collisionRadius: 2,
         castShadow: false,
         speed: { lazerBAttack: [120, 120] },
-        aim: { mode: 'atPlayer', turnInSec: 0.1, faceTimeoutSec: 0.2, holdSec: 0.2, turnOutSec: 0.2, facingToleranceRad: 0.05, aimNoiseRad: 0.5, noPlayerTarget: { x: 0, y: 20, z: -160 } },
+        aim: { mode: 'atPlayer', turnInSec: 0.1, faceTimeoutSec: 0.2, holdSec: 0.2, turnOutSec: 0.9, facingToleranceRad: 0.05, aimNoiseRad: 0.5, noPlayerTarget: { x: 0, y: 20, z: -160 } },
         segmentProgress: { lazerBAttack: [0.7, 0.1] },
         dropChancePerFrame: { lazerBAttack: [0.025, 0.025] },
         glow: true,
@@ -421,7 +458,7 @@ export const SPARKS: ISparkConfig = {
 /** Boss behaviour shared by every boss (each boss's own layout is its JSON file; see systems/boss). */
 export const BOSS: IBossSettings = {
     assetFolder: 'assets/vox/bosses',
-    ids: ['boss1'],
+    ids: ['boss1', 'boss2'],
     hoverPadding: 8,
     entranceZ: 270,
     entranceSeconds: 1,
@@ -461,8 +498,27 @@ export const BOSS_PATHS: Record<string, IBossPathDef> = {
             { p0: new Vector3(-50, 20, -50), p1: new Vector3(0, 20, -70), p2: new Vector3(20, 20, -100), p3: new Vector3(30, 20, -130) },
             { p0: new Vector3(30, 20, -130), p1: new Vector3(0, 20, -70), p2: new Vector3(-20, 20, -100), p3: new Vector3(-30, 20, -130) },
             { p0: new Vector3(-30, 20, -130), p1: new Vector3(-70, 20, -30), p2: new Vector3(-60, 20, 0), p3: new Vector3(-50, 20, -50) },
-
             { p0: new Vector3(-50, 20, -50), p1: new Vector3(30, 20, -10), p2: new Vector3(-30, 20, 10), p3: new Vector3(0, 20, 70) },
+        ],
+    },
+    bossSweep2: {
+        segments: [
+            { p0: new Vector3(-40, 20, 90), p1: new Vector3(0, 20, 70), p2: new Vector3(0, 20, 70), p3: new Vector3(40, 20, 90) },
+            { p0: new Vector3(40, 20, 90), p1: new Vector3(0, 20, 70), p2: new Vector3(0, 20, 70), p3: new Vector3(-40, 20, 90) },
+            { p0: new Vector3(-40, 20, 90), p1: new Vector3(0, 20, 70), p2: new Vector3(0, 20, 70), p3: new Vector3(40, 20, 90) },
+            { p0: new Vector3(40, 20, 90), p1: new Vector3(0, 20, 70), p2: new Vector3(0, 20, 70), p3: new Vector3(-40, 20, 90) },
+            { p0: new Vector3(-40, 20, 90), p1: new Vector3(0, 20, 70), p2: new Vector3(0, 20, 70), p3: new Vector3(40, 20, 90) },
+            { p0: new Vector3(40, 20, 90), p1: new Vector3(0, 20, 70), p2: new Vector3(0, 20, 70), p3: new Vector3(-40, 20, 90) },
+            { p0: new Vector3(-40, 20, 90), p1: new Vector3(0, 20, 70), p2: new Vector3(0, 20, 70), p3: new Vector3(40, 20, 90) },
+            { p0: new Vector3(40, 20, 90), p1: new Vector3(0, 20, 70), p2: new Vector3(0, 20, 70), p3: new Vector3(-40, 20, 90) },
+            { p0: new Vector3(-40, 20, 90), p1: new Vector3(0, 20, 70), p2: new Vector3(0, 20, 70), p3: new Vector3(40, 20, 90) },
+            { p0: new Vector3(40, 20, 90), p1: new Vector3(0, 20, 70), p2: new Vector3(0, 20, 70), p3: new Vector3(-40, 20, 90) },
+            { p0: new Vector3(-40, 20, 90), p1: new Vector3(0, 20, 70), p2: new Vector3(0, 20, 70), p3: new Vector3(40, 20, 90) },
+            { p0: new Vector3(40, 20, 90), p1: new Vector3(0, 20, 70), p2: new Vector3(0, 20, 70), p3: new Vector3(0, 20, 90) },
+
+
+            { p0: new Vector3(0, 20, 90), p1: new Vector3(20, 20, 0), p2: new Vector3(-20, 20, -60), p3: new Vector3(0, 20, -150) },
+            { p0: new Vector3(0, 20, -150), p1: new Vector3(-20, 20, -60), p2: new Vector3(20, 20, 0), p3: new Vector3(-40, 20, 90) },
         ],
     },
 };
@@ -489,12 +545,12 @@ export const BOSS_WEAPONS: Record<BossWeaponType, IBossWeaponConfig> = {
     },
     BossBombA: {
         kind: 'lazer',
-        maxCount: 30,
+        maxCount: 10,
         collisionRadius: 2,
         castShadow: true,
         glow: false,
         despawnMarginPastPlayer: 50,
-        defaultSpeed: 100,
+        defaultSpeed: 200,
     },
     Missile: {
         kind: 'missile',
@@ -511,6 +567,21 @@ export const BOSS_WEAPONS: Record<BossWeaponType, IBossWeaponConfig> = {
         hitPoints: 2,
         spinRateRadPerSec: Math.PI * 2,
     },
+    MissileB: {
+        kind: 'missile',
+        maxCount: 15,
+        collisionRadius: 3,
+        castShadow: true,
+        glow: false,
+        despawnMarginPastPlayer: 50,
+        defaultSpeed: 90,
+        guidance: 'bezier',
+        bezierBow: 0.5,
+        turnRateRadPerSec: 0.01,
+        maxLifeSec: 4,
+        hitPoints: 1,
+        spinRateRadPerSec: 0,
+    },
 };
 
 /** Level progression. After the last level the session wraps to levels[loopFromIndex]. */
@@ -523,7 +594,7 @@ export const LEVEL = {
 /** Dev/test helpers. Disable (or remove) before shipping. */
 export const DEBUG = {
     /** When true the player ignores collisions (no life lost, no removal) so the game can be tested freely. */
-    invinciblePlayer: false,
+    invinciblePlayer: true,
     /** Skip to the next wave by disposing all active invaders. */
     enableWaveSkip: true,
     /** KeyboardEvent.key values that trigger the wave skip (both cases so Shift/Caps Lock still work). */
@@ -531,6 +602,8 @@ export const DEBUG = {
 
     /** When true, the terrain is not rendered. */
     disableTerrain: false,
+
+    showFPS: false,
 
 } as const;
 
@@ -721,6 +794,12 @@ export const NEXT_LEVEL_FLYBY: INextLevelFlyby = {
     departSeconds: 1,
 };
 
+/** The BOSS text lingers a little longer, giving the terrain more time to change before the boss arrives. */
+export const BOSS_WAVE_FLYBY: INextLevelFlyby = {
+    ...NEXT_LEVEL_FLYBY,
+    pauseSeconds: 2,
+};
+
 /** The text shown between waves. Matches GAME_OVER_TEXT (colour, material, orientation, height) but glows. */
 export const NEXT_LEVEL_TEXT: ITextDisplay = {
     ...GAME_OVER_TEXT,
@@ -883,6 +962,39 @@ export const TERRAIN = {
     rowMargin: 1,
     /** Terrain length the camera framing is based on (PlayField.frameCamera uses max(width, depth)). */
     framingDepth: 512,
+} as const;
+
+/**
+ * Speeding the ground up between waves, so the next wave's terrain covers the view by the time it starts
+ * (see world/terrain/TerrainTransition). TERRAIN.scrollSpeedZ stays the normal speed; this is the boost on top of it.
+ *
+ * The change starts the moment the between-waves pause starts (when the NEXT WAVE / BOSS text is triggered). The new terrain
+ * begins at the far edge of what is visible and has to travel to the bottom of the screen, so the speed needed is roughly
+ * distance / (LEVEL.waveClearDelaySec + settleSeconds). If it is not enough, raise maxSpeedZ or settleSeconds, or lower
+ * arrivalMarginZ (more terrain has to cover the view), or bring the fog closer (shorter distance).
+ */
+export const TERRAIN_TRANSITION = {
+    /**
+     * Seconds after the between-waves pause ends by which the new terrain should be in place. Also used when there is no
+     * pause (first wave of a session, wave skip): the deadline is then LEVEL.waveClearDelaySec + this, as if there were one.
+     */
+    settleSeconds: 1,
+    /**
+     * "In place" means the new terrain's near edge has reached this far (world units) above the bottom of the visible ground.
+     * 0 covers the whole view; a few tens leaves a sliver of the old terrain along the bottom of the screen.
+     */
+    arrivalMarginZ: 25,
+    /** Used when the camera sees no ground to measure the bottom of the view from: world Z the new terrain's near edge must reach. */
+    arrivalZ: PLAYER.spawnZ,
+    /** Seconds to accelerate from the current speed to the boosted speed. A quick ramp reads as a lurch to the next place. */
+    rampUpSeconds: 0.4,
+    /** Seconds to ease back to normal speed (ending exactly at the deadline when the boost is not capped). */
+    rampDownSeconds: 0.6,
+    /**
+     * Fastest the ground may go (units/s), about 6 times normal. When even this cannot make the deadline the terrain lands a
+     * little after it instead.
+     */
+    maxSpeedZ: 300,
 } as const;
 
 

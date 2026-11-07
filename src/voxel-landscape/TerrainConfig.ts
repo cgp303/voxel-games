@@ -1,4 +1,10 @@
-import type { IHandAuthoredStyleSpec, IProceduralStyleOptions, ITerrainConfig } from '../config/interfaces/interfaces';
+import type {
+    IHandAuthoredStyleSpec,
+    IProceduralStyleOptions,
+    ITerrainConfig,
+    ITerrainStyleDef,
+} from '../config/interfaces/interfaces';
+import type { TerrainStyleId } from '../config/types/types';
 
 /**
  * Default terrain configuration - balanced for a retro voxel landscape
@@ -15,38 +21,6 @@ export const DEFAULT_TERRAIN_CONFIG: ITerrainConfig = {
     noiseLacunarity: 0.5,
     noiseExponent: 0.1, // Slightly peaked for more variation at mid-heights
 
-    // colorBands: [
-    //     { height: 0.00, color: { r: 20, g: 25, b: 35 } },    // Abyssal blue-black
-    //     { height: 0.25, color: { r: 40, g: 45, b: 55 } },    // Charcoal navy
-    //     { height: 0.40, color: { r: 35, g: 35, b: 40 } },    // Iron grey
-    //     { height: 0.65, color: { r: 150, g: 80, b: 40 } },    // Ember orange-brown
-    //     { height: 0.70, color: { r: 200, g: 40, b: 10 } },    // Brooding volcanic red
-    // ],
-
-    // colorBands: [
-    //     { height: 0.00, color: { r: 50, g: 50, b: 60 } },    // Deep slate
-    //     { height: 0.30, color: { r: 80, g: 80, b: 100 } },   // Slate grey-blue
-    //     { height: 0.60, color: { r: 110, g: 130, b: 160 } },   // Mid ocean blue
-    //     { height: 0.85, color: { r: 150, g: 170, b: 200 } },   // Light ocean blue
-    //     { height: 1.00, color: { r: 255, g: 255, b: 255 } },   // White crest
-    // ],
-
-    // colorBands: [
-    //     { height: 0.00, color: { r: 10, g: 12, b: 18 } },    // Deep abyss blue-black
-    //     { height: 0.25, color: { r: 30, g: 35, b: 45 } },    // Dark slate navy
-    //     { height: 0.60, color: { r: 70, g: 85, b: 110 } },   // Muted ocean steel-blue
-    //     { height: 0.85, color: { r: 110, g: 130, b: 160 } },   // Cold storm blue
-    //     { height: 1.00, color: { r: 220, g: 230, b: 240 } },   // Pale white crest (less bright)
-    // ],
-
-    // colorBands: [
-    //     { height: 0.00, color: { r: 4, g: 6, b: 10 } },      // Near‑black abyss blue
-    //     { height: 0.25, color: { r: 18, g: 22, b: 30 } },      // Crushed midnight navy
-    //     { height: 0.60, color: { r: 40, g: 48, b: 60 } },      // Heavy slate blue-grey
-    //     { height: 0.85, color: { r: 80, g: 95, b: 120 } },     // Cold storm steel-blue
-    //     { height: 1.00, color: { r: 200, g: 210, b: 220 } },   // Dimmed pale crest (not pure white)
-    // ],
-
     colorBands: [
         { height: 0.00, color: { r: 2, g: 2, b: 4 } },       // Absolute void black-blue
         { height: 0.25, color: { r: 8, g: 10, b: 14 } },      // Subsurface black-grey
@@ -55,30 +29,6 @@ export const DEFAULT_TERRAIN_CONFIG: ITerrainConfig = {
         { height: 1.00, color: { r: 160, g: 170, b: 180 } },   // Dim ghost-grey crest
     ],
 
-    // colorBands: [
-    //     { height: 0.00, color: { r: 3, g: 0, b: 0 } },     // Absolute void‑black with a blood tint
-    //     { height: 0.25, color: { r: 12, g: 2, b: 2 } },     // Subsurface black‑crimson
-    //     { height: 0.60, color: { r: 28, g: 6, b: 6 } },     // Crushed dark‑red slate
-    //     { height: 0.85, color: { r: 70, g: 20, b: 20 } },    // Faint abyssal red‑steel
-    //     { height: 1.00, color: { r: 160, g: 40, b: 40 } },    // Ghost‑red crest (dim, not bright)
-    // ],
-
-
-    // colorBands: [
-    //     { height: 0.00, color: { r: 20, g: 40, b: 80 } },   // Deep navy
-    //     { height: 0.30, color: { r: 40, g: 70, b: 120 } },  // Dark ocean blue
-    //     { height: 0.60, color: { r: 70, g: 110, b: 160 } },  // Mid ocean blue
-    //     { height: 0.85, color: { r: 120, g: 160, b: 200 } },  // Light blue
-    //     { height: 1.00, color: { r: 255, g: 255, b: 255 } },  // Pure white crest
-    // ],
-
-    // colorBands: [
-    //     { height: 0.00, color: { r: 40, g: 40, b: 40 } },    // Charcoal base
-    //     { height: 0.30, color: { r: 70, g: 70, b: 70 } },    // Dark grey
-    //     { height: 0.60, color: { r: 110, g: 110, b: 110 } },   // Mid grey
-    //     { height: 0.85, color: { r: 160, g: 160, b: 160 } },   // Light grey
-    //     { height: 1.00, color: { r: 240, g: 240, b: 240 } },   // White peak
-    // ],
 
     seed: 11911,
     enableSlopeVariation: true,
@@ -128,6 +78,54 @@ export const ATARIA_1_STYLE: IHandAuthoredStyleSpec = {
     tiles: ['terrainAtaria1_0', 'terrainAtaria1_1', 'terrainAtaria1_2', 'terrainAtaria1_7'],
     grid: [[3, 1, 2, 0, 3, 2, 1, 0]],
 };
+
+/**
+ * The hand-authored "ataria-1" terrain: one MagicaVoxel tile (32 x 8 x 32, public/assets/vox/terrains/ataria-1) repeated
+ * across the belt and along the direction of travel. `tiles` are ASSET_PATHS keys; `grid[row][col]` indexes them.
+ */
+export const GREEN_WORLD_STYLE: IHandAuthoredStyleSpec = {
+    name: 'greenworld',
+    tiles: ['terrainGreenWorld_1', 'terrainGreenWorld_2', 'terrainGreenWorld_3', 'terrainGreenWorld_4', 'terrainGreenWorld_0a', 'terrainGreenWorld_0b', 'terrainGreenWorld_0c', 'terrainGreenWorld_7a', 'terrainGreenWorld_7b',
+        'terrainGreenWorld_7c', 'terrainGreenWorld_1a'],
+    grid: [[4, 3, 0, 2, 2, 0, 3, 7],
+    [5, 1, 3, 2, 2, 3, 1, 8],
+    [6, 3, 2, 10, 1, 2, 3, 9],
+    [5, 3, 2, 1, 1, 0, 3, 8],
+    [4, 10, 3, 2, 2, 3, 10, 7],],
+};
+
+export const GREY_WORLD_STYLE: IHandAuthoredStyleSpec = {
+    name: 'greyworld',
+    tiles: ['terrainGreyWorld_1', 'terrainGreyWorld_1a', 'terrainGreyWorld_2', 'terrainGreyWorld_2a', 'terrainGreyWorld_2b', 'terrainGreyWorld_2c'],
+    grid: [[0, 4, 2, 2, 2, 2, 4, 0],
+    [0, 4, 2, 5, 5, 2, 4, 0],
+    [0, 4, 2, 4, 4, 2, 4, 0],
+    [0, 4, 2, 3, 3, 2, 4, 0],
+    [0, 4, 2, 2, 2, 2, 4, 0],
+    ],
+};
+
+export const NEON_WORLD_STYLE: IHandAuthoredStyleSpec = {
+    name: 'neonworld',
+    tiles: ['terrainNeonWorld_1', 'terrainNeonWorld_2', 'terrainNeonWorld_3', 'terrainNeonWorld_4', 'terrainNeonWorld_5', 'terrainNeonWorld_7',
+        'terrainNeonWorld_8', 'terrainNeonWorld_9', 'terrainNeonWorld_10', 'terrainNeonWorld_11', 'terrainNeonWorld_12'],
+    grid: [[6, 1, 1, 1, 1, 1, 1, 5],
+    [6, 1, 1, 0, 0, 1, 1, 5],
+    [6, 3, 0, 1, 1, 0, 3, 5],
+    [6, 1, 1, 0, 0, 1, 1, 5],
+    [6, 7, 10, 9, 9, 8, 7, 5],
+    [6, 1, 1, 2, 2, 1, 1, 5],
+    [6, 1, 4, 1, 1, 4, 1, 5],
+    [6, 1, 1, 1, 1, 1, 1, 5],
+    [6, 1, 1, 4, 4, 1, 1, 5],
+    [6, 3, 0, 1, 1, 0, 3, 5],
+    [6, 1, 1, 4, 4, 1, 1, 5],
+    [6, 1, 1, 1, 1, 1, 1, 5],
+    [6, 1, 1, 2, 2, 1, 1, 5],
+    [6, 1, 4, 1, 1, 4, 1, 5]
+    ],
+};
+
 
 export const STEEL_BLOCK_TERRAIN_CONFIG: ITerrainConfig = {
     ...DEFAULT_TERRAIN_CONFIG,
@@ -195,6 +193,17 @@ export const ATARI_STYLE: IProceduralStyleOptions = {
     slopeLevels: 3,
     introRows: 0,
     loopStartRow: 0,
+};
+
+/** Every terrain style a wave can ask for (WAVE configs name one by id). Built once at startup by TerrainStyleRegistry. */
+export const TERRAIN_STYLES: Record<TerrainStyleId, ITerrainStyleDef> = {
+    crystal: { kind: 'procedural', options: CRYSTAL_STYLE },
+    steelBlock: { kind: 'procedural', options: STEEL_BLOCK_STYLE },
+    atari: { kind: 'procedural', options: ATARI_STYLE },
+    ataria1: { kind: 'handAuthored', spec: ATARIA_1_STYLE },
+    greenWorld: { kind: 'handAuthored', spec: GREEN_WORLD_STYLE },
+    greyWorld: { kind: 'handAuthored', spec: GREY_WORLD_STYLE },
+    neonWorld: { kind: 'handAuthored', spec: NEON_WORLD_STYLE },
 };
 
 

@@ -610,6 +610,7 @@ export interface ILazerWeaponOverride extends IInvaderWeaponOverrideBase { }
 /** Per-stage weapon tuning, set on a Stage so every director gets it. */
 export interface IWeaponOverrides {
     Mine?: IMineWeaponOverride;
+    Mine2?: IMineWeaponOverride;
     LazerA?: ILazerWeaponOverride;
     LazerB?: ILazerWeaponOverride;
 }
@@ -997,6 +998,11 @@ export interface IProceduralStyleOptions {
     loopStartRow?: number;
     loopEndRow?: number;
 }
+
+/** How a terrain style is made: from noise, or from hand-authored tiles. */
+export type ITerrainStyleDef =
+    | { kind: 'procedural'; options: IProceduralStyleOptions }
+    | { kind: 'handAuthored'; spec: IHandAuthoredStyleSpec };
 
 /** Range of world Z that can be seen (see visibleGroundRange). */
 export interface IZRange {

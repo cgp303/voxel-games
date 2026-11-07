@@ -16,7 +16,8 @@ import {
     makeDiamondFormation,
 } from '../patterns/formations/formationBuilders';
 import type { IFormationDescriptor, IPatternDirector, IWeaponOverrides } from '../../config/interfaces/interfaces';
-import type { GroupKind, InvaderRowRoster, PatternType } from '../../config/types/types';
+import type { GroupKind, InvaderRowRoster, PatternType, TerrainStyleId } from '../../config/types/types';
+import { KamakaziDropsDirector } from '../patterns/directors/KamakaziDropsDirector';
 
 interface IStageConfigBase {
     /** Merged over the default `{ orientation: 'front' }` and passed to the director (e.g. `path`, `maxSetIterations`). */
@@ -31,17 +32,17 @@ interface IStageConfigBase {
 
 /** One stage of a wave. Everything the factory needs to build a Stage and its director. */
 export type IStageConfig =
-    | IStageBase<'entry' | 'columnVertical' | 'columnDives' | 'figureEight' | 'lazerB'>
+    | IStageBase<'entry' | 'columnVertical' | 'columnDives' | 'figureEight' | 'lazerB' | 'kamakaziDrops'>
     /** A boss fight; the wave is over when the boss is dead. The wave's formation and roster are not used (give any valid ones). */
     | (IStageBase<'boss'> & { bossId: string })
     | (IStageBase<'groupAttack'> & {
-          /** `[patternName, repeats, startIndex]`; the wave's formation (`Grid`, `X`, ...) is appended to the name. */
-          sets: [GroupKind, number, number][];
-      });
+        /** `[patternName, repeats, startIndex]`; the wave's formation (`Grid`, `X`, ...) is appended to the name. */
+        sets: [GroupKind, number, number][];
+    });
 
 type IStageBase<D extends string> = IStageConfigBase & { director: D };
 
-/** A wave as plain data: formation, who sits in each row, and the ordered stages. */
+/** A wave as plain data: formation, who sits in each row, the ordered stages, and the terrain it is played on. */
 export interface IWaveConfig {
     formation: PatternType;
     /** Row 0 is nearest the player. Must have one entry per formation row. */
@@ -49,6 +50,8 @@ export interface IWaveConfig {
     stages: IStageConfig[];
     /** Stage index the queue returns to after the last stage. */
     loopStartIndex: number;
+    /** Terrain style (a TERRAIN_STYLES id). When it differs from the wave before, the ground speeds up between the two waves. */
+    terrain: TerrainStyleId;
 }
 
 type DirectorKey = IStageConfig['director'];
@@ -90,6 +93,12 @@ const DIRECTORS: Record<DirectorKey, IDirectorEntry> = {
         fireRate: 1.0,
         missileStrength: 1.2,
         create: () => new ColumnDivesDirector(),
+    },
+    kamakaziDrops: {
+        stageName: 'Kamakazi Drops',
+        fireRate: 1.0,
+        missileStrength: 1.2,
+        create: () => new KamakaziDropsDirector(),
     },
     figureEight: {
         stageName: 'Figure Eight Again',
@@ -136,5 +145,5 @@ export function createWave(wave: IWaveConfig): StageQueue {
             config.weaponOverrides,
         );
     });
-    return new StageQueue(stages, wave.loopStartIndex, FORMATIONS[wave.formation](), wave.roster);
+    return new StageQueue(stages, wave.loopStartIndex, FORMATIONS[wave.formation](), wave.roster, wave.terrain);
 }
