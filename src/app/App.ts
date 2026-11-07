@@ -1,4 +1,5 @@
 ﻿import '../style.css';
+import * as THREE from 'three';
 import { GameScene } from '../scene/Scene';
 import { AudioEventTrigger } from '../audio/AudioEventTrigger';
 import { GameCamera } from '../scene/Camera';
@@ -18,10 +19,13 @@ import { TopTenScores } from '../config/data/TopTenScores';
 import { Game } from './Game';
 import type { IGameContext } from '../config/interfaces/interfaces';
 import { loadHighScores } from '../config/data/highscores';
-import { TerrainService } from '../world/TerrainService';
 import { PlayField } from '../world/PlayField';
-import { CRYSTAL_TERRAIN_CONFIG } from '../voxel-landscape/TerrainConfig';
-import { VIEW, INSTANCED_ASSETS, BOSS, HUD, MOBILE_QUALITY_ACTIVE, MOBILE_CONTROLS, MOBILE_CONTROLS_ACTIVE } from '../config/data/constants';
+import { ChunkLibrary } from '../world/terrain/ChunkLibrary';
+import { ScrollingTerrain } from '../world/terrain/ScrollingTerrain';
+import { TerrainStyleRegistry } from '../world/terrain/TerrainStyleRegistry';
+import { TERRAIN_STYLES } from '../voxel-landscape/TerrainConfig';
+import { WAVE_DEMO } from '../systems/stages/levels/waves';
+import { VIEW, INSTANCED_ASSETS, BOSS, HUD, MOBILE_QUALITY_ACTIVE, MOBILE_CONTROLS, MOBILE_CONTROLS_ACTIVE, TERRAIN, QUALITY, DEBUG } from '../config/data/constants';
 import { computeMobileLayout, getUiRoot } from '../core/viewport';
 import { MobileControlHud } from '../ui/MobileControlHud';
 import { ScoreHud } from '../systems/text/ScoreHud';
@@ -45,7 +49,6 @@ export class App {
     private readonly font = new VoxelFont();
     private readonly game = new Game();
     private readonly screens = new ScreenManager();
-    private readonly terrainService = new TerrainService();
     private readonly playField = new PlayField();
     private readonly preloader = new Preloader();
 
@@ -95,7 +98,7 @@ export class App {
         this.screens.setContext(ctx);
 
         this.game.highScores = loadHighScores();
-        this.createFpsDisplay();
+        DEBUG.showFPS ? this.createFpsDisplay() : null;
 
         if (MOBILE_CONTROLS_ACTIVE) {
             this.mobileControlHud = new MobileControlHud(this.input, MOBILE_CONTROLS);
@@ -117,13 +120,13 @@ export class App {
 
         // Engine owns the only animation loop (do not call renderer.startAnimation)
         this.engine.setTick((time) => {
-            this.playField.updateScroll(time.delta);
+            this.playField.updateTerrain(time.delta, this.camera.camera, this.terrainFogDepth());
             this.screens.update(time.delta);
             this.scoreHud?.update();
             this.mobileControlHud?.update();
             this.renderer.render();
             this.input.endFrame();
-            this.updateFps();
+            DEBUG.showFPS ? this.updateFps() : null;
         });
         this.engine.start();
 
@@ -157,17 +160,6 @@ export class App {
     private async bootstrapWorld(): Promise<void> {
         if (this.worldReady) return;
 
-        console.log('[App] generating scrolling terrain…');
-        const terrain = this.terrainService.buildScrollingPair(CRYSTAL_TERRAIN_CONFIG);
-        this.playField.setScrollingTerrain(terrain);
-
-        this.scene.setTerrainDimensions({
-            w: terrain.width,
-            h: terrain.height,
-            d: terrain.tileDepth,
-        });
-        this.scene.createLights();
-
         console.log('[App] preloading assets…');
         const track = this.preloader.track;
         // Every load is registered in this tick (before any is awaited) so the preload bar never moves backwards.
@@ -181,6 +173,32 @@ export class App {
             ),
             this.audioManager?.preload(track),
         ]);
+
+        // Terrain comes after the assets: hand-authored styles are made from tile models that are loaded by now.
+        console.log('[App] generating terrain…');
+        const buildStart = performance.now();
+        const library = new ChunkLibrary();
+        const styles = new TerrainStyleRegistry(library, TERRAIN_STYLES, (key) => this.assets.getModel(key));
+        styles.buildAll();
+        const terrain = new ScrollingTerrain(library, styles.get(WAVE_DEMO.terrain), {
+            cols: TERRAIN.cols,
+            maxRows: TERRAIN.maxRows,
+            rowMargin: TERRAIN.rowMargin,
+            framingDepth: TERRAIN.framingDepth,
+            castShadow: QUALITY.terrainCastShadow,
+        });
+        this.playField.setTerrain(terrain);
+        this.playField.setTerrainStyles(styles);
+        console.log(
+            `[App] terrain: ${Object.keys(TERRAIN_STYLES).length} styles, ${library.size} unique chunks in ${(performance.now() - buildStart).toFixed(0)} ms`,
+        );
+
+        this.scene.setTerrainDimensions({
+            w: terrain.bounds.width,
+            h: terrain.bounds.height,
+            d: terrain.bounds.depth,
+        });
+        this.scene.createLights();
         // Cache mesh template for EntryDirector / PlaySession (Phase 5+).
         // Combat invaders are not pre-placed; Demo/Play intro spawns them off-stage.
 
@@ -204,8 +222,14 @@ export class App {
 
         this.worldReady = true;
         console.log(
-            `[App] world ready — terrain ${terrain.width}x${terrain.tileDepth} (x2 scroll), invader template cached (no static grid)`,
+            `[App] world ready — ${terrain.bounds.width}-wide chunk terrain, invader template cached (no static grid)`,
         );
+    }
+
+    /** Depth at which the fog fully hides the ground; the terrain is only built that far. */
+    private terrainFogDepth(): number {
+        const fog = this.scene.scene.fog;
+        return fog instanceof THREE.Fog ? fog.far : this.camera.camera.far;
     }
 
     private onResize(): void {

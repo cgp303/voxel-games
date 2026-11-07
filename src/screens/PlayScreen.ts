@@ -3,7 +3,7 @@ import { PlaySession } from '../systems/PlaySession';
 import type { DemoScreen } from './DemoScreen';
 import type { GameOverScreen } from './GameOverScreen';
 import { createBasicLevels } from '../systems/stages/levels-basic';
-import { BOSS_WAVE_TEXT, DEBUG, NEXT_LEVEL_FLYBY, NEXT_LEVEL_TEXT } from '../config/data/constants';
+import { BOSS_WAVE_FLYBY, BOSS_WAVE_TEXT, DEBUG, NEXT_LEVEL_FLYBY, NEXT_LEVEL_TEXT } from '../config/data/constants';
 import { TopTenScores } from '../config/data/TopTenScores';
 import { TextFlyby } from '../systems/text/TextFlyby';
 import { GameEvents } from '../config/types/types';
@@ -112,15 +112,18 @@ export class PlayScreen implements IScreen {
     const betweenWaves = session?.isBetweenWaves ?? false;
     if (ctx && session && betweenWaves && !this.wasBetweenWaves) {
       let display;
+      let flyby;
       if (session.nextWaveIsBoss) {
         display = BOSS_WAVE_TEXT;
+        flyby = BOSS_WAVE_FLYBY;
         this.ctx?.events.emit(GameEvents.bossWave);
       } else {
         display = NEXT_LEVEL_TEXT;
+        flyby = NEXT_LEVEL_FLYBY;
         this.ctx?.events.emit(GameEvents.nextWave);
       }
 
-      this.flybys.push(new TextFlyby(ctx.font, ctx.scene.scene, ctx.camera.camera, display, NEXT_LEVEL_FLYBY));
+      this.flybys.push(new TextFlyby(ctx.font, ctx.scene.scene, ctx.camera.camera, display, flyby));
     }
     this.wasBetweenWaves = betweenWaves;
 

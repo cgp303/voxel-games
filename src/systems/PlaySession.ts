@@ -9,7 +9,7 @@ import type {
 } from '../config/interfaces/interfaces';
 import { GameEvents, CollisionLayer, GameMode } from '../config/types/types';
 import type { InvaderTypeId, InvaderWeaponType, ExplosionKind, CollisionLayerFlag, PooledWeaponKey } from '../config/types/types';
-import { INSTANCED_ASSETS, INVADER_ASSET_KEYS, INVADER_WEAPONS, INVADER_WEAPON_TYPES, LEVEL, PLAYER, WEAPONS, COLLISION, DEBUG, GAME_OVER, BOSS, BOSS_DRIP, BOSS_PATHS, BOSS_WEAPONS } from '../config/data/constants';
+import { INSTANCED_ASSETS, INVADER_ASSET_KEYS, INVADER_WEAPONS, INVADER_WEAPON_TYPES, LEVEL, PLAYER, WEAPONS, COLLISION, DEBUG, GAME_OVER, BOSS, BOSS_DRIP, BOSS_PATHS, BOSS_WEAPONS, TERRAIN_TRANSITION } from '../config/data/constants';
 import type { IGameContext, IVoxelCloud } from '../config/interfaces/interfaces';
 import { EntityManager } from '../entities/EntityManager';
 import { Boss } from '../entities/Boss';
@@ -138,6 +138,8 @@ export class PlaySession {
             this.stageQueue = options.stageQueue ?? null;
         }
 
+        // No pause precedes the first wave, so a different terrain is brought in right away (never snapped), to the same deadline as after a pause.
+        if (this.stageQueue) this.requestTerrain(this.stageQueue);
         if (this.stageQueue) {
             this.currentStage = this.stageQueue.next();
             this.director = this.currentStage.director;
@@ -227,6 +229,8 @@ export class PlaySession {
         this.stageQueue = nextQueue;
         this.currentStage = nextQueue.next();
         this.director = this.currentStage.director;
+        // Already under way when the wave followed a pause (see checkWaveCleared); a skipped wave has no pause.
+        this.requestTerrain(nextQueue);
         this.beginCurrentWave('start');
 
         if (startedNewLevel) {
@@ -335,11 +339,25 @@ export class PlaySession {
         if (!this.level || !this.entryFinished || this.gameOverPending || this.gameOver) return;
         if (!this.invaders || this.invaders.count > 0) return;
 
+        // The terrain for the next wave starts coming in now, as the NEXT WAVE / BOSS text is triggered.
+        const upcoming = this.upcomingWave();
+        if (upcoming) this.requestTerrain(upcoming);
+
         if (LEVEL.waveClearDelaySec > 0) {
             this.waveClearRemaining = LEVEL.waveClearDelaySec;
         } else {
             this.startNextWave('finished');
         }
+    }
+
+    /**
+     * Brings in the terrain `queue` is played on when it differs from what is showing. It should cover the view
+     * TERRAIN_TRANSITION.settleSeconds after the between-waves pause ends, so the deadline counts from now: the pause plus
+     * that. A session start or wave skip has no pause before it, but gets the same deadline as if it had.
+     */
+    private requestTerrain(queue: StageQueue): void {
+        if (!this.ctx) return;
+        this.ctx.playField.requestTerrainStyle(queue.terrainStyle, LEVEL.waveClearDelaySec + TERRAIN_TRANSITION.settleSeconds);
     }
 
     public isStarted(): boolean {

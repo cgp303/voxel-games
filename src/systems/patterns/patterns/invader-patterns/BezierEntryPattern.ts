@@ -1,6 +1,5 @@
 import { Vector3 } from 'three';
-import type { IPathPattern } from '../../../../config/interfaces/interfaces';
-import type { IPathSegment } from '../../../../config/interfaces/interfaces';
+import type { IPathPattern, IPathSegment } from '../../../../config/interfaces/interfaces';
 import { CubicBezierSegment } from '../../segments/CubicBezierSegment';
 
 export class BezierEntryPattern implements IPathPattern {

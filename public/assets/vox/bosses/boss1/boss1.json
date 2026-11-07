@@ -25,6 +25,6 @@
       "mounts": [ { "muzzle": {"x":15,"y":2,"z":2}, "disabledBy": ["bombC"] } ] }
   ],
   "cycle": [ { "phase": "attack", "seconds": [3,3] }, { "phase": "rest", "seconds": [3,3] } ],
-  "movement": { "path": "bossSweep1", "durationSec": 20, "maxRollRad": 0.05, "rollGain": 0.02 },
+  "movement": { "path": "bossSweep1", "durationSec": 20, "maxRollRad": 0.2, "rollGain": 0.02 },
   "fx": { "chunks": true, "drip": true }
 }

@@ -28,7 +28,7 @@ export type InvaderMode =
     | 'dying';
 
 /** Invader archetype key (mesh / score tables live in INVADER_TYPES) */
-export type InvaderTypeId = 'scout' | 'fighter' | 'elite' | 'tie';
+export type InvaderTypeId = 'scout' | 'fighter' | 'elite' | 'tie' | 'green1' | 'green2' | 'green3' | 'neon1' | 'neon2';
 
 /**
  * Invader type per formation row; index = row number in the formation.
@@ -178,10 +178,10 @@ export type GroupKind = "group2x2" | "group3x3" | "groupCrosses" | "groupXs" | "
 export type WeaponType = 'Laser';
 
 /** Weapons carried by invaders (each type has its own pool bucket and instanced mesh). */
-export type InvaderWeaponType = 'Mine' | 'LazerA' | 'LazerB';
+export type InvaderWeaponType = 'Mine' | 'Mine2' | 'LazerA' | 'LazerB';
 
 /** Weapons a boss can carry (named by a boss definition; settings live in BOSS_WEAPONS). */
-export type BossWeaponType = 'BossLazerA' | 'BossLazerB' | 'BossBombA' | 'Missile';
+export type BossWeaponType = 'BossLazerA' | 'BossLazerB' | 'BossBombA' | 'Missile' | 'MissileB';
 
 /**
  * Key of one bucket in the InvaderWeaponPool: an invader weapon type, or a boss weapon (`boss:<bossId>:<weaponId>`,
@@ -205,7 +205,7 @@ export type BossCyclePhase = Extract<BossPhase, 'attack' | 'rest'>;
 export type BossPartRole = 'core' | 'anchor';
 
 /** Identifies an invader attack pattern so weapons can be limited to specific patterns. */
-export type AttackPatternId = 'groupAttack1' | 'groupAttack2' | 'columnVertical' | 'columnDives' | 'figureEight' | 'lazerBAttack';
+export type AttackPatternId = 'groupAttack1' | 'groupAttack2' | 'columnVertical' | 'columnDives' | 'figureEight' | 'lazerBAttack' | 'kamakaziDrops';
 
 /** Pooled projectile lifecycle: Idle (hidden in pool), Flying, Fading (shrinking before release). */
 export type ProjectileState = 'Idle' | 'Flying' | 'Fading';
@@ -233,5 +233,8 @@ export type CollisionLayerFlag = (typeof CollisionLayer)[keyof typeof CollisionL
 
 /** Voxel model colours, 0-255 per channel (palette index = voxel colorIndex). */
 export type VoxelColorPalette = ReadonlyArray<{ r: number; g: number; b: number; a: number }>;
+
+/** Names of the terrain styles a wave can ask for; the styles themselves are TERRAIN_STYLES in voxel-landscape/TerrainConfig. */
+export type TerrainStyleId = 'crystal' | 'steelBlock' | 'atari' | 'ataria1' | 'greenWorld' | 'greyWorld' | 'neonWorld';
 
 

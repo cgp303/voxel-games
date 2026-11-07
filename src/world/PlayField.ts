@@ -1,20 +1,21 @@
-﻿import * as THREE from 'three';
+import * as THREE from 'three';
 import type { GameCamera } from '../scene/Camera';
-import { CAMERA, DEBUG, GAME, TERRAIN } from '../config/data/constants';
+import { CAMERA, DEBUG, GAME, TERRAIN, TERRAIN_TRANSITION } from '../config/data/constants';
 import type {
     IGradient2,
     IGroundSampler,
     IInvaderGridOptions,
-    ITerrainBuildResult,
-    IScrollingTerrainBuildResult,
 } from '../config/interfaces/interfaces';
-import type { HeightField } from './HeightField';
+import type { TerrainStyleId } from '../config/types/types';
+import type { ScrollingTerrain } from './terrain/ScrollingTerrain';
+import type { TerrainStyleRegistry } from './terrain/TerrainStyleRegistry';
+import { TerrainTransition } from './terrain/TerrainTransition';
 
 /**
  * Play area: terrain + formation under one root group.
  * Built once by App and shared across Demo/Play/GameOver.
  *
- * Terrain lives under terrainRoot (may scroll).
+ * Terrain lives under terrainRoot (it scrolls toward the camera, see ScrollingTerrain).
  * Invaders live under invaderRoot (do NOT parent under terrain).
  */
 export class PlayField implements IGroundSampler {
@@ -24,16 +25,14 @@ export class PlayField implements IGroundSampler {
     private readonly terrainRoot: THREE.Group;
     private readonly invaderRoot: THREE.Group;
 
-    /** Legacy single-tile path */
-    private terrainMesh: THREE.Mesh | null = null;
-
-    /** Scrolling pair */
-    private terrainMeshA: THREE.Mesh | null = null;
-    private terrainMeshB: THREE.Mesh | null = null;
-    private tileDepth = 0;
-    private heightField: HeightField | null = null;
+    private terrain: ScrollingTerrain | null = null;
+    private terrainStyles: TerrainStyleRegistry | null = null;
     private scrollSpeedZ: number = TERRAIN.scrollSpeedZ;
     private scrollEnabled: boolean = TERRAIN.scrollEnabledDefault;
+    /** Speed the ground actually scrolled at in the latest updateTerrain (units/s toward -Z). */
+    private appliedSpeed = 0;
+    /** The speed boost for the terrain change in progress, if any. */
+    private transition: { controller: TerrainTransition; startRow: number } | null = null;
 
 
     constructor() {
@@ -64,38 +63,19 @@ export class PlayField implements IGroundSampler {
         this.invaderRoot.add(object);
     }
 
-    /**
-     * Legacy: one static terrain mesh (no scroll pair).
-     * Still supported so Step 2 can land before App wiring.
-     */
-    public setTerrain(result: ITerrainBuildResult): void {
+    /** Replaces the terrain. Call updateTerrain(dt, camera, fogDepth) each frame to scroll it and keep its visible rows built. */
+    public setTerrain(terrain: ScrollingTerrain): void {
         this.clearTerrainOnly();
 
-        this.terrainMesh = result.mesh;
-        this.terrainRoot.add(result.mesh);
-        this.tileDepth = result.depth;
-        this.heightField = result.heightField;
-        this.setBounds(result.width, result.height, result.depth);
+        this.terrain = terrain;
+        this.appliedSpeed = this.baseSpeed();
+        this.terrainRoot.add(terrain.field.mesh);
+        this.setBounds(terrain.bounds.width, terrain.bounds.height, terrain.bounds.depth);
     }
 
-    /**
-     * Two Z-abutted tiles. Call updateScroll(dt) each frame to animate.
-     * terrainRoot is shifted so the pair is centered on Z around 0 at start.
-     */
-    public setScrollingTerrain(result: IScrollingTerrainBuildResult): void {
-        this.clearTerrainOnly();
-
-        this.terrainMeshA = result.meshA;
-        this.terrainMeshB = result.meshB;
-        this.tileDepth = result.tileDepth;
-        this.heightField = result.heightField;
-
-        this.terrainRoot.add(result.meshA);
-        this.terrainRoot.add(result.meshB);
-
-        // Pair spans [0, 2*tileDepth] in local mesh space; center that belt on z=0
-        this.terrainRoot.position.set(0, 0, -result.tileDepth);
-        this.setBounds(result.width, result.height, result.tileDepth);
+    /** The current terrain. */
+    public getTerrain(): ScrollingTerrain | null {
+        return this.terrain;
     }
 
     public setBounds(width: number, height: number, depth: number): void {
@@ -115,68 +95,93 @@ export class PlayField implements IGroundSampler {
     }
 
     public getGroundHeight(x: number, z: number): number {
-        const field = this.heightField;
-        const tile = this.terrainMeshA ?? this.terrainMesh;
-        if (!field || !tile) return -Infinity;
-
-        // Both belt tiles are identical and a whole number of tile depths apart, so one tile is enough.
-        const root = this.terrainRoot.position;
-        const surface = field.heightAt(x - root.x - tile.position.x, z - root.z - tile.position.z);
-        return root.y + tile.position.y + surface;
+        return this.terrain?.heightAt(x, z) ?? -Infinity;
     }
 
     public getGroundGradient(x: number, z: number, out: IGradient2): IGradient2 {
-        const field = this.heightField;
-        const tile = this.terrainMeshA ?? this.terrainMesh;
-        if (!field || !tile) {
+        if (!this.terrain) {
             out.x = 0;
             out.z = 0;
             return out;
         }
-        const root = this.terrainRoot.position;
-        return field.gradientAt(x - root.x - tile.position.x, z - root.z - tile.position.z, out);
+        return this.terrain.gradientAt(x, z, out);
     }
 
     public getGroundScrollVelocityZ(): number {
-        return this.scrollEnabled && this.terrainMeshA ? this.scrollSpeedZ : 0;
+        return this.terrain ? -this.appliedSpeed : 0;
     }
 
     /**
-     * Slide both tiles on Z and wrap when one fully leaves the belt.
-     * Safe no-op if scrolling pair is not set or scroll is disabled.
+     * Scrolls the ground and builds the rows `camera` can see, as far as the fog lets it (`fogDepth`).
+     * The ground only scrolls toward the camera (-Z); a positive scroll speed holds it still. While a terrain
+     * change is under way (see requestTerrainStyle) the ground goes faster than normal.
+     * Safe no-op when no terrain is set.
      */
-    public updateScroll(dt: number): void {
-        if (!this.scrollEnabled || !this.terrainMeshA || !this.terrainMeshB) {
-            return;
+    public updateTerrain(dt: number, camera: THREE.PerspectiveCamera, fogDepth: number): void {
+        const terrain = this.terrain;
+        if (!terrain) return;
+
+        let speed = this.baseSpeed();
+        const transition = this.transition;
+        if (transition && speed > 0) {
+            speed = transition.controller.update(dt, terrain.rowNearZ(transition.startRow) - this.arrivalZ(terrain));
+            if (transition.controller.done) this.transition = null;
         }
-        if (this.tileDepth <= 0 || dt === 0) return;
-
-        const dz = this.scrollSpeedZ * dt;
-        this.terrainMeshA.position.z += dz;
-        this.terrainMeshB.position.z += dz;
-
-        // Meshes start at z=0 and z=tileDepth (local). After centering via terrainRoot,
-        // wrap when a tile has scrolled one full tile length out of the 2-tile window.
-        this.wrapTile(this.terrainMeshA);
-        this.wrapTile(this.terrainMeshB);
+        this.appliedSpeed = speed;
+        terrain.update(speed * dt, camera, fogDepth);
     }
 
-    private wrapTile(mesh: THREE.Mesh): void {
-        const depth = this.tileDepth;
-        const wrapPoint = -307.19 / 1.9;
-        // Positive scroll (+Z): when tile goes past the far end of the 2-tile span,
-        // jump it back by 2*depth so it leads again.
-        // Negative scroll (−Z): mirror.
-        if (this.scrollSpeedZ >= 0) {
-            // Local positions drift upward; keep each tile inside ~[0, 2*depth)
-            if (mesh.position.z >= depth * 2) {
-                mesh.position.z -= depth * 2;
-            }
-        } else {
-            if (mesh.position.z < wrapPoint) {
-                mesh.position.z += depth * 2;
-            }
+    /** World Z the new terrain's near edge must reach: the bottom of what the camera sees, less the allowed margin. */
+    private arrivalZ(terrain: ScrollingTerrain): number {
+        const bottom = terrain.visibleNearZ;
+        return bottom === null ? TERRAIN_TRANSITION.arrivalZ : bottom + TERRAIN_TRANSITION.arrivalMarginZ;
+    }
+
+    /** The terrain styles a wave can ask for by id. Must be built into the same ChunkLibrary as the terrain. */
+    public setTerrainStyles(styles: TerrainStyleRegistry): void {
+        this.terrainStyles = styles;
+    }
+
+    /**
+     * Changes the terrain to the style `id`, from the far edge of what is on screen, and speeds the ground up so the
+     * new terrain covers the view (see TERRAIN_TRANSITION) by `seconds` from now. The speed is capped by
+     * TERRAIN_TRANSITION.maxSpeedZ, so when that is too slow the terrain lands a little late. Does nothing when that
+     * style is already showing or on its way. A change that has not appeared yet is replaced by the newer request.
+     */
+    public requestTerrainStyle(id: TerrainStyleId, seconds: number): void {
+        const terrain = this.terrain;
+        const styles = this.terrainStyles;
+        if (!terrain || !styles) return;
+
+        const style = styles.get(id);
+        // Already showing it, or already on its way (the wave that follows the pause asks again): keep what is running.
+        if (style === terrain.currentStyle) return;
+
+        const startRow = terrain.queueStyle(style);
+        if (startRow === null) {
+            // The request put the style before the pending one back, so the pending one was dropped: stop its boost.
+            this.transition?.controller.cancel();
+            return;
         }
+
+        const base = this.baseSpeed();
+        if (base <= 0) return;
+        this.transition = {
+            startRow,
+            controller: new TerrainTransition({
+                baseSpeed: base,
+                maxSpeed: Math.max(base, TERRAIN_TRANSITION.maxSpeedZ),
+                seconds,
+                rampUpSeconds: TERRAIN_TRANSITION.rampUpSeconds,
+                rampDownSeconds: TERRAIN_TRANSITION.rampDownSeconds,
+                startSpeed: this.appliedSpeed > 0 ? this.appliedSpeed : base,
+            }),
+        };
+    }
+
+    /** Normal scroll speed (units/s toward -Z): 0 when scrolling is off or the speed points away from the camera. */
+    private baseSpeed(): number {
+        return this.scrollEnabled ? Math.max(0, -this.scrollSpeedZ) : 0;
     }
 
     /**
@@ -230,16 +235,10 @@ export class PlayField implements IGroundSampler {
     }
 
     private clearTerrainOnly(): void {
-        while (this.terrainRoot.children.length > 0) {
-            const child = this.terrainRoot.children[0];
-            this.terrainRoot.remove(child);
-            disposeObject3D(child);
-        }
-        this.terrainMesh = null;
-        this.terrainMeshA = null;
-        this.terrainMeshB = null;
-        this.heightField = null;
-        this.tileDepth = 0;
+        this.terrain?.dispose();
+        this.terrain = null;
+        this.transition = null;
+        this.appliedSpeed = 0;
         this.terrainRoot.position.set(0, 0, 0);
     }
 

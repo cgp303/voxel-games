@@ -1,0 +1,31 @@
+{
+  "id": "boss2",
+  "vox": "assets/vox/bosses/boss2/boss2b.vox",
+  "size": { "x": 48, "y": 8, "z": 32 },
+  "scoreValue": 10000,
+  "hull": { "tile": { "w": 4, "d": 4 }, "hits": 2 },     
+  "parts": [
+    { "id": "eye",    "rects": [[20,23,27,27]], "hits": 3, "role": "core" },
+    { "id": "canL",   "rects": [[1,2,6,31]],  "hits": 10 },
+    { "id": "canR",   "rects": [[41,2,46,31]],"hits": 10 },
+    { "id": "gunL",   "rects": [[13,3,14,10]], "hits": 5 },
+    { "id": "gunR",   "rects": [[33,3,34,10]],"hits": 5 },
+    { "id": "bombC", "rects": [[17,11,30,11]], "hits": 12 }
+
+  ],
+  "weapons": [
+    { "id": "main", "weapon": "BossLazerA", "asset": "boss2lazer1", "sync": true, "rate": 0.05, "speed": 300,
+      "phases": ["attack"],
+      "mounts": [ { "muzzle": {"x":3,"y":3,"z":2},  "disabledBy": ["canL"] },
+                  { "muzzle": {"x":43,"y":3,"z":2}, "disabledBy": ["canR"] } ] },
+    { "id": "side", "weapon": "BossLazerB", "asset": "boss2lazer2","sync": true, "rate": 0.05, "speed": 300,
+      "phases": ["attack"],
+      "mounts": [ { "muzzle": {"x":13,"y":3,"z":2}, "disabledBy": ["gunL"] },
+                  { "muzzle": {"x":33,"y":3,"z":2},"disabledBy": ["gunR"] } ] },
+    { "id": "bomb", "weapon": "MissileB", "asset": "boss2bomb1", "rate": 0.5, "phases": ["rest"],
+      "mounts": [ { "muzzle": {"x":23,"y":1,"z":9}, "disabledBy": ["bombC"] } ] }
+  ],
+  "cycle": [ { "phase": "attack", "seconds": [2, 2] }, { "phase": "rest", "seconds": [5, 5] } ],
+  "movement": { "path": "bossSweep2", "durationSec": 30, "maxRollRad": 0.2, "rollGain": 0.02 },
+  "fx": { "chunks": true, "drip": true }
+}
