@@ -68,7 +68,8 @@ export abstract class WeaponTrigger {
      * that allowedSegments entry (see segmentSlot) and returns true.
      */
     protected enterAllowedSegment(invader: Invader): boolean {
-        if (!invader.active || invader.mode !== 'diving') return false;
+        // Allow weapons to fire during both entering and diving modes
+        if (!invader.active || (invader.mode !== 'diving' && invader.mode !== 'entering')) return false;
         if (!this.config.allowedInvaderTypes.includes(invader.typeId)) return false;
         const id = invader.patternId;
         const slot = id ? (this.config.allowedSegments[id]?.indexOf(invader.segmentIndex) ?? -1) : -1;

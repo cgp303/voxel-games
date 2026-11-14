@@ -1,9 +1,9 @@
 import { Vector3 } from 'three';
 import { CubicBezierSegment } from '../../segments/CubicBezierSegment';
 import { MultiSegmentPattern } from '../MultiSegmentPattern';
-import type { IPatternBuilder, ICubicBezierControls } from '../../../../config/interfaces/interfaces';
+import type { ICubicBezierControls, IFormationPatternBuilder } from '../../../../config/interfaces/interfaces';
 
-export class SimpleLoopFormationPatternBuilder implements IPatternBuilder {
+export class SimpleLoopFormationPatternBuilder implements IFormationPatternBuilder {
     // Canonical RIGHT-side path; must be real Vector3 instances (mirror helpers need .clone()/.set()).
     private static readonly SEGMENTS: ICubicBezierControls[] = [
         {

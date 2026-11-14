@@ -1,33 +1,35 @@
 import { Vector3 } from 'three';
 import type { EntrySide } from '../../../config/types/types';
-import type { IEntryConfig, IFormationSlot } from '../../../config/interfaces/interfaces';
+import type { IEntryConfig, IFormationSlot, IPatternBuilder } from '../../../config/interfaces/interfaces';
 import { ENTRY, INVADER_TYPES } from '../../../config/data/constants';
 import { Invader } from '../../../entities/Invader';
 import type { PlayField } from '../../../world/PlayField';
-import { buildEntryControlsFromConfig } from '../../path/cubicBezier';
-import { BezierEntryPattern } from '../patterns/invader-patterns/BezierEntryPattern';
-import { CubicBezierSegment } from '../segments/CubicBezierSegment';
 import { slotCol, slotRow } from '../formations/slotKey';
 import { defaultOrientationConfig } from '../../../config/pattern-config/defaultOrientationConfig';
 import type { IDirectorContext } from '../../../config/interfaces/interfaces';
 import { BasePatternDirector } from './BasePatternDirector';
-
+import { StandardEntryPatternBuilder } from '../patterns/invader-patterns/StandardEntryPatternBuilder';
+import { SpiralEntryPatternBuilder } from '../patterns/invader-patterns/SpiralEntryPatternBuilder';
+import { SwoopingDiveEntryPatternBuilder } from '../patterns/invader-patterns/SwoopingDiveEntryPatternBuilder';
+import { FromAboveEntryPattern } from '../patterns/invader-patterns/FromAboveEntryPatternBuilder';
 
 type QueueJob =
     | { kind: 'pair'; left: IFormationSlot; right: IFormationSlot }
     | { kind: 'single'; slot: IFormationSlot };
 
+export type EntryPatternBuilderType = 'standard' | 'spiral' | 'swoopingDive' | 'fromAbove';
 
 /**
- * Releases invaders off-stage in L/R pairs (plus alternating center column when odd),
- * builds mirrored entry paths, registers them with EntityManager.
- * Does not tick invaders — PlaySession runs formation → entry → invaders.
- * Spawns brand-new invaders (unlike InvaderRepathDirector subclasses, which redirect
- * already-spawned ones), so it extends BasePatternDirector directly.
+ * Extended entry config to specify which entry pattern builder to use.
  */
+export interface IEntryPatternDirectorConfig extends IEntryConfig {
+    patternBuilder?: EntryPatternBuilderType;
+}
+
 export class EntryPatternDirector extends BasePatternDirector {
     private playField: PlayField | null = null;
     private entry: IEntryConfig = { ...ENTRY };
+    private patternBuilder: IPatternBuilder = new StandardEntryPatternBuilder();
 
     private queue: QueueJob[] = [];
     private timer = 0;
@@ -40,19 +42,18 @@ export class EntryPatternDirector extends BasePatternDirector {
     public begin(ctx: IDirectorContext): void {
         this.captureCommon(ctx);
         this.playField = ctx.playField;
-        const entryConfig = ctx.config ?? {};
+        const entryConfig = (ctx.config ?? {}) as IEntryPatternDirectorConfig;
         this.entry = { ...ENTRY, ...entryConfig };
+        this.patternBuilder = this.createPatternBuilder(entryConfig.patternBuilder ?? 'standard');
         this.getInvaderTypeForSlot = ctx.getInvaderTypeForSlot;
 
         const perSec = Math.max(0.01, this.entry.invadersPerSecond);
-        // Two invaders per pair release.
         this.pairIntervalSec = 2 / perSec;
-        this.timer = 0; // first pair on first eligible update (immediate)
+        this.timer = 0;
         this.queue.length = 0;
 
         const spawnOrder = this.formation.getSpawnOrder();
         const spawnType = this.formation.getSpawnType();
-
 
         switch (spawnType) {
             case "LeftRightPairs":
@@ -75,7 +76,6 @@ export class EntryPatternDirector extends BasePatternDirector {
             default:
                 throw new Error(`Unknown spawnType: ${spawnType}`);
         }
-
     }
 
     public update(dt: number): void {
@@ -84,14 +84,12 @@ export class EntryPatternDirector extends BasePatternDirector {
         if (this.queue.length === 0) return;
 
         this.timer -= dt;
-        // Allow catch-up if frame hitch; still one release per interval tick.
         while (this.timer <= 0 && this.queue.length > 0 && !this.cancelled) {
             this.releaseNext();
             this.timer += this.pairIntervalSec;
         }
     }
 
-    /** Clear any pending releases; in-flight invaders keep flying. */
     protected override onCancel(): void {
         this.queue.length = 0;
     }
@@ -100,9 +98,6 @@ export class EntryPatternDirector extends BasePatternDirector {
         return this.queue.length;
     }
 
-    /**
-     * Queue drained and no invader still in entering mode.
-     */
     public isComplete(): boolean {
         if (this.queue.length > 0) return false;
         for (const e of this.invaders?.getAll() ?? []) {
@@ -126,18 +121,16 @@ export class EntryPatternDirector extends BasePatternDirector {
         if (job.kind === 'single') {
             this.spawnOne(job.slot, 'center');
         }
-
     }
 
     private spawnOne(slot: IFormationSlot, side: EntrySide): void {
-
         const formation = this.formation!;
         const invaders = this.invaders!;
         const playField = this.playField!;
         const entry = this.entry;
 
         formation.getWorldHomeSlot(slot, this.homeScratch);
-        const predictedEndPosition = formation.getAdjustedPositionForGroupReturn(this.homeScratch, entry.pathDuration);
+        const predictedEndPosition = formation.getAdjustedPositionForGroupReturn(this.homeScratch, this.patternBuilder.duration());
 
         const centerX = formation.getCenterX();
         const halfExtent = this.resolveHalfExtentX(playField);
@@ -149,22 +142,17 @@ export class EntryPatternDirector extends BasePatternDirector {
             this.homeScratch.z + entry.spawnZBias,
         );
 
-        const controls = buildEntryControlsFromConfig(
+        // Use the pattern builder to create the entry pattern
+        const sideNum = side === 'left' ? 0 : 1;
+        const pattern = this.patternBuilder.build(
             this.spawnScratch,
+            sideNum,
             predictedEndPosition,
-            centerX,
-            side,
-            entry,
         );
 
-        const segment = new CubicBezierSegment(controls);
-        const pattern = new BezierEntryPattern(segment, entry.pathDuration);
-
-        // Pick the invader type for this slot and use its instanced mesh.
         const typeId = this.getInvaderTypeForSlot(slot.col, slot.row);
         const typeDef = INVADER_TYPES[typeId];
 
-        // Acquire (pool handles clone + shadow traversal on first call only)
         const invader = this.invaders!.acquireInvader(typeDef.assetKey);
 
         invader.reset({
@@ -175,13 +163,27 @@ export class EntryPatternDirector extends BasePatternDirector {
             spawn: this.spawnScratch.clone(),
             pattern,
             formation,
-            pathDuration: entry.pathDuration,
+            pathDuration: this.patternBuilder.duration(),
             entry: defaultOrientationConfig,
             poolAssetKey: typeDef.assetKey,
         });
 
-        // playField.attachInvader(invader.object3d);
         invaders.add(invader);
+    }
+
+    private createPatternBuilder(type: EntryPatternBuilderType): IPatternBuilder {
+        switch (type) {
+            case 'standard':
+                return new StandardEntryPatternBuilder();
+            case 'spiral':
+                return new SpiralEntryPatternBuilder();
+            case 'swoopingDive':
+                return new SwoopingDiveEntryPatternBuilder();
+            case 'fromAbove':
+                return new FromAboveEntryPattern();
+            default:
+                return new StandardEntryPatternBuilder();
+        }
     }
 
     private resolveHalfExtentX(playField: PlayField): number {

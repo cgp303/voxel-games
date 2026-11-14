@@ -28,7 +28,7 @@ export type InvaderMode =
     | 'dying';
 
 /** Invader archetype key (mesh / score tables live in INVADER_TYPES) */
-export type InvaderTypeId = 'scout' | 'fighter' | 'elite' | 'tie' | 'green1' | 'green2' | 'green3' | 'neon1' | 'neon2';
+export type InvaderTypeId = 'scout' | 'fighter' | 'elite' | 'tie' | 'green1' | 'green2' | 'green3' | 'neon1' | 'neon2' | 'neon3' | 'jewel1' | 'jewel2' | 'jewel3';
 
 /**
  * Invader type per formation row; index = row number in the formation.
@@ -178,7 +178,7 @@ export type GroupKind = "group2x2" | "group3x3" | "groupCrosses" | "groupXs" | "
 export type WeaponType = 'Laser';
 
 /** Weapons carried by invaders (each type has its own pool bucket and instanced mesh). */
-export type InvaderWeaponType = 'Mine' | 'Mine2' | 'LazerA' | 'LazerB';
+export type InvaderWeaponType = 'Mine' | 'Mine2' | 'Mine3' | 'LazerA' | 'LazerB';
 
 /** Weapons a boss can carry (named by a boss definition; settings live in BOSS_WEAPONS). */
 export type BossWeaponType = 'BossLazerA' | 'BossLazerB' | 'BossBombA' | 'Missile' | 'MissileB';
@@ -198,6 +198,20 @@ export type BossPhase = 'entering' | 'attack' | 'rest';
 /** The phases a boss's cycle alternates between. */
 export type BossCyclePhase = Extract<BossPhase, 'attack' | 'rest'>;
 
+/** Named stages of a boss arm's move list; a stage is only a label, the behaviour comes from the move's parameters. */
+export type ArmStage = 'idle' | 'track' | 'windup' | 'strike' | 'sweep' | 'recover';
+
+/** How a move picks where the arm's tip goes. */
+export type ArmTargetMode = 'local' | 'player' | 'lockedPlayer' | 'sweep' | 'pendulum';
+
+/** How an arm's weapon picks its firing direction. */
+export type ArmFireMode = 'down' | 'random' | 'aim' | 'tip';
+
+/** Whether the tip eases to its target ('smooth') or overshoots and snaps back ('whip'). */
+export type ArmMotion = 'smooth' | 'whip';
+
+export type ArmEase = 'in' | 'out' | 'inOut';
+
 /**
  * Special parts of a boss. Destroying the `core` kills the boss. A shot-off chunk that is no longer connected to
  * the `anchor` (the core when no part is marked) breaks away and falls.
@@ -205,7 +219,19 @@ export type BossCyclePhase = Extract<BossPhase, 'attack' | 'rest'>;
 export type BossPartRole = 'core' | 'anchor';
 
 /** Identifies an invader attack pattern so weapons can be limited to specific patterns. */
-export type AttackPatternId = 'groupAttack1' | 'groupAttack2' | 'columnVertical' | 'columnDives' | 'figureEight' | 'lazerBAttack' | 'kamakaziDrops';
+export type AttackPatternId =
+    | 'groupAttack1'
+    | 'groupAttack2'
+    | 'columnVertical'
+    | 'columnDives'
+    | 'figureEight'
+    | 'lazerBAttack'
+    | 'kamakaziDrops'
+    // Entry pattern IDs:
+    | 'entryStandardBezier'
+    | 'entrySpiral'
+    | 'entrySwoopingDive'
+    | 'entryFromAbove';
 
 /** Pooled projectile lifecycle: Idle (hidden in pool), Flying, Fading (shrinking before release). */
 export type ProjectileState = 'Idle' | 'Flying' | 'Fading';

@@ -7,16 +7,16 @@ import { HIGH_SCORE_SERVER } from './constants';
  */
 export class TopTenScores {
     static scores: IHighScoreRow[] = [
-        { rank: 1, score: 50000, name: 'ACE' },
-        { rank: 2, score: 45000, name: 'TOP' },
-        { rank: 3, score: 40000, name: 'PRO' },
-        { rank: 4, score: 35000, name: 'VET' },
-        { rank: 5, score: 30000, name: 'EXP' },
-        { rank: 6, score: 25000, name: 'ADV' },
-        { rank: 7, score: 20000, name: 'MID' },
-        { rank: 8, score: 15000, name: 'LOW' },
-        { rank: 9, score: 10000, name: 'NEW' },
-        { rank: 10, score: 5000, name: 'BEG' },
+        { rank: 1, score: 500000, name: 'ACE' },
+        { rank: 2, score: 450000, name: 'TOP' },
+        { rank: 3, score: 400000, name: 'PRO' },
+        { rank: 4, score: 350000, name: 'VET' },
+        { rank: 5, score: 300000, name: 'EXP' },
+        { rank: 6, score: 250000, name: 'ADV' },
+        { rank: 7, score: 200000, name: 'MID' },
+        { rank: 8, score: 150000, name: 'LOW' },
+        { rank: 9, score: 100000, name: 'NEW' },
+        { rank: 10, score: 750000, name: 'BEG' },
     ];
 
     /** The score the player just entered; shown highlighted in the table until the next game starts. */

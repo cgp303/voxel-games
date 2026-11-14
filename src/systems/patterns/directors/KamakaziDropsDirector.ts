@@ -8,8 +8,10 @@ import { SlotKey, ColumnSpawnType } from '../../../config/types/types';
 
 
 export class KamakaziDropsDirector extends ColumnTriggerDirector {
-    protected readonly msBetweenTriggers = 0.25;
+    protected msBetweenTriggers = 1;
     protected override spawnType: ColumnSpawnType = 'Wave';
+    protected batchSize = 1; // Number of slots per trigger batch
+    protected maxPicks = 30;
 
     protected createBuilder(): IPatternBuilder {
         return new KamakaziDropsPatternBuilder();
@@ -19,6 +21,7 @@ export class KamakaziDropsDirector extends ColumnTriggerDirector {
     /** Back-row-to-front, fixed random column order. */
     protected makeTriggerOrder(): SlotKey[][] {
         const order: SlotKey[][] = [];
+        let picks = 0;
 
         const maxCol = this.formation.maxCol;
         const maxRow = this.formation.maxRow;
@@ -36,13 +39,14 @@ export class KamakaziDropsDirector extends ColumnTriggerDirector {
         }
 
         // Walk rows from back to front.
-        const batchSize = 3; // Number of slots per trigger batch
-
+        outer:
         for (let row = maxRow; row >= 0; row--) {
             const rowKeys = cols.map(col => slotKey(col, row));
 
-            for (let i = 0; i < rowKeys.length; i += batchSize) {
-                order.push(rowKeys.slice(i, i + batchSize));
+            for (let i = 0; i < rowKeys.length; i += this.batchSize) {
+                if (picks >= this.maxPicks) break outer;
+                order.push(rowKeys.slice(i, i + this.batchSize));
+                picks++;
             }
         }
 

@@ -1,5 +1,5 @@
 ﻿import * as THREE from 'three';
-import type { IBossResources, IParsedVoxModel, IVoxelCloud } from '../config/interfaces/interfaces';
+import type { IBossArmModelKeys, IBossResources, IParsedVoxModel, IVoxelCloud } from '../config/interfaces/interfaces';
 import { VoxelWorld } from '../voxel/VoxelWorld';
 import { VoxelGeometry } from '../voxel/VoxelGeometry';
 import { buildVoxelCloud } from '../voxel/VoxelCloud';
@@ -102,7 +102,24 @@ export class AssetManager {
       weaponModelKeys[weapon.id] = key;
     }
 
-    const resources: IBossResources = { definition, modelKey, weaponModelKeys };
+    const armModelKeys: Record<string, IBossArmModelKeys> = {};
+    for (const arm of definition.arms) {
+      const keys: IBossArmModelKeys = {
+        joint: `boss:${id}:arm:${arm.id}:joint`,
+        segment: `boss:${id}:arm:${arm.id}:segment`,
+        weapon: `boss:${id}:arm:${arm.id}:weapon`,
+      };
+      this.models.set(keys.joint, toBossSpace(await VoxParser.loadVoxFile(`${folder}/${arm.assets.joint}.vox`)));
+      this.models.set(keys.segment, toBossSpace(await VoxParser.loadVoxFile(`${folder}/${arm.assets.segment}.vox`)));
+      this.models.set(keys.weapon, toBossSpace(await VoxParser.loadVoxFile(`${folder}/${arm.assets.weapon}.vox`)));
+      if (arm.assets.lazer) {
+        keys.lazer = `boss:${id}:arm:${arm.id}:lazer`;
+        this.models.set(keys.lazer, toBossSpace(await VoxParser.loadVoxFile(`${folder}/${arm.assets.lazer}.vox`)));
+      }
+      armModelKeys[arm.id] = keys;
+    }
+
+    const resources: IBossResources = { definition, modelKey, weaponModelKeys, armModelKeys };
     this.bosses.set(id, resources);
     return resources;
   }

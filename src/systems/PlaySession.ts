@@ -9,10 +9,11 @@ import type {
 } from '../config/interfaces/interfaces';
 import { GameEvents, CollisionLayer, GameMode } from '../config/types/types';
 import type { InvaderTypeId, InvaderWeaponType, ExplosionKind, CollisionLayerFlag, PooledWeaponKey } from '../config/types/types';
-import { INSTANCED_ASSETS, INVADER_ASSET_KEYS, INVADER_WEAPONS, INVADER_WEAPON_TYPES, LEVEL, PLAYER, WEAPONS, COLLISION, DEBUG, GAME_OVER, BOSS, BOSS_DRIP, BOSS_PATHS, BOSS_WEAPONS, TERRAIN_TRANSITION } from '../config/data/constants';
-import type { IGameContext, IVoxelCloud } from '../config/interfaces/interfaces';
+import { INSTANCED_ASSETS, INVADER_ASSET_KEYS, INVADER_WEAPONS, INVADER_WEAPON_TYPES, LEVEL, PLAYER, WEAPONS, COLLISION, DEBUG, GAME_OVER, BOSS, BOSS_ARM, BOSS_DRIP, BOSS_PATHS, BOSS_WEAPONS, TERRAIN_TRANSITION } from '../config/data/constants';
+import type { IBossArmModels, IGameContext, IVoxelCloud } from '../config/interfaces/interfaces';
 import { EntityManager } from '../entities/EntityManager';
 import { Boss } from '../entities/Boss';
+import { FallingPieces } from '../entities/FallingPieces';
 import { Invader } from '../entities/Invader';
 import { InvaderWeapon } from '../entities/InvaderWeapon';
 import { MineWeapon } from '../entities/MineWeapon';
@@ -24,6 +25,7 @@ import { ProjectilePool } from './ProjectilePool';
 import { InvaderWeaponPool } from './InvaderWeaponPool';
 import { CollisionSystem } from './collision/CollisionSystem';
 import { buildBossPath } from './boss/BossPath';
+import { voxelsToCloud } from './boss/DestructibleVoxelModel';
 import { DebrisSystem } from './fx/DebrisSystem';
 import { SparkSystem } from './fx/SparkSystem';
 import { EntryPatternDirector } from './patterns/directors/EntryPatternDirector';
@@ -33,6 +35,7 @@ import { Stage } from './stages/Stage';
 import { StageQueue } from './stages/StageQueue';
 import { Level } from './stages/Level';
 import { SimpleLoopFormationPatternBuilder } from './patterns/patterns/formation-patterns/SimpleLoopFormationPatternBuilder';
+import { FormationPatternBuilderFactory } from './patterns/patterns/formation-patterns/FormationPatternBuilderFactory';
 
 const identityOrientation = new Quaternion();
 
@@ -67,10 +70,12 @@ export class PlaySession {
     private collision: CollisionSystem | null = null;
     // Reused every frame so collision runs without allocating.
     private readonly collisionMovers: ICollisionMover[] = [];
+    private readonly armWeaponPosition = new Vector3();
     private readonly collisionTargets: ICollisionTarget[] = [];
 
     private debris: DebrisSystem | null = null;
     private sparks: SparkSystem | null = null;
+    private fallingPieces: FallingPieces | null = null;
     private readonly sparkOrigin = new Vector3();
     /** Fire dripping from a damaged boss. */
     private drips: SparkSystem | null = null;
@@ -295,6 +300,7 @@ export class PlaySession {
     public clearCombatants(): void {
         this.invaders?.clear();
         this.weaponPool?.clear();
+        this.fallingPieces?.clear();
         this.ctx?.playField.clearInvaders();
     }
 
@@ -320,6 +326,7 @@ export class PlaySession {
         this.debris?.update(dt);
         this.sparks?.update(dt);
         this.drips?.update(dt);
+        this.fallingPieces?.update(dt);
         this.updateCollisions();
 
         if (betweenWaves) {
@@ -400,6 +407,8 @@ export class PlaySession {
         this.sparks = null;
         this.drips?.dispose();
         this.drips = null;
+        this.fallingPieces?.dispose();
+        this.fallingPieces = null;
         this.boss = null;
         this.invaders?.clear();
         this.ctx?.playField.clearInvaders();
@@ -447,6 +456,8 @@ export class PlaySession {
         ctx.scene.scene.add(this.sparks.mesh);
         this.drips = new SparkSystem(BOSS_DRIP);
         ctx.scene.scene.add(this.drips.mesh);
+        this.fallingPieces = new FallingPieces();
+        ctx.scene.scene.add(this.fallingPieces.group);
     }
 
     /**
@@ -461,6 +472,8 @@ export class PlaySession {
 
         const movers = this.collisionMovers;
         const targets = this.collisionTargets;
+        this.updateArmShots();
+        this.updatePieceShots();
         for (const shot of pool.liveShots) {
             if (shot.collisionEnabled) movers.push(shot);
         }
@@ -498,6 +511,61 @@ export class PlaySession {
         const player = this.player;
         if (boss && player?.collisionEnabled && boss.touchesCircle(player.position.x, player.position.z, BOSS.contactRadius)) {
             this.onPlayerHit(player);
+        } else if (boss && player?.collisionEnabled && boss.touchesArm(player.position.x, player.position.y, player.position.z, BOSS_ARM.playerRadius)) {
+            this.onPlayerHit(player);
+        } else if (player?.collisionEnabled && this.fallingPieces?.touches(player.position.x, player.position.y, player.position.z, BOSS_ARM.playerRadius)) {
+            this.onPlayerHit(player);
+        }
+    }
+
+    /** Hands any arm pieces the boss has cut loose to the falling-pieces system. */
+    private collectShedPieces(boss: Boss): void {
+        const pieces = boss.takeShedPieces();
+        if (pieces.length > 0) this.fallingPieces?.add(pieces);
+    }
+
+    /** Player shots against falling arm pieces: one hit destroys a piece, which explodes and scores. */
+    private updatePieceShots(): void {
+        const falling = this.fallingPieces;
+        const pool = this.projectilePool;
+        if (!falling || !pool || falling.count === 0) return;
+
+        for (const shot of pool.liveShots) {
+            if (!shot.collisionEnabled) continue;
+            const piece = falling.takeShotPiece(shot.previousPosition, shot.position, shot.collisionRadius);
+            if (!piece) continue;
+
+            pool.release(shot);
+            const { voxels, size, colors } = piece.model;
+            this.explodeCloud('bossPart', voxelsToCloud(voxels, colors, size), piece.position, piece.quaternion, this.noVelocity);
+            this.ctx?.game.addScore(piece.score);
+        }
+    }
+
+    /**
+     * Player shots against the boss's arms, before the other collisions: an arm stops a shot (with sparks) and does
+     * not take damage, except at its weapon, which loses hits and, once destroyed, explodes and cuts the arm loose.
+     * (The joint is a part of the boss body and is shot through the usual boss collision.)
+     */
+    private updateArmShots(): void {
+        const boss = this.boss;
+        const pool = this.projectilePool;
+        if (!boss || !pool || !boss.collisionEnabled) return;
+
+        for (const shot of pool.liveShots) {
+            if (!shot.collisionEnabled) continue;
+            const hit = boss.sweepShotAgainstArms(shot.previousPosition, shot.position, shot.collisionRadius);
+            if (!hit) continue;
+
+            pool.release(shot);
+            this.emitSparks(hit.x, hit.y, hit.z, boss.velocity);
+            if (hit.collider !== hit.arm.weaponIndex || !boss.hitArmWeapon(hit.arm, shot.power)) continue;
+
+            const cloud = boss.armWeaponCloud(hit.arm, this.armWeaponPosition);
+            this.explodeCloud('bossPart', cloud, this.armWeaponPosition, boss.orientation, boss.velocity);
+            this.ctx?.game.addScore(hit.arm.def.weapon.scoreValue);
+            this.ctx?.events.emit(GameEvents.boss1PartDestroyed);
+            this.collectShedPieces(boss);
         }
     }
 
@@ -577,6 +645,7 @@ export class PlaySession {
     private hitBoss(boss: Boss, hit: ICollisionHit, shot: Projectile): void {
         this.emitSparks(hit.x, boss.position.y, hit.z, boss.velocity);
         const damage = boss.takeHit(hit.localX, hit.localZ, shot.power, shot.collisionRadius);
+        this.collectShedPieces(boss);
         if (!damage.destroyed) return;
 
         let damageType: number = 0;
@@ -606,6 +675,8 @@ export class PlaySession {
 
     /** The boss is dead: everything left of it explodes, the score is awarded (unless `award` is false) and it is removed. */
     private killBoss(boss: Boss, award = true): void {
+        boss.shedAllArms();
+        this.collectShedPieces(boss);
         this.explodeCloud('boss', boss.toCloud(boss.model.remainingVoxels()), boss.position, boss.orientation, boss.velocity);
         if (award) this.ctx?.game.addScore(boss.definition.scoreValue);
         this.invaders?.remove(boss);
@@ -621,6 +692,7 @@ export class PlaySession {
         const pool = this.weaponPool;
         if (!boss || !pool) return;
 
+        boss.trackPlayer(this.player?.collisionEnabled ? this.player.position : null);
         for (let i = 0; i < boss.launchCount; i++) {
             const launch = boss.launches[i];
             const layer = BOSS_WEAPONS[launch.weapon].kind === 'missile' ? this.invaderWeaponLayer() : CollisionLayer.INVADER_WEAPON;
@@ -659,6 +731,23 @@ export class PlaySession {
             weaponKeys[weapon.id] = key;
         }
 
+        const armModels: Record<string, IBossArmModels> = {};
+        const armLazerKeys: Record<string, PooledWeaponKey> = {};
+        for (const arm of definition.arms) {
+            const keys = resources.armModelKeys[arm.id];
+            if (keys.lazer) {
+                const key = keys.lazer as PooledWeaponKey;
+                const mesh = pool.registerBossWeapon(key, BOSS_WEAPONS[arm.weapon.type], key, ctx.assets);
+                if (!mesh.parent) ctx.scene.scene.add(mesh);
+                armLazerKeys[arm.id] = key;
+            }
+            armModels[arm.id] = {
+                joint: ctx.assets.getModel(keys.joint)!,
+                segment: ctx.assets.getModel(keys.segment)!,
+                weapon: ctx.assets.getModel(keys.weapon)!,
+            };
+        }
+
         const boss = new Boss({
             ctx,
             definition,
@@ -667,6 +756,8 @@ export class PlaySession {
             hoverY,
             path: buildBossPath(pathDef, hoverY, definition.movement.durationSec, `Boss "${bossId}" path`),
             weaponKeys,
+            armModels,
+            armLazerKeys,
         });
         // Bake the footprints now so the first shot or contact does not hitch.
         boss.collisionModels.get(WEAPONS[PLAYER.weapon].collisionRadius);
@@ -930,7 +1021,7 @@ export class PlaySession {
             throw new Error("StageQueue has no formation descriptor");
         }
 
-        const patternBuilder = new SimpleLoopFormationPatternBuilder();
+        const patternBuilder = FormationPatternBuilderFactory.create(this.stageQueue?.formationPattern ?? 'simpleLoop');
         const pattern = patternBuilder.build();
         this.formation.setPattern(pattern);
 
