@@ -1,0 +1,52 @@
+import { Vector3 } from 'three';
+import { CubicBezierSegment } from '../../segments/CubicBezierSegment';
+import { MultiSegmentPattern } from '../MultiSegmentPattern';
+import type { ICubicBezierControls, IFormationPatternBuilder } from '../../../../config/interfaces/interfaces';
+
+export class SimpleLoopFormationPatternBuilder2 implements IFormationPatternBuilder {
+    // Canonical RIGHT-side path; must be real Vector3 instances (mirror helpers need .clone()/.set()).
+    private static readonly SEGMENTS: ICubicBezierControls[] = [
+        {
+            p0: new Vector3(0, 20, 100),
+            p1: new Vector3(60, 20, 100),
+            p2: new Vector3(60, 20, 100),
+            p3: new Vector3(0, 20, 100),
+        },
+        {
+            p0: new Vector3(0, 20, 100),
+            p1: new Vector3(-60, 20, 100),
+            p2: new Vector3(-60, 20, 100),
+            p3: new Vector3(0, 20, 100),
+        },
+    ];
+    private static readonly SPIN_RATES = [0, 0];
+    private static readonly RANGES = [
+        { start: 0, end: 0.5 }, { start: 0.5, end: 1 },
+    ];
+    private static readonly DURATION = 20; // example duration in seconds
+    private static readonly OVERLAP = 0;
+
+    duration(): number {
+        return SimpleLoopFormationPatternBuilder2.DURATION;
+    }
+    overlap(): number {
+        return SimpleLoopFormationPatternBuilder2.OVERLAP;
+    }
+
+    build(): MultiSegmentPattern {
+
+        const segments = SimpleLoopFormationPatternBuilder2.SEGMENTS.map((canonical, i) => {
+            // side 1 = canonical (right); side 0 = mirrored across the formation centerline (x=0)
+            const controls = {
+                p0: canonical.p0.clone(),
+                p1: canonical.p1.clone(),
+                p2: canonical.p2.clone(),
+                p3: canonical.p3.clone(),
+            }
+
+            return new CubicBezierSegment(controls, SimpleLoopFormationPatternBuilder2.SPIN_RATES[i], false);
+        });
+
+        return new MultiSegmentPattern(segments, SimpleLoopFormationPatternBuilder2.RANGES, SimpleLoopFormationPatternBuilder2.DURATION, SimpleLoopFormationPatternBuilder2.OVERLAP);
+    }
+}

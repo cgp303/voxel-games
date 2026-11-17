@@ -19,6 +19,12 @@ export const ASSET_PATHS = {
     invader6: { src: 'assets/vox/inv13.vox', preload: true },
     invader7: { src: 'assets/vox/invGreen1.vox', preload: true },
     invader8: { src: 'assets/vox/invGreen2.vox', preload: true },
+    invader9: { src: 'assets/vox/invGreen3.vox', preload: true },
+    invader10: { src: 'assets/vox/inv15.vox', preload: true },
+    invader11: { src: 'assets/vox/inv16.vox', preload: true },
+    invader12: { src: 'assets/vox/inv17.vox', preload: true },
+
+
     player: { src: 'assets/vox/player.vox', preload: true },
     lazer: { src: 'assets/vox/lazer1.vox', preload: true },
 
@@ -28,6 +34,9 @@ export const ASSET_PATHS = {
     mine2: { src: 'assets/vox/bomb2.vox', preload: true },
     mine2hit1: { src: 'assets/vox/bomb2hit1.vox', preload: true },
     mine2hit2: { src: 'assets/vox/bomb2hit2.vox', preload: true },
+    mine3: { src: 'assets/vox/bomb3.vox', preload: true },
+    mine3hit1: { src: 'assets/vox/bomb3hit1.vox', preload: true },
+    mine3hit2: { src: 'assets/vox/bomb3hit2.vox', preload: true },
 
     invlazer1: { src: 'assets/vox/inv-lazer1.vox', preload: true },
     invlazer2: { src: 'assets/vox/inv-lazer2.vox', preload: true },

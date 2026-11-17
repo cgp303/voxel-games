@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { BOSS, BOSS_WEAPONS, COLLISION, INVADER_MESH_MATERIAL, PLAYER, QUALITY } from '../config/data/constants';
+import { BOSS, BOSS_ARM, BOSS_WEAPONS, COLLISION, INVADER_MESH_MATERIAL, PLAYER, QUALITY } from '../config/data/constants';
 import type {
     IBossDefinition,
     IBossMountDef,
@@ -9,16 +9,23 @@ import type {
     IVoxel,
     IVoxelCloud,
     IBossLaunch,
+    IBossArmHit,
+    IArmPiece,
+    IBossArmFire,
     IBossInit,
     IGameContext,
+    IPoint3,
 } from '../config/interfaces/interfaces';
-import { CollisionLayer, type BossPhase, type BossWeaponType, type PooledWeaponKey, GameEvents } from '../config/types/types';
+import { CollisionLayer, type BossPhase, type BossCyclePhase, type BossWeaponType, type PooledWeaponKey, GameEvents } from '../config/types/types';
+import { BossArm } from './BossArm';
+import { sweptCircleHit } from '../systems/boss/armMath';
 import { DestructibleCollisionModels } from '../systems/boss/DestructibleCollisionModels';
 import { DestructibleVoxelModel, voxelsToCloud, type IBossDamage } from '../systems/boss/DestructibleVoxelModel';
 import { VoxelGeometry } from '../voxel/VoxelGeometry';
 import { Entity } from './Entity';
 
 const Z_AXIS = new THREE.Vector3(0, 0, 1);
+const Y_AXIS = new THREE.Vector3(0, 1, 0);
 /** Seconds a weapon waits after a phase begins before its first shot. */
 const FIRST_SHOT_DELAY: readonly [number, number] = [0.4, 0.8];
 /** Extra reach (world units) beyond a shot's radius when finding the part it struck: the mask is quantised to cells. */
@@ -81,6 +88,19 @@ export class Boss extends Entity implements ICollisionTarget {
     private cycleIndex = 0;
     private phaseRemaining = 0;
     private readonly weapons: IWeaponState[];
+    private readonly arms: BossArm[];
+    /** Part index of each arm's joint, parallel to `arms`. */
+    private readonly armJoints: number[] = [];
+    private readonly armScratch = new THREE.Vector3();
+    private readonly fireDir = new THREE.Vector3();
+    private readonly muzzleOffset = new THREE.Vector3();
+    private readonly weaponTurn = new THREE.Quaternion();
+    private readonly shotEuler = new THREE.Euler();
+    private readonly armLazerKeys: Readonly<Record<string, PooledWeaponKey>>;
+    private readonly shedPieces: IArmPiece[] = [];
+    private readonly armInverse = new THREE.Quaternion();
+    private readonly playerLocal = new THREE.Vector3();
+    private hasPlayer = false;
     private readonly ctx: IGameContext;
     private mainLazerActive = false;
 
@@ -116,6 +136,17 @@ export class Boss extends Entity implements ICollisionTarget {
         this.syncMesh();
 
         this.weapons = definition.weapons.map((def) => this.createWeaponState(def, init.weaponKeys[def.id]));
+
+        const bossSize = { width: this.model.width, height: this.model.height, depth: this.model.depth };
+        this.armLazerKeys = init.armLazerKeys;
+        this.arms = definition.arms.map((def) => {
+            const models = init.armModels[def.id];
+            if (!models) throw new Error(`Boss "${definition.id}": arm "${def.id}" has no models`);
+            const arm = new BossArm(def, models, bossSize);
+            this.root.add(arm.object);
+            this.armJoints.push(this.model.indexOf(def.jointPart));
+            return arm;
+        });
 
         // Starts far back, at the same height as the path, and eases onto the path's start.
         this.path.samplePosition(0, this.entranceTo);
@@ -155,7 +186,112 @@ export class Boss extends Entity implements ICollisionTarget {
         const result = this.model.damage(part, power, this.definition.fx.chunks);
         if (result.coreDestroyed) this.defeated = true;
         if (result.destroyed) this.syncMesh();
+        this.armsReactToHit(result.part);
         return result;
+    }
+
+    /**
+     * Sweeps a shot (from `previous` to `current` world position, with its radius) against the arms. Returns the
+     * first collider struck, or null. Only the X/Z plane counts; Y only has to be within a tolerance.
+     */
+    public sweepShotAgainstArms(previous: IPoint3, current: IPoint3, radius: number): IBossArmHit | null {
+        let bestT = Infinity;
+        let best: IBossArmHit | null = null;
+        for (const arm of this.arms) {
+            if (!arm.attached) continue;
+            for (let i = 0; i <= arm.weaponIndex; i++) {
+                const c = this.armColliderWorld(arm, i);
+                if (Math.abs(current.y - c.y) > BOSS_ARM.shotYTolerance) continue;
+                const t = sweptCircleHit(previous.x, previous.z, current.x, current.z, c.x, c.z, arm.colliderRadii[i] + radius);
+                if (t < 0 || t >= bestT) continue;
+                bestT = t;
+                best = { arm, collider: i, x: previous.x + (current.x - previous.x) * t, y: c.y, z: previous.z + (current.z - previous.z) * t };
+            }
+        }
+        return best;
+    }
+
+    /** True when a circle at a world position touches any attached arm (used to kill the player on contact). */
+    public touchesArm(worldX: number, worldY: number, worldZ: number, radius: number): boolean {
+        if (!this.collisionEnabled) return false;
+        for (const arm of this.arms) {
+            if (!arm.attached) continue;
+            for (let i = 0; i <= arm.weaponIndex; i++) {
+                const c = this.armColliderWorld(arm, i);
+                if (Math.abs(worldY - c.y) > BOSS_ARM.playerYTolerance) continue;
+                const reach = arm.colliderRadii[i] + radius;
+                const dx = worldX - c.x;
+                const dz = worldZ - c.z;
+                if (dx * dx + dz * dz <= reach * reach) return true;
+            }
+        }
+        return false;
+    }
+
+    /** Applies a hit to an arm's weapon. Returns true when it is destroyed (the segments are then cut loose). */
+    public hitArmWeapon(arm: BossArm, power: number): boolean {
+        if (!arm.hitWeapon(power)) return false;
+        arm.weaponDestroyed = true;
+        this.shedArm(arm, false);
+        return true;
+    }
+
+    /** Cuts every attached arm loose (the boss is dying). */
+    public shedAllArms(): void {
+        for (const arm of this.arms) this.shedArm(arm, false);
+    }
+
+    /** Pieces cut loose since the last call; the caller owns them from here. */
+    public takeShedPieces(): IArmPiece[] {
+        return this.shedPieces.splice(0, this.shedPieces.length);
+    }
+
+    /**
+     * Turns an attached arm's segments (and weapon, unless it was shot off) into pieces in world space. They start
+     * falling in sequence, from the joint when it was the joint that broke, otherwise from the tip.
+     */
+    private shedArm(arm: BossArm, fromJoint: boolean): void {
+        if (!arm.attached) return;
+        const last = arm.weaponIndex;
+        const yaw = new THREE.Quaternion();
+        for (let i = 0; i <= last; i++) {
+            if (i === last && arm.weaponDestroyed) continue;
+            const c = arm.colliderCentres;
+            const position = new THREE.Vector3(c[i * 3], c[i * 3 + 1], c[i * 3 + 2]).applyQuaternion(this.rollQuat).add(this.position);
+            yaw.setFromAxisAngle(Y_AXIS, arm.pieceYaw[i]);
+            this.shedPieces.push({
+                model: i === last ? arm.weaponModel : arm.segmentModel,
+                position,
+                quaternion: this.rollQuat.clone().multiply(yaw),
+                scale: arm.pieceScale[i],
+                radius: arm.colliderRadii[i] * BOSS_ARM.fallRadiusScale,
+                delay: (fromJoint ? i : last - i) * BOSS_ARM.fallStagger,
+                score: arm.def.debrisScore,
+            });
+        }
+        arm.detach(fromJoint);
+    }
+
+    /** The weapon of an arm as a debris cloud, and its world position (for the explosion when it is destroyed). */
+    public armWeaponCloud(arm: BossArm, outPosition: THREE.Vector3): IVoxelCloud {
+        arm.weaponLocal(outPosition).applyQuaternion(this.rollQuat).add(this.position);
+        const { voxels, size } = arm.weaponModel;
+        return voxelsToCloud(voxels, arm.weaponModel.colors, size);
+    }
+
+    /** World position of one of an arm's colliders (a shared scratch vector: read it before the next call). */
+    private armColliderWorld(arm: BossArm, index: number): THREE.Vector3 {
+        const c = arm.colliderCentres;
+        return this.armScratch.set(c[index * 3], c[index * 3 + 1], c[index * 3 + 2]).applyQuaternion(this.rollQuat).add(this.position);
+    }
+
+    /** A hit part that is an arm's joint lights it; a destroyed one cuts the arm loose. */
+    private armsReactToHit(part: number): void {
+        for (let i = 0; i < this.arms.length; i++) {
+            if (!this.arms[i].attached || this.armJoints[i] !== part) continue;
+            if (this.model.parts[part].alive) this.arms[i].flashJoint();
+            else this.shedArm(this.arms[i], true);
+        }
     }
 
     /** True when a circle at a world position touches the boss's living columns (used to kill the player on contact). */
@@ -176,6 +312,7 @@ export class Boss extends Entity implements ICollisionTarget {
             this.updateWeapons(dt);
         }
         this.updateRoll(dt);
+        this.updateArms(dt);
         this.velocity.subVectors(this.position, this.previous).divideScalar(dt);
         this.syncTransform();
     }
@@ -192,6 +329,14 @@ export class Boss extends Entity implements ICollisionTarget {
 
     public clearLaunches(): void {
         this.launchCount = 0;
+    }
+
+    /** True when `key` is the pooled weapon one of this boss's arms fires. */
+    public isArmLazer(key: PooledWeaponKey): boolean {
+        for (const id in this.armLazerKeys) {
+            if (this.armLazerKeys[id] === key) return true;
+        }
+        return false;
     }
 
 
@@ -215,10 +360,80 @@ export class Boss extends Entity implements ICollisionTarget {
         return true;
     }
 
+    /** Tells the arms where the player is (world position), or null when there is no player to aim at. */
+    public trackPlayer(world: IPoint3 | null): void {
+        this.hasPlayer = world !== null;
+        if (world) {
+            // To the boss's local space: relative to its centre, undoing the roll.
+            this.playerLocal.set(world.x - this.position.x, world.y - this.position.y, world.z - this.position.z);
+            this.playerLocal.applyQuaternion(this.rollQuat.clone().invert());
+        }
+    }
+
     public override dispose(): void {
         super.dispose();
+        for (const arm of this.arms) arm.dispose();
         this.root.removeFromParent();
         this.mesh.geometry.dispose();
+    }
+
+    private updateArms(dt: number): void {
+        for (const arm of this.arms) {
+            const active = this.phase !== 'entering' && arm.def.phases.includes(this.phase as BossCyclePhase);
+            arm.update(dt, active, this.hasPlayer ? this.playerLocal : null);
+            const fire = arm.pollFire(dt);
+            if (fire) this.queueArmLaunch(arm, fire);
+        }
+    }
+
+    /** Queues a shot from the tip of an arm, aimed by the move's fire mode (`tip` and `aim` shots keep their pitch). */
+    private queueArmLaunch(arm: BossArm, fire: IBossArmFire): void {
+        const key = this.armLazerKeys[arm.def.id];
+        if (!key) return;
+
+        const tip = arm.weaponLocal(this.armScratch);
+        const dir = this.fireDir;
+        switch (fire.mode) {
+            case 'random': {
+                const a = (Math.random() * 2 - 1) * THREE.MathUtils.degToRad(fire.coneDeg ?? BOSS_ARM.defaultConeDeg);
+                dir.set(Math.sin(a), 0, -Math.cos(a));
+                break;
+            }
+            case 'aim':
+                if (this.hasPlayer) dir.set(this.playerLocal.x - tip.x, this.playerLocal.y - tip.y, this.playerLocal.z - tip.z);
+                else dir.set(0, 0, -1);
+                break;
+            case 'tip':
+                arm.weaponDirection(dir);
+                break;
+            default:
+                dir.set(0, 0, -1);
+        }
+        // Aimed and tip shots are in the boss's local space (rolled with it); the others are already world-aligned.
+        if (fire.mode === 'aim' || fire.mode === 'tip') dir.applyQuaternion(this.rollQuat);
+        if (dir.lengthSq() < 1e-6) dir.set(0, 0, -1);
+        dir.normalize();
+
+        let launch = this.launches[this.launchCount];
+        if (!launch) {
+            launch = { key, weapon: arm.def.weapon.type, origin: new THREE.Vector3(), velocity: new THREE.Vector3(), orientation: new THREE.Quaternion() };
+            this.launches[this.launchCount] = launch;
+        }
+        this.launchCount++;
+        launch.key = key;
+        launch.weapon = arm.def.weapon.type;
+        launch.origin.copy(tip);
+        const muzzle = arm.def.weapon.muzzle;
+        if (muzzle) {
+            // Turned with the weapon (yaw and pitch), so the offset stays on the same part of it as it swings.
+            this.muzzleOffset.set(muzzle.x, muzzle.y, muzzle.z).applyQuaternion(arm.weaponQuaternion(this.weaponTurn));
+            launch.origin.add(this.muzzleOffset);
+        }
+        launch.origin.applyQuaternion(this.rollQuat).add(this.position);
+        launch.velocity.copy(dir).multiplyScalar(arm.def.weapon.speed ?? BOSS_WEAPONS[arm.def.weapon.type].defaultSpeed);
+        // The shot model's long axis is z (front -z), so it is turned to face where it is going, pitch included.
+        this.shotEuler.set(Math.asin(Math.max(-1, Math.min(1, dir.y))), Math.atan2(-dir.x, -dir.z), 0, 'YXZ');
+        launch.orientation.setFromEuler(this.shotEuler);
     }
 
     private updateEntrance(dt: number): void {

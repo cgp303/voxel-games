@@ -90,8 +90,8 @@ export const GREEN_WORLD_STYLE: IHandAuthoredStyleSpec = {
     grid: [[4, 3, 0, 2, 2, 0, 3, 7],
     [5, 1, 3, 2, 2, 3, 1, 8],
     [6, 3, 2, 10, 1, 2, 3, 9],
-    [5, 3, 2, 1, 1, 0, 3, 8],
-    [4, 10, 3, 2, 2, 3, 10, 7],],
+    [5, 3, 2, 7, 4, 0, 3, 8],
+    [4, 10, 3, 8, 5, 3, 10, 7],],
 };
 
 export const GREY_WORLD_STYLE: IHandAuthoredStyleSpec = {

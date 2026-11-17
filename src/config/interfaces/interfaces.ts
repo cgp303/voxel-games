@@ -17,8 +17,21 @@ import type { PlayField } from '../../world/PlayField';
 import type { Game } from '../../app/Game';
 import type { ScreenManager } from '../../screens/ScreenManager';
 import { StageQueue } from '../../systems/stages/StageQueue';
-import type { BossCyclePhase, BossPartRole, BossWeaponType, CollisionLayerFlag, ExplosionKind, FitRect } from '../types/types';
+import type {
+    ArmEase,
+    ArmFireMode,
+    ArmMotion,
+    ArmStage,
+    ArmTargetMode,
+    BossCyclePhase,
+    BossPartRole,
+    BossWeaponType,
+    CollisionLayerFlag,
+    ExplosionKind,
+    FitRect,
+} from '../types/types';
 import type { Boss } from '../../entities/Boss';
+import type { BossArm } from '../../entities/BossArm';
 import type { VoxelColorPalette } from '../types/types';
 
 
@@ -113,7 +126,12 @@ export interface IPatternBuilder {
     build(origin: THREE.Vector3, side: number, duration: number, path?: number): MultiSegmentPattern;
     duration(): number;
     overlap(): number;
+}
 
+export interface IFormationPatternBuilder {
+    build(): MultiSegmentPattern;
+    duration(): number;
+    overlap(): number;
 }
 
 /**
@@ -611,6 +629,7 @@ export interface ILazerWeaponOverride extends IInvaderWeaponOverrideBase { }
 export interface IWeaponOverrides {
     Mine?: IMineWeaponOverride;
     Mine2?: IMineWeaponOverride;
+    Mine3?: IMineWeaponOverride;
     LazerA?: ILazerWeaponOverride;
     LazerB?: ILazerWeaponOverride;
 }
@@ -618,11 +637,13 @@ export interface IWeaponOverrides {
 /** The override of one weapon type, as handed to its trigger. */
 export type IInvaderWeaponOverride = NonNullable<IWeaponOverrides[InvaderWeaponType]>;
 
-/** World limits that end a lazer's flight sideways or toward +Z (the -Z limit is the weapon's despawnZ). */
+/** World limits that end a lazer's flight sideways, up or down, or toward +Z (the -Z limit is the weapon's despawnZ). */
 export interface ILazerDespawnBounds {
     minX: number;
     maxX: number;
     maxZ: number;
+    minY: number;
+    maxY: number;
 }
 
 /** Where and how a weapon leaves its invader; filled by a WeaponTrigger and reused every frame. */
@@ -1116,8 +1137,40 @@ export interface IBossInit {
     path: IPathPattern;
     /** Pool bucket of each weapon, by weapon id. */
     weaponKeys: Readonly<Record<string, PooledWeaponKey>>;
+    /** Models of each arm's joint, segment and weapon (in boss model space), by arm id. */
+    armModels: Readonly<Record<string, IBossArmModels>>;
+    /** Pool bucket of each arm's shot, by arm id (arms without a shot model are absent). */
+    armLazerKeys: Readonly<Record<string, PooledWeaponKey>>;
 
     ctx: IGameContext;
+}
+
+/** A piece of a cut-loose arm, handed to the falling-pieces system (world space). */
+export interface IArmPiece {
+    model: IParsedVoxModel;
+    position: Vector3;
+    quaternion: Quaternion;
+    scale: number;
+    radius: number;
+    /** Seconds before the piece starts to fall. */
+    delay: number;
+    score: number;
+}
+
+/** A shot's strike on an arm: which arm and collider, and where (world X/Z). */
+export interface IBossArmHit {
+    arm: BossArm;
+    collider: number;
+    x: number;
+    y: number;
+    z: number;
+}
+
+/** The three models an arm is built from. */
+export interface IBossArmModels {
+    joint: IParsedVoxModel;
+    segment: IParsedVoxModel;
+    weapon: IParsedVoxModel;
 }
 /**
  * Inclusive rectangle of voxel columns in the boss's model space: [x0, z0, x1, z1]. Model space is the .vox
@@ -1189,6 +1242,110 @@ export interface IBossFxDef {
     drip: boolean;
 }
 
+/**
+ * Where a move sends an arm's tip. Positions are in the boss's local space: units from the boss's centre, with -z
+ * toward the player.
+ */
+export interface IBossArmTarget {
+    mode: ArmTargetMode;
+    /** `local`: the point. */
+    pos?: IVector3Like;
+    /** `player` and `lockedPlayer`: added to the player's position (relative to the boss). */
+    offset?: IVector3Like;
+    /** `sweep`: the tip moves from `from` to `to` over the move. `pendulum`: it swings from -> to -> from on a cosine over the move's `seconds`. */
+    from?: IVector3Like;
+    to?: IVector3Like;
+    /** `sweep`: go there and back instead of one way. */
+    pingPong?: boolean;
+}
+
+export interface IBossArmFire {
+    mode: ArmFireMode;
+    /** Seconds between shots. */
+    rate: number;
+    /** `random`: half-angle (degrees) of the cone of directions. */
+    coneDeg?: number;
+}
+
+/** A ripple that travels along the arm from its base to its tip. */
+export interface IBossArmWave {
+    /** Sideways size (units) at the tip. */
+    amp: number;
+    /** Ripples along the arm's length. */
+    freq: number;
+    /** Ripple travel speed (cycles per second). */
+    speed: number;
+}
+
+/** An arch in the arm's middle (a scorpion tail): the middle points are pushed up and back, the base and tip stay put. */
+export interface IBossArmArch {
+    /** Units the arm rises above the line from mount to tip, at its highest. */
+    lift: number;
+    /** Units the arm bows away from the tip (toward and past the mount) in the X/Z plane, at its furthest. */
+    back?: number;
+    /** Where along the arm (0 base to 1 tip) the arch peaks; above 0.5 gives a hook that curls down at the tip. Default 0.5. */
+    peak?: number;
+    /** Where along the arm the stretch away from the body (`back`) peaks. Default 0.3, so the arm reaches out before it curls over. */
+    backPeak?: number;
+}
+
+/** One step of an arm's looping move list. Every field except `seconds` is optional. */
+export interface IBossArmMove {
+    stage: ArmStage;
+    seconds: readonly [number, number];
+    /** Without a target the arm holds its pose (plus the wave). */
+    target?: IBossArmTarget;
+    /** How quickly the tip chases its target (per second); low is lazy, high is snappy. */
+    follow?: number;
+    motion?: ArmMotion;
+    /** `whip`: how far past the target the tip swings, as a fraction of the distance travelled. */
+    overshoot?: number;
+    ease?: ArmEase;
+    wave?: IBossArmWave;
+    /** Without an arch the arm is straight (and blends back to straight). */
+    arch?: IBossArmArch;
+    fire?: IBossArmFire;
+    /** A point in the boss's local space the weapon turns to face (so `tip` shots go there too), or "target" to face along the line from the mount through the move's target. Without it the weapon follows the arm's curve. */
+    aim?: IVector3Like | 'target';
+}
+
+export interface IBossArmWeaponDef {
+    type: BossWeaponType;
+    /** Hits needed to destroy the weapon at the arm's tip. */
+    hits: number;
+    speed?: number;
+    /** Where shots leave, as an offset from the weapon's centre in its own frame (x right, y up, z forward = -z). */
+    muzzle?: IVector3Like;
+    scoreValue: number;
+}
+
+/** A tentacle-like arm: a joint on the body, a chain of segments along a spline, and a weapon at the tip. */
+export interface IBossArmDef {
+    id: string;
+    /** The boss part (by id) the arm hangs from; the arm detaches when it is destroyed. */
+    jointPart: string;
+    /** Names of the .vox files (without extension) in the boss's folder. */
+    assets: { joint: string; segment: string; weapon: string; lazer?: string };
+    /** Where the arm starts, in voxel coordinates of the boss model (the centre of that voxel is used). */
+    mount: IVector3Like;
+    segments: number;
+    /** Scale of the last segment relative to the first. */
+    taper: number;
+    /** Distance between segment centres as a fraction of a segment's width (BOSS_ARM.defaultSpacing when absent). */
+    spacing?: number;
+    /** Where the tip rests, as fractions of the chain's length: outward from the body and toward the player (-z). Defaults to BOSS_ARM.restOutward / restForward. */
+    restOutward?: number;
+    restForward?: number;
+
+    weapon: IBossArmWeaponDef;
+    /** Score for each detached segment that is shot. */
+    debrisScore: number;
+    /** Cycle phases in which the moves run; in the others the arm idles. */
+    phases: readonly BossCyclePhase[];
+    moves: readonly IBossArmMove[];
+
+}
+
 /** A boss as described by its JSON file (see public/assets/vox/bosses). */
 export interface IBossDefinition {
     id: string;
@@ -1200,9 +1357,19 @@ export interface IBossDefinition {
     hull: IBossHullDef;
     parts: readonly IBossPartDef[];
     weapons: readonly IBossWeaponDef[];
+    arms: readonly IBossArmDef[];
     cycle: readonly IBossCycleStep[];
     movement: IBossMovementDef;
     fx: IBossFxDef;
+}
+
+/** AssetManager keys of one arm's models. */
+export interface IBossArmModelKeys {
+    joint: string;
+    segment: string;
+    weapon: string;
+    /** The shot the arm's weapon fires; without one the arm never fires. */
+    lazer?: string;
 }
 
 /** A loaded boss: its definition, and the asset keys its models were registered under. */
@@ -1212,6 +1379,8 @@ export interface IBossResources {
     modelKey: string;
     /** AssetManager key of each weapon's model, by weapon id. */
     weaponModelKeys: Readonly<Record<string, string>>;
+    /** Model keys of each arm, by arm id. */
+    armModelKeys: Readonly<Record<string, IBossArmModelKeys>>;
 }
 
 /** Settings every boss weapon shares. */

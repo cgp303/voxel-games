@@ -10,35 +10,31 @@ export const ELITE_HEAVY_ROSTER: InvaderRowRoster = ['scout', 'scout', 'scout', 
 export const TIE_BOMBERS: InvaderRowRoster = ['tie', 'tie', 'tie', 'tie', 'tie', 'tie'];
 export const FIGHTER_BOMBERS: InvaderRowRoster = ['fighter', 'fighter', 'fighter', 'fighter', 'fighter', 'fighter'];
 export const ELITES_ROSTER: InvaderRowRoster = ['elite', 'elite', 'elite', 'elite', 'elite', 'elite'];
-export const NEON1_ROSTER: InvaderRowRoster = ['neon2', 'neon2', 'neon2', 'neon2', 'neon2', 'neon2'];
-
+export const NEON1_ROSTER: InvaderRowRoster = ['neon1', 'neon1', 'neon1', 'neon1', 'neon1', 'neon1'];
+export const NEON2_ROSTER: InvaderRowRoster = ['neon2', 'neon2', 'neon2', 'neon2', 'neon2', 'neon2'];
+export const NEON3_ROSTER: InvaderRowRoster = ['neon3', 'neon3', 'neon3', 'neon3', 'neon3', 'neon3'];
 export const GREEN1_ROSTER: InvaderRowRoster = ['green1', 'green1', 'green1', 'green1', 'green1', 'green1'];
 export const GREEN2_ROSTER: InvaderRowRoster = ['green2', 'green2', 'green2', 'green2', 'green2', 'green2'];
 export const GREEN3_ROSTER: InvaderRowRoster = ['green3', 'green3', 'green3', 'green3', 'green3', 'green3'];
+export const JEWEL1_ROSTER: InvaderRowRoster = ['jewel1', 'jewel1', 'jewel1', 'jewel1', 'jewel1', 'jewel1'];
+export const JEWEL2_ROSTER: InvaderRowRoster = ['jewel2', 'jewel2', 'jewel2', 'jewel2', 'jewel2', 'jewel2'];
+export const JEWEL3_ROSTER: InvaderRowRoster = ['jewel3', 'jewel3', 'jewel3', 'jewel3', 'jewel3', 'jewel3'];
+
 
 const ENTRY: IStageConfig = { director: 'entry' };
 const COLUMN_VERTICAL: IStageConfig = { director: 'columnVertical' };
 const LAZER_B: IStageConfig = { director: 'lazerB', context: { maxSetIterations: 6 } };
 const KAMAKAZI_DROPS: IStageConfig = { director: 'kamakaziDrops' };
+const KAMAKAZI_DROPS_2: IStageConfig = { director: 'kamakaziDrops2' };
+const KAMAKAZI_DROPS_3: IStageConfig = { director: 'kamakaziDrops3' };
+const REVERSE_COLUMN_VERTICAL: IStageConfig = { director: 'reverseColumnVertical' };
 
 
 /** Level 1, wave 3: figure eight, then a column vertical on the second path. */
-// export const WAVE_1_1: IWaveConfig = {
-//     formation: 'Diamond',
-//     roster: ELITES_ROSTER,
-//     terrain: 'crystal',
-//     loopStartIndex: 1,
-//     stages: [
-//         ENTRY,
-//         { director: 'figureEight' },
-//         { director: 'columnVertical', context: { path: 1 } },
-//     ],
-// };
-
 export const WAVE_1_1: IWaveConfig = {
     formation: 'Diamond',
-    roster: NEON1_ROSTER,
-    terrain: 'neonWorld',
+    roster: ELITES_ROSTER,
+    terrain: 'crystal',
     loopStartIndex: 1,
     stages: [
         ENTRY,
@@ -46,6 +42,8 @@ export const WAVE_1_1: IWaveConfig = {
         { director: 'columnVertical', context: { path: 1 } },
     ],
 };
+
+
 
 
 export const WAVE_1_2: IWaveConfig = {
@@ -88,6 +86,15 @@ export const WAVE_1_3: IWaveConfig = {
     ],
 };
 
+/** A boss fight. The formation and roster are required by the wave format but a boss wave does not use them. */
+export const WAVE_BOSS_1: IWaveConfig = {
+    formation: 'Grid',
+    roster: DEFAULT_ROW_ROSTER,
+    terrain: 'crystal',
+    loopStartIndex: 0,
+    stages: [{ director: 'boss', bossId: 'boss1' }],
+};
+
 export const WAVE_2_1: IWaveConfig = {
     formation: 'Grid',
     roster: GREEN2_ROSTER,
@@ -128,6 +135,110 @@ export const WAVE_2_3: IWaveConfig = {
     ],
 };
 
+/** A boss fight. The formation and roster are required by the wave format but a boss wave does not use them. */
+export const WAVE_BOSS_2: IWaveConfig = {
+    formation: 'Grid',
+    roster: DEFAULT_ROW_ROSTER,
+    terrain: 'greyWorld',
+    loopStartIndex: 0,
+    stages: [{ director: 'boss', bossId: 'boss2' }],
+};
+
+/** A boss fight. The formation and roster are required by the wave format but a boss wave does not use them. */
+export const WAVE_BOSS_3: IWaveConfig = {
+    formation: 'Grid',
+    roster: DEFAULT_ROW_ROSTER,
+    terrain: 'neonWorld',
+    loopStartIndex: 0,
+    stages: [{ director: 'boss', bossId: 'boss3' }],
+};
+
+export const WAVE_3_1: IWaveConfig = {
+    formation: 'V',
+    roster: NEON1_ROSTER,
+    terrain: 'neonWorld',
+    loopStartIndex: 1,
+    stages: [
+        { director: 'entryFromAbove' },
+        { director: 'verticalRows', context: { path: 1 } },
+    ],
+};
+
+export const WAVE_3_2: IWaveConfig = {
+    formation: 'X',
+    roster: NEON2_ROSTER,
+    terrain: 'neonWorld',
+    loopStartIndex: 1,
+    stages: [
+        { director: 'entryFromAbove' },
+        KAMAKAZI_DROPS,
+        { director: 'verticalRows', context: { path: 1 } },
+    ],
+};
+
+export const WAVE_3_3: IWaveConfig = {
+    formation: 'X',
+    formationPattern: 'simpleLoop2',
+    roster: NEON3_ROSTER,
+    terrain: 'neonWorld',
+    loopStartIndex: 1,
+    stages: [
+        { director: 'entryFromAbove' },
+        KAMAKAZI_DROPS_2,
+        { director: 'verticalRows', context: { path: 1 } },
+    ],
+};
+
+export const WAVE_4_1: IWaveConfig = {
+    formation: 'Grid',
+    formationPattern: 'level4Loop',
+    roster: JEWEL1_ROSTER,
+    terrain: 'greenWorld',
+    loopStartIndex: 1,
+    stages: [
+        { director: 'entryFromBelow' },
+        REVERSE_COLUMN_VERTICAL,
+        KAMAKAZI_DROPS_3,
+    ],
+};
+
+export const WAVE_4_2: IWaveConfig = {
+    formation: 'X',
+    formationPattern: 'simpleLoop2',
+    roster: JEWEL2_ROSTER,
+    terrain: 'greenWorld',
+    loopStartIndex: 1,
+    stages: [
+        { director: 'entryFromBelow' },
+        KAMAKAZI_DROPS_3,
+        { director: 'verticalRows', context: { path: 1 } },
+    ],
+};
+
+export const WAVE_4_3: IWaveConfig = {
+    formation: 'V',
+    formationPattern: 'simpleLoop2',
+    roster: JEWEL3_ROSTER,
+    terrain: 'greenWorld',
+    loopStartIndex: 1,
+    stages: [
+        { director: 'entryFromBelow' },
+        KAMAKAZI_DROPS_3,
+        { director: 'verticalRows', context: { path: 1 } },
+        REVERSE_COLUMN_VERTICAL
+    ],
+};
+
+
+/** A boss fight. The formation and roster are required by the wave format but a boss wave does not use them. */
+export const WAVE_BOSS_4: IWaveConfig = {
+    formation: 'Grid',
+    roster: DEFAULT_ROW_ROSTER,
+    terrain: 'greenWorld',
+    loopStartIndex: 0,
+    stages: [{ director: 'boss', bossId: 'boss4' }],
+};
+
 
 /** Level 2 wave: lazer B attacks only. Used with the Diamond and X formations. */
 export const WAVE_LAZER_B: IWaveConfig = {
@@ -138,38 +249,26 @@ export const WAVE_LAZER_B: IWaveConfig = {
     stages: [ENTRY, LAZER_B],
 };
 
-/** A boss fight. The formation and roster are required by the wave format but a boss wave does not use them. */
-export const WAVE_BOSS_1: IWaveConfig = {
-    formation: 'Grid',
-    roster: DEFAULT_ROW_ROSTER,
-    terrain: 'crystal',
-    loopStartIndex: 0,
-    stages: [{ director: 'boss', bossId: 'boss1' }],
-};
 
-/** A boss fight. The formation and roster are required by the wave format but a boss wave does not use them. */
-export const WAVE_BOSS_2: IWaveConfig = {
-    formation: 'Grid',
-    roster: DEFAULT_ROW_ROSTER,
-    terrain: 'greyWorld',
-    loopStartIndex: 0,
-    stages: [{ director: 'boss', bossId: 'boss2' }],
-};
+
+
 
 /** Demo attract mode: column vertical then lazer B. */
-export const WAVE_DEMO: IWaveConfig = {
-    formation: 'V',
-    roster: NEON1_ROSTER,
-    terrain: 'neonWorld',
-    loopStartIndex: 1,
-    stages: [ENTRY, COLUMN_VERTICAL, LAZER_B],
-};
-
-// /** Demo attract mode: column vertical then lazer B. */
 // export const WAVE_DEMO: IWaveConfig = {
 //     formation: 'V',
-//     roster: GREEN2_ROSTER,
-//     terrain: 'greyWorld',
+//     roster: NEON3_ROSTER,
+//     terrain: 'neonWorld',
 //     loopStartIndex: 1,
-//     stages: [ENTRY, KAMAKAZI_DROPS],
+//     stages: [ENTRY, { director: 'verticalRows', context: { path: 1 } }, COLUMN_VERTICAL, LAZER_B],
 // };
+
+// export const WAVE_DEMO: IWaveConfig = {
+//     formation: 'V',
+//     roster: DEFAULT_ROW_ROSTER,
+//     terrain: 'crystal',
+//     loopStartIndex: 1,
+//     stages: [ENTRY, LAZER_B, KAMAKAZI_DROPS],
+// };
+
+/** Demo attract mode: the boss 3 arm prototype. */
+export const WAVE_DEMO: IWaveConfig = WAVE_BOSS_4;

@@ -28,7 +28,7 @@ export class LazerWeapon extends InvaderWeapon {
     }
 
     protected override isOutOfPlay(): boolean {
-        const { x, z } = this.position;
-        return super.isOutOfPlay() || z > this.bounds.maxZ || x < this.bounds.minX || x > this.bounds.maxX;
+        const { x, y, z } = this.position;
+        return super.isOutOfPlay() || z > this.bounds.maxZ || x < this.bounds.minX || x > this.bounds.maxX || y < this.bounds.minY || y > this.bounds.maxY;
     }
 }

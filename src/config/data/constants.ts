@@ -111,6 +111,10 @@ export const INSTANCED_ASSETS: { key: string; maxCount: number }[] = [
     { key: 'invader6', maxCount: 80 },
     { key: 'invader7', maxCount: 80 },
     { key: 'invader8', maxCount: 80 },
+    { key: 'invader9', maxCount: 80 },
+    { key: 'invader10', maxCount: 80 },
+    { key: 'invader11', maxCount: 80 },
+    { key: 'invader12', maxCount: 80 },
     { key: 'invader', maxCount: 80 },
     { key: 'player', maxCount: 1 },
     { key: 'lazer', maxCount: 32 },
@@ -120,6 +124,9 @@ export const INSTANCED_ASSETS: { key: string; maxCount: number }[] = [
     { key: 'mine2', maxCount: 32 },
     { key: 'mine2hit1', maxCount: 32 },
     { key: 'mine2hit2', maxCount: 32 },
+    { key: 'mine3', maxCount: 32 },
+    { key: 'mine3hit1', maxCount: 32 },
+    { key: 'mine3hit2', maxCount: 32 },
     { key: 'invlazer1', maxCount: 32 },
     { key: 'invlazer2', maxCount: 32 },
 ];
@@ -135,6 +142,11 @@ export const INVADER_TYPES: Record<InvaderTypeId, IInvaderTypeDefinition> = {
     green3: { assetKey: 'invader6', scoreValue: 600, hitPoints: 3 },
     neon1: { assetKey: 'invader7', scoreValue: 700, hitPoints: 3 },
     neon2: { assetKey: 'invader8', scoreValue: 800, hitPoints: 3 },
+    neon3: { assetKey: 'invader9', scoreValue: 900, hitPoints: 3 },
+    jewel1: { assetKey: 'invader10', scoreValue: 1000, hitPoints: 3 },
+    jewel2: { assetKey: 'invader11', scoreValue: 1100, hitPoints: 3 },
+    jewel3: { assetKey: 'invader12', scoreValue: 1200, hitPoints: 3 },
+
 };
 
 /** Instanced mesh keys used by invaders only (INSTANCED_ASSETS also holds the player mesh). */
@@ -213,11 +225,21 @@ export const INVADER_WEAPONS: Record<InvaderWeaponType, IInvaderWeaponConfig> = 
         kind: 'mine',
         assetKey: 'mine',
         maxCount: 32,
-        dropChancePerFrame: { groupAttack1: [0.1, 0.07, 0.05] },
+        dropChancePerFrame: {
+            groupAttack1: [0.1, 0.07, 0.05],
+            // entryStandardBezier: [0.05],        // Slow fire during standard entry
+            entrySpiral: [0.1, 0.12, 0.15],     // Progressive aggression during spiral
+            entrySwoopingDive: [0.2, 0.1],      // Very aggressive dive, then calm down
+        },
         releaseXRange: { min: -70, max: 70 },
-        maxPerAttack: 1,
+        maxPerAttack: 3,
         allowedInvaderTypes: ['scout', 'fighter', 'elite', 'tie'],
-        allowedSegments: { groupAttack1: [1, 2, 3] },
+        allowedSegments: {
+            groupAttack1: [1, 2, 3],
+            // entryStandardBezier: [0],           // Single segment
+            entrySpiral: [0, 1, 2],             // Three segments
+            entrySwoopingDive: [0, 1],          // Two segments
+        },
         despawnMarginPastPlayer: 25,
         fadeAudioAt: 5,
         spinRateRadPerSec: Math.PI * 4,
@@ -234,11 +256,12 @@ export const INVADER_WEAPONS: Record<InvaderWeaponType, IInvaderWeaponConfig> = 
         kind: 'mine',
         assetKey: 'mine2',
         maxCount: 32,
-        dropChancePerFrame: { groupAttack1: [0.1, 0.07, 0.05], kamakaziDrops: [0.1, 0.07] },
+        dropChancePerFrame: { groupAttack1: [0.1, 0.07, 0.05], kamakaziDrops: [0.1, 0.07], entryFromAbove: [0.03] },
         releaseXRange: { min: -70, max: 70 },
         maxPerAttack: 1,
-        allowedInvaderTypes: ['green1', 'green2'],
-        allowedSegments: { groupAttack1: [1, 2, 3], kamakaziDrops: [0, 1] },
+        allowedInvaderTypes: ['neon3'],
+
+        allowedSegments: { groupAttack1: [1, 2, 3], kamakaziDrops: [0, 1], entryFromAbove: [3] },
         despawnMarginPastPlayer: 25,
         fadeAudioAt: 5,
         spinRateRadPerSec: Math.PI * 4,
@@ -251,14 +274,33 @@ export const INVADER_WEAPONS: Record<InvaderWeaponType, IInvaderWeaponConfig> = 
         hitMeshes: ['mine2hit1', 'mine2hit2'],
     },
 
-
+    Mine3: {
+        kind: 'mine',
+        assetKey: 'mine3',
+        maxCount: 32,
+        dropChancePerFrame: { groupAttack1: [0.1, 0.07, 0.05], kamakaziDrops: [0.1, 0.07], entryFromAbove: [0.03], kamakaziDrops3: [0.05] },
+        releaseXRange: { min: -70, max: 70 },
+        maxPerAttack: 1,
+        allowedInvaderTypes: ['green1', 'green2', 'jewel1', 'jewel2', 'jewel3'],
+        allowedSegments: { groupAttack1: [1, 2, 3], kamakaziDrops: [0, 1], entryFromAbove: [3], kamakaziDrops3: [0] },
+        despawnMarginPastPlayer: 25,
+        fadeAudioAt: 5,
+        spinRateRadPerSec: Math.PI * 4,
+        hitPoints: 3,
+        knockbackDistance: 24,
+        knockbackSpeed: 90,
+        collisionRadius: 2,
+        castShadow: true,
+        velocity: new THREE.Vector3(0, 0, -36),
+        hitMeshes: ['mine3hit1', 'mine3hit2'],
+    },
 
     /** Two lazers per column-vertical attack, each flying the way the invader was heading. */
     LazerA: {
         kind: 'lazer',
         assetKey: 'invlazer1',
         maxCount: 32,
-        allowedInvaderTypes: ['scout', 'fighter', 'elite', 'tie', 'neon1', 'neon2'],
+        allowedInvaderTypes: ['scout', 'fighter', 'elite', 'tie', 'neon1', 'neon2', 'neon3', 'jewel1', 'jewel2', 'jewel3'],
         allowedSegments: { columnVertical: [2], columnDives: [1] },
         despawnMarginPastPlayer: 50,
         collisionRadius: 2,
@@ -309,22 +351,22 @@ export const COLLISION = {
         {
             mover: CollisionLayer.PLAYER_MISSILE,
             targets: CollisionLayer.INVADER | CollisionLayer.INVADER_WEAPON_SHOOTABLE,
-            yTolerance: Infinity,
+            yTolerance: 10,
         },
         {
             mover: CollisionLayer.INVADER,
             targets: CollisionLayer.PLAYER,
-            yTolerance: Infinity,
+            yTolerance: 6,
         },
         {
             mover: CollisionLayer.INVADER_WEAPON,
             targets: CollisionLayer.PLAYER,
-            yTolerance: Infinity,
+            yTolerance: 6,
         },
         {
             mover: CollisionLayer.INVADER_WEAPON_SHOOTABLE,
             targets: CollisionLayer.PLAYER,
-            yTolerance: Infinity,
+            yTolerance: 6,
         },
     ],
 } satisfies ICollisionSystemConfig & { rollBuckets: number; maskResolution: number; invaderRadius: number };
@@ -458,13 +500,56 @@ export const SPARKS: ISparkConfig = {
 /** Boss behaviour shared by every boss (each boss's own layout is its JSON file; see systems/boss). */
 export const BOSS: IBossSettings = {
     assetFolder: 'assets/vox/bosses',
-    ids: ['boss1', 'boss2'],
+    ids: ['boss1', 'boss2', 'boss3', 'boss4'],
     hoverPadding: 8,
     entranceZ: 270,
     entranceSeconds: 1,
     rollSmooth: 4,
     contactRadius: 5,
     dripIntervalSec: [0.5, 0.06],
+};
+
+/** Tuning shared by every boss arm (each arm's own layout is in the boss JSON). */
+export const BOSS_ARM = {
+    /** Segment spacing, as a fraction of a segment's width, when the JSON gives none. */
+    defaultSpacing: 0.75,
+    /** Control points along an arm's spline, base to tip (the first and last are the mount and the tip). */
+    controlPoints: 7,
+    /** Polyline samples per spline span; more is smoother and slower. */
+    spanSamples: 8,
+    /** Chase rate (per second) of a move that gives no `follow`. */
+    defaultFollow: 4,
+    /** How much slower the middle control points chase than the tip; below 1 gives the trailing, organic drag. */
+    midLag: 0.6,
+    /** The longest the tip may stray from the mount, as a fraction of the chain's length. */
+    maxReach: 0.95,
+    /** Where the tip rests, as a fraction of the chain's length: outward from the body, and toward the player (-z). */
+    restOutward: 0.35,
+    restForward: 0.65,
+    /** Ripple used when a move gives no `wave`. */
+    idleWave: { amp: 2, freq: 1, speed: 0.4 },
+    /** Collider radius as a fraction of a piece's half-width, so contact is a little more forgiving than the visuals. */
+    colliderScale: 0.8,
+    /** Largest Y gap between a collider and a shot / the player for them to touch (the game is played on the X/Z plane). */
+    shotYTolerance: 10,
+    playerYTolerance: 6,
+    /** Cut-loose pieces drift toward the camera (-z) at this speed (world units / s), no gravity. */
+    fallSpeed: 150,
+    /** Extra seconds before each piece starts to move, per piece away from the break, so the arm comes apart in sequence. */
+    fallStagger: 0.16,
+    /** Spin (radians / s) about the Z axis a piece picks up as it falls; 0 for none. */
+    fallSpin: Math.PI * 2,
+    /** Pieces are removed (no penalty) once their z passes this, about where the camera is. */
+    fallRemoveZ: -190,
+    /** Radius of a falling piece's shootable / lethal circle, as a fraction of its arm collider radius. */
+    fallRadiusScale: 1,
+    /** Half-angle (degrees) of a `random` fire cone when the JSON gives none. */
+    defaultConeDeg: 30,
+    /** Radius of the circle that stands in for the player when touching an arm. */
+    playerRadius: 3,
+    /** Seconds a weak point stays lit after a hit. */
+    flashSec: 0.12,
+    flashColor: 0xffffff,
 };
 
 /** The fire a damaged boss drips: embers that fall slowly from the edges of the holes shot in it. */
@@ -519,6 +604,66 @@ export const BOSS_PATHS: Record<string, IBossPathDef> = {
 
             { p0: new Vector3(0, 20, 90), p1: new Vector3(20, 20, 0), p2: new Vector3(-20, 20, -60), p3: new Vector3(0, 20, -150) },
             { p0: new Vector3(0, 20, -150), p1: new Vector3(-20, 20, -60), p2: new Vector3(20, 20, 0), p3: new Vector3(-40, 20, 90) },
+        ],
+    },
+    bossSweep3: {
+        segments: [
+            { p0: new Vector3(0, 20, 80), p1: new Vector3(0, 20, 60), p2: new Vector3(0, 20, 60), p3: new Vector3(0, 20, 40) },
+            { p0: new Vector3(0, 20, 40), p1: new Vector3(0, 20, 20), p2: new Vector3(0, 20, 20), p3: new Vector3(0, 20, 0) },
+            { p0: new Vector3(0, 20, 0), p1: new Vector3(0, 20, -20), p2: new Vector3(0, 20, -20), p3: new Vector3(0, 20, -40) },
+            { p0: new Vector3(0, 20, -40), p1: new Vector3(0, 20, -60), p2: new Vector3(0, 20, -60), p3: new Vector3(0, 20, -80) },
+
+            { p0: new Vector3(0, 20, -80), p1: new Vector3(0, 20, -60), p2: new Vector3(0, 20, -60), p3: new Vector3(0, 20, -40) },
+            { p0: new Vector3(0, 20, -40), p1: new Vector3(0, 20, -20), p2: new Vector3(0, 20, -20), p3: new Vector3(0, 20, 0) },
+            { p0: new Vector3(0, 20, 0), p1: new Vector3(0, 20, 20), p2: new Vector3(0, 20, 20), p3: new Vector3(0, 20, 40) },
+            { p0: new Vector3(0, 20, 40), p1: new Vector3(0, 20, 60), p2: new Vector3(0, 20, 60), p3: new Vector3(0, 20, 80) },
+
+
+            { p0: new Vector3(0, 20, 80), p1: new Vector3(5, 20, 60), p2: new Vector3(5, 20, 60), p3: new Vector3(10, 20, 40) },
+            { p0: new Vector3(10, 20, 40), p1: new Vector3(15, 20, 20), p2: new Vector3(15, 20, 20), p3: new Vector3(20, 20, 0) },
+            { p0: new Vector3(20, 20, 0), p1: new Vector3(25, 20, -20), p2: new Vector3(25, 20, -20), p3: new Vector3(30, 20, -40) },
+            { p0: new Vector3(30, 20, -40), p1: new Vector3(35, 20, -60), p2: new Vector3(35, 20, -60), p3: new Vector3(40, 20, -80) },
+
+            { p0: new Vector3(40, 20, -80), p1: new Vector3(35, 20, -60), p2: new Vector3(35, 20, -60), p3: new Vector3(30, 20, -40) },
+            { p0: new Vector3(30, 20, -40), p1: new Vector3(25, 20, -20), p2: new Vector3(25, 20, -20), p3: new Vector3(20, 20, 0) },
+            { p0: new Vector3(20, 20, 0), p1: new Vector3(15, 20, 20), p2: new Vector3(15, 20, 20), p3: new Vector3(10, 20, 40) },
+            { p0: new Vector3(10, 20, 40), p1: new Vector3(5, 20, 60), p2: new Vector3(5, 20, 60), p3: new Vector3(0, 20, 80) },
+
+            { p0: new Vector3(0, 20, 80), p1: new Vector3(-5, 20, 60), p2: new Vector3(-5, 20, 60), p3: new Vector3(-10, 20, 40) },
+            { p0: new Vector3(-10, 20, 40), p1: new Vector3(-15, 20, 20), p2: new Vector3(-15, 20, 20), p3: new Vector3(-20, 20, 0) },
+            { p0: new Vector3(-20, 20, 0), p1: new Vector3(-25, 20, -20), p2: new Vector3(-25, 20, -20), p3: new Vector3(-30, 20, -40) },
+            { p0: new Vector3(-30, 20, -40), p1: new Vector3(-35, 20, -60), p2: new Vector3(-35, 20, -60), p3: new Vector3(-40, 20, -80) },
+
+            { p0: new Vector3(-40, 20, -80), p1: new Vector3(-35, 20, -60), p2: new Vector3(-35, 20, -60), p3: new Vector3(-30, 20, -40) },
+            { p0: new Vector3(-30, 20, -40), p1: new Vector3(-25, 20, -20), p2: new Vector3(-25, 20, -20), p3: new Vector3(-20, 20, 0) },
+            { p0: new Vector3(-20, 20, 0), p1: new Vector3(-15, 20, 20), p2: new Vector3(-15, 20, 20), p3: new Vector3(-10, 20, 40) },
+            { p0: new Vector3(-10, 20, 40), p1: new Vector3(-5, 20, 60), p2: new Vector3(-5, 20, 60), p3: new Vector3(0, 20, 80) },
+
+            { p0: new Vector3(0, 20, 80), p1: new Vector3(0, 20, 30), p2: new Vector3(0, 20, 30), p3: new Vector3(0, 20, -20) },
+            { p0: new Vector3(0, 20, -20), p1: new Vector3(0, 20, -60), p2: new Vector3(0, 20, -60), p3: new Vector3(0, 20, -100) },
+            { p0: new Vector3(0, 20, -100), p1: new Vector3(10, 20, -100), p2: new Vector3(30, 20, -100), p3: new Vector3(40, 20, -100) },
+            { p0: new Vector3(40, 20, -100), p1: new Vector3(10, 20, -100), p2: new Vector3(-10, 20, -100), p3: new Vector3(-40, 20, -100) },
+            { p0: new Vector3(-40, 20, -100), p1: new Vector3(30, 20, -100), p2: new Vector3(10, 20, -100), p3: new Vector3(0, 20, -100) },
+            { p0: new Vector3(0, 20, -100), p1: new Vector3(0, 20, -60), p2: new Vector3(0, 20, -60), p3: new Vector3(0, 20, 0) },
+            { p0: new Vector3(0, 20, 0), p1: new Vector3(0, 20, 30), p2: new Vector3(0, 20, 30), p3: new Vector3(0, 20, 80) },
+            // { p0: new Vector3(0, 20, 80), p1: new Vector3(20, 20, 20), p2: new Vector3(20, 20, -20), p3: new Vector3(40, 20, -80) },
+            // { p0: new Vector3(40, 20, -80), p1: new Vector3(20, 20, -20), p2: new Vector3(20, 20, 20), p3: new Vector3(0, 20, 80) },
+            // { p0: new Vector3(0, 20, 80), p1: new Vector3(-20, 20, 20), p2: new Vector3(-20, 20, -20), p3: new Vector3(-40, 20, -80) },
+            // { p0: new Vector3(-40, 20, -80), p1: new Vector3(-20, 20, -20), p2: new Vector3(-20, 20, 20), p3: new Vector3(0, 20, 80) },
+
+        ],
+
+    },
+    bossSweep4: {
+        segments: [
+            { p0: new Vector3(0, 20, 60), p1: new Vector3(20, 20, 30), p2: new Vector3(40, 20, 30), p3: new Vector3(60, 20, 10) },
+            { p0: new Vector3(60, 20, 10), p1: new Vector3(-20, 20, 30), p2: new Vector3(-20, 20, 30), p3: new Vector3(-60, 20, 60) },
+            { p0: new Vector3(-60, 20, 60), p1: new Vector3(-20, 20, -30), p2: new Vector3(20, 20, 0), p3: new Vector3(60, 20, 30) },
+            { p0: new Vector3(60, 20, 30), p1: new Vector3(20, 20, 30), p2: new Vector3(10, 20, 0), p3: new Vector3(0, 20, 60) },
+            { p0: new Vector3(0, 20, 60), p1: new Vector3(10, 20, 0), p2: new Vector3(-10, 20, -60), p3: new Vector3(0, 20, -100) },
+            { p0: new Vector3(0, 20, -100), p1: new Vector3(-10, 20, -60), p2: new Vector3(10, 20, 0), p3: new Vector3(0, 20, 60) },
+            { p0: new Vector3(0, 20, 60), p1: new Vector3(-10, 20, 100), p2: new Vector3(10, 20, 140), p3: new Vector3(0, 20, 180) },
+            { p0: new Vector3(0, 20, 180), p1: new Vector3(-10, 20, 140), p2: new Vector3(10, 20, 90), p3: new Vector3(0, 20, 60) },
         ],
     },
 };
@@ -604,6 +749,9 @@ export const DEBUG = {
     disableTerrain: false,
 
     showFPS: false,
+
+    /** Draws each boss arm's reach, target, tip, control points and aim point (see BossArmDebug). */
+    showBossArms: false,
 
 } as const;
 

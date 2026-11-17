@@ -10,6 +10,7 @@ export class StageQueue {
     index: number;
     loopStartIndex: number;
     formationDescription: IFormationDescriptor | null;
+    formationPattern: string;
     rowRoster: InvaderRowRoster;
     /** The terrain style this wave is played on. */
     readonly terrainStyle: TerrainStyleId;
@@ -20,6 +21,7 @@ export class StageQueue {
         formationDescription: IFormationDescriptor,
         rowRoster: InvaderRowRoster,
         terrainStyle: TerrainStyleId,
+        formationPattern: string = 'simpleLoop',
     ) {
         const rowCount = formationDescription.maxRow + 1;
         if (rowRoster.length !== rowCount) {
@@ -34,6 +36,7 @@ export class StageQueue {
         this.formationDescription = formationDescription;
         this.rowRoster = rowRoster;
         this.terrainStyle = terrainStyle;
+        this.formationPattern = formationPattern;
     }
 
     /** True when one of the wave's stages is a boss fight. */

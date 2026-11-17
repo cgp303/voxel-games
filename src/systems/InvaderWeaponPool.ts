@@ -13,6 +13,8 @@ import type { EventBus } from '../core/EventBus';
 
 /** How far past the collision grid a lazer may fly sideways or toward +Z before it is recycled. */
 const LAZER_DESPAWN_MARGIN = 40;
+/** How far above or below the play field's top a lazer may fly (it can be fired at an angle) before it is recycled. */
+const LAZER_DESPAWN_Y_RANGE = 300;
 
 function isMine(type: PooledWeaponKey): boolean {
     return (INVADER_WEAPONS as Record<string, IInvaderWeaponConfig | undefined>)[type]?.kind === 'mine';
@@ -56,6 +58,8 @@ export class InvaderWeaponPool {
             minX: COLLISION.grid.minX - LAZER_DESPAWN_MARGIN,
             maxX: COLLISION.grid.maxX + LAZER_DESPAWN_MARGIN,
             maxZ: COLLISION.grid.maxZ + LAZER_DESPAWN_MARGIN,
+            minY: ctx.playField.bounds.height - LAZER_DESPAWN_Y_RANGE,
+            maxY: ctx.playField.bounds.height + LAZER_DESPAWN_Y_RANGE,
         };
         this.lazerBounds = lazerBounds;
 

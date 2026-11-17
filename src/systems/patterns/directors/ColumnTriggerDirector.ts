@@ -27,8 +27,6 @@ export abstract class ColumnTriggerDirector extends InvaderRepathDirector {
     public begin(ctx: IDirectorContext): void {
         this.captureCommon(ctx);
         this.builder = this.createBuilder();
-
-        this.spawnType = this.formation.getSpawnType() as ColumnSpawnType;
         this.triggerOrder = this.makeTriggerOrder();
         this.queueRemaining = this.triggerOrder.length;
         this.currentIndex = 0;
