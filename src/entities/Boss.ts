@@ -94,6 +94,8 @@ export class Boss extends Entity implements ICollisionTarget {
     private readonly armScratch = new THREE.Vector3();
     private readonly fireDir = new THREE.Vector3();
     private readonly muzzleOffset = new THREE.Vector3();
+    private readonly weaponTurn = new THREE.Quaternion();
+    private readonly shotEuler = new THREE.Euler();
     private readonly armLazerKeys: Readonly<Record<string, PooledWeaponKey>>;
     private readonly shedPieces: IArmPiece[] = [];
     private readonly armInverse = new THREE.Quaternion();
@@ -329,6 +331,14 @@ export class Boss extends Entity implements ICollisionTarget {
         this.launchCount = 0;
     }
 
+    /** True when `key` is the pooled weapon one of this boss's arms fires. */
+    public isArmLazer(key: PooledWeaponKey): boolean {
+        for (const id in this.armLazerKeys) {
+            if (this.armLazerKeys[id] === key) return true;
+        }
+        return false;
+    }
+
 
 
     /**
@@ -376,7 +386,7 @@ export class Boss extends Entity implements ICollisionTarget {
         }
     }
 
-    /** Queues a shot from the tip of an arm, aimed by the move's fire mode (flat on the X/Z plane). */
+    /** Queues a shot from the tip of an arm, aimed by the move's fire mode (`tip` and `aim` shots keep their pitch). */
     private queueArmLaunch(arm: BossArm, fire: IBossArmFire): void {
         const key = this.armLazerKeys[arm.def.id];
         if (!key) return;
@@ -390,18 +400,17 @@ export class Boss extends Entity implements ICollisionTarget {
                 break;
             }
             case 'aim':
-                if (this.hasPlayer) dir.set(this.playerLocal.x - tip.x, 0, this.playerLocal.z - tip.z);
+                if (this.hasPlayer) dir.set(this.playerLocal.x - tip.x, this.playerLocal.y - tip.y, this.playerLocal.z - tip.z);
                 else dir.set(0, 0, -1);
                 break;
             case 'tip':
-                dir.set(-Math.sin(arm.weaponYaw), 0, -Math.cos(arm.weaponYaw));
+                arm.weaponDirection(dir);
                 break;
             default:
                 dir.set(0, 0, -1);
         }
         // Aimed and tip shots are in the boss's local space (rolled with it); the others are already world-aligned.
         if (fire.mode === 'aim' || fire.mode === 'tip') dir.applyQuaternion(this.rollQuat);
-        dir.y = 0;
         if (dir.lengthSq() < 1e-6) dir.set(0, 0, -1);
         dir.normalize();
 
@@ -416,14 +425,15 @@ export class Boss extends Entity implements ICollisionTarget {
         launch.origin.copy(tip);
         const muzzle = arm.def.weapon.muzzle;
         if (muzzle) {
-            // Turned with the weapon, so the offset stays on the same part of it as it swings.
-            this.muzzleOffset.set(muzzle.x, muzzle.y, muzzle.z).applyAxisAngle(Y_AXIS, arm.weaponYaw);
+            // Turned with the weapon (yaw and pitch), so the offset stays on the same part of it as it swings.
+            this.muzzleOffset.set(muzzle.x, muzzle.y, muzzle.z).applyQuaternion(arm.weaponQuaternion(this.weaponTurn));
             launch.origin.add(this.muzzleOffset);
         }
         launch.origin.applyQuaternion(this.rollQuat).add(this.position);
         launch.velocity.copy(dir).multiplyScalar(arm.def.weapon.speed ?? BOSS_WEAPONS[arm.def.weapon.type].defaultSpeed);
-        // The shot model's long axis is z (front -z), so it is turned to face where it is going.
-        launch.orientation.setFromAxisAngle(Y_AXIS, Math.atan2(-dir.x, -dir.z));
+        // The shot model's long axis is z (front -z), so it is turned to face where it is going, pitch included.
+        this.shotEuler.set(Math.asin(Math.max(-1, Math.min(1, dir.y))), Math.atan2(-dir.x, -dir.z), 0, 'YXZ');
+        launch.orientation.setFromEuler(this.shotEuler);
     }
 
     private updateEntrance(dt: number): void {

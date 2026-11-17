@@ -1,6 +1,7 @@
 import { IFormationPatternBuilder } from '../../../../config/interfaces/interfaces';
 import { SimpleLoopFormationPatternBuilder } from './SimpleLoopFormationPatternBuilder';
 import { SimpleLoopFormationPatternBuilder2 } from './SimpleLoopFormationPatternBuilder2';
+import { Level4LoopFormationPatternBuilder } from './Level4LoopFormationPatternBuilder';
 
 // export enum FormationPatternBuilderType {
 //     SimpleLoop = 'simpleLoop',
@@ -14,6 +15,8 @@ export class FormationPatternBuilderFactory {
                 return new SimpleLoopFormationPatternBuilder();
             case 'simpleLoop2':
                 return new SimpleLoopFormationPatternBuilder2();
+            case 'level4Loop':
+                return new Level4LoopFormationPatternBuilder();
             default:
                 return new SimpleLoopFormationPatternBuilder();
         }

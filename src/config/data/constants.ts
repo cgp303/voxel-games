@@ -278,11 +278,11 @@ export const INVADER_WEAPONS: Record<InvaderWeaponType, IInvaderWeaponConfig> = 
         kind: 'mine',
         assetKey: 'mine3',
         maxCount: 32,
-        dropChancePerFrame: { groupAttack1: [0.1, 0.07, 0.05], kamakaziDrops: [0.1, 0.07], entryFromAbove: [0.03] },
+        dropChancePerFrame: { groupAttack1: [0.1, 0.07, 0.05], kamakaziDrops: [0.1, 0.07], entryFromAbove: [0.03], kamakaziDrops3: [0.05] },
         releaseXRange: { min: -70, max: 70 },
         maxPerAttack: 1,
-        allowedInvaderTypes: ['green1', 'green2'],
-        allowedSegments: { groupAttack1: [1, 2, 3], kamakaziDrops: [0, 1], entryFromAbove: [3] },
+        allowedInvaderTypes: ['green1', 'green2', 'jewel1', 'jewel2', 'jewel3'],
+        allowedSegments: { groupAttack1: [1, 2, 3], kamakaziDrops: [0, 1], entryFromAbove: [3], kamakaziDrops3: [0] },
         despawnMarginPastPlayer: 25,
         fadeAudioAt: 5,
         spinRateRadPerSec: Math.PI * 4,
@@ -300,7 +300,7 @@ export const INVADER_WEAPONS: Record<InvaderWeaponType, IInvaderWeaponConfig> = 
         kind: 'lazer',
         assetKey: 'invlazer1',
         maxCount: 32,
-        allowedInvaderTypes: ['scout', 'fighter', 'elite', 'tie', 'neon1', 'neon2', 'neon3'],
+        allowedInvaderTypes: ['scout', 'fighter', 'elite', 'tie', 'neon1', 'neon2', 'neon3', 'jewel1', 'jewel2', 'jewel3'],
         allowedSegments: { columnVertical: [2], columnDives: [1] },
         despawnMarginPastPlayer: 50,
         collisionRadius: 2,
@@ -361,12 +361,12 @@ export const COLLISION = {
         {
             mover: CollisionLayer.INVADER_WEAPON,
             targets: CollisionLayer.PLAYER,
-            yTolerance: Infinity,
+            yTolerance: 6,
         },
         {
             mover: CollisionLayer.INVADER_WEAPON_SHOOTABLE,
             targets: CollisionLayer.PLAYER,
-            yTolerance: Infinity,
+            yTolerance: 6,
         },
     ],
 } satisfies ICollisionSystemConfig & { rollBuckets: number; maskResolution: number; invaderRadius: number };
@@ -514,7 +514,7 @@ export const BOSS_ARM = {
     /** Segment spacing, as a fraction of a segment's width, when the JSON gives none. */
     defaultSpacing: 0.75,
     /** Control points along an arm's spline, base to tip (the first and last are the mount and the tip). */
-    controlPoints: 5,
+    controlPoints: 7,
     /** Polyline samples per spline span; more is smoother and slower. */
     spanSamples: 8,
     /** Chase rate (per second) of a move that gives no `follow`. */
@@ -656,10 +656,14 @@ export const BOSS_PATHS: Record<string, IBossPathDef> = {
     },
     bossSweep4: {
         segments: [
-            { p0: new Vector3(0, 20, -60), p1: new Vector3(0, 20, -60), p2: new Vector3(0, 20, -60), p3: new Vector3(0, 20, -60) },
-            { p0: new Vector3(0, 20, -60), p1: new Vector3(0, 20, -60), p2: new Vector3(0, 20, -60), p3: new Vector3(0, 20, -60) },
-
-
+            { p0: new Vector3(0, 20, 60), p1: new Vector3(20, 20, 30), p2: new Vector3(40, 20, 30), p3: new Vector3(60, 20, 10) },
+            { p0: new Vector3(60, 20, 10), p1: new Vector3(-20, 20, 30), p2: new Vector3(-20, 20, 30), p3: new Vector3(-60, 20, 60) },
+            { p0: new Vector3(-60, 20, 60), p1: new Vector3(-20, 20, -30), p2: new Vector3(20, 20, 0), p3: new Vector3(60, 20, 30) },
+            { p0: new Vector3(60, 20, 30), p1: new Vector3(20, 20, 30), p2: new Vector3(10, 20, 0), p3: new Vector3(0, 20, 60) },
+            { p0: new Vector3(0, 20, 60), p1: new Vector3(10, 20, 0), p2: new Vector3(-10, 20, -60), p3: new Vector3(0, 20, -100) },
+            { p0: new Vector3(0, 20, -100), p1: new Vector3(-10, 20, -60), p2: new Vector3(10, 20, 0), p3: new Vector3(0, 20, 60) },
+            { p0: new Vector3(0, 20, 60), p1: new Vector3(-10, 20, 100), p2: new Vector3(10, 20, 140), p3: new Vector3(0, 20, 180) },
+            { p0: new Vector3(0, 20, 180), p1: new Vector3(-10, 20, 140), p2: new Vector3(10, 20, 90), p3: new Vector3(0, 20, 60) },
         ],
     },
 };
@@ -735,7 +739,7 @@ export const LEVEL = {
 /** Dev/test helpers. Disable (or remove) before shipping. */
 export const DEBUG = {
     /** When true the player ignores collisions (no life lost, no removal) so the game can be tested freely. */
-    invinciblePlayer: false,
+    invinciblePlayer: true,
     /** Skip to the next wave by disposing all active invaders. */
     enableWaveSkip: true,
     /** KeyboardEvent.key values that trigger the wave skip (both cases so Shift/Caps Lock still work). */
@@ -745,6 +749,9 @@ export const DEBUG = {
     disableTerrain: false,
 
     showFPS: false,
+
+    /** Draws each boss arm's reach, target, tip, control points and aim point (see BossArmDebug). */
+    showBossArms: false,
 
 } as const;
 

@@ -12,12 +12,13 @@ import { StandardEntryPatternBuilder } from '../patterns/invader-patterns/Standa
 import { SpiralEntryPatternBuilder } from '../patterns/invader-patterns/SpiralEntryPatternBuilder';
 import { SwoopingDiveEntryPatternBuilder } from '../patterns/invader-patterns/SwoopingDiveEntryPatternBuilder';
 import { FromAboveEntryPattern } from '../patterns/invader-patterns/FromAboveEntryPatternBuilder';
+import { FromBelowEntryPattern } from '../patterns/invader-patterns/FromBelowEntryPatternBuilder';
 
 type QueueJob =
     | { kind: 'pair'; left: IFormationSlot; right: IFormationSlot }
     | { kind: 'single'; slot: IFormationSlot };
 
-export type EntryPatternBuilderType = 'standard' | 'spiral' | 'swoopingDive' | 'fromAbove';
+export type EntryPatternBuilderType = 'standard' | 'spiral' | 'swoopingDive' | 'fromAbove' | 'fromBelow';
 
 /**
  * Extended entry config to specify which entry pattern builder to use.
@@ -181,6 +182,8 @@ export class EntryPatternDirector extends BasePatternDirector {
                 return new SwoopingDiveEntryPatternBuilder();
             case 'fromAbove':
                 return new FromAboveEntryPattern();
+            case 'fromBelow':
+                return new FromBelowEntryPattern();
             default:
                 return new StandardEntryPatternBuilder();
         }

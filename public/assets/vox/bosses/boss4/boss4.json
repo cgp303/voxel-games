@@ -5,7 +5,8 @@
   "scoreValue": 50000,
   "hull": { "tile": { "w": 4, "d": 4 }, "hits": 2 },     
   "parts": [
-    { "id": "eye",    "rects": [[31,5,32,11]], "hits": 8, "role": "core" },
+    { "id": "eye",    "rects": [[31,5,32,13]], "hits": 8, "role": "core" },
+    { "id": "scorpionArmJoin", "rects": [[30,3,33,3]], "hits": 12 },
     { "id": "armWeaponAJoinLeft", "rects": [[8,13, 11,13]], "hits": 10 },
     { "id": "armWeaponAJoinRight", "rects": [[52,13,55,13]], "hits": 10 },
     { "id": "armWeaponBJoinLeft", "rects": [[19,14,24,14]], "hits": 10 },
@@ -15,18 +16,49 @@
   "weapons": [],
   "arms": [
     {
-      "id": "armLA",
-      "jointPart": "armWeaponAJoinLeft",
-      "assets": { "joint": "tentacleMount", "segment": "segmentA",       "weapon": "weaponA", "lazer": "lazerA" },
-      "mount": { "x": 61, "y": 3, "z": 3 },
+      "id": "scorpionArm",
+      "jointPart": "scorpionArmJoin",
+      "assets": { "joint": "scorpionMount", "segment": "scorpionSegment",       "weapon": "scorpionWeapon", "lazer": "scorpionLazer" },
+      "mount": { "x": 30, "y": 3, "z": 14 },
       "segments": 16,
       "taper": 0.8,
       "weapon": { "type": "BossLazerA", "hits": 12, "speed": 250, "muzzle": { "x": 0, "y": -1, "z": -4 }, "scoreValue": 500 },
       "debrisScore": 50,
       "phases": ["attack", "rest"],
       "moves": [
-        { "stage": "sweep", "seconds": 2, "follow": 10,
-          "target": { "mode": "pendulum", "from": { "x": 30, "y": 0, "z": -40 }, "to": { "x": 30, "y": 0, "z": -80 } } }
+
+        { "stage": "idle", "seconds": 8, "tip": { "x": 10, "y": 20, "z": -80 }, "aim": "target", "target": { "mode": "local", "pos": { "x": 0, "y": 20, "z": -80 } },
+          "arch": { "lift": 15, "back": 15, "peak": 0.5, "backPeak": 0.25 } },
+        { "stage": "idle", "seconds": 1, "tip": { "x": 10, "y": 0, "z": -80 }, "aim": "target", "target": { "mode": "local", "pos": { "x": 0, "y": 0, "z": -80 } },
+          "arch": { "lift": 15, "back": 15, "peak": 0.5, "backPeak": 0.25 }, "fire": { "mode": "tip", "rate": 0.025 } },
+        { "stage": "idle", "seconds": 8, "tip": { "x": 10, "y": 20, "z": -80 }, "aim": "target", "target": { "mode": "local", "pos": { "x": 0, "y": 20, "z": -80 } },
+          "arch": { "lift": 15, "back": 15, "peak": 0.5, "backPeak": 0.25 } },
+        { "stage": "idle", "seconds": 1, "tip": { "x": 10, "y": 0, "z": -80 }, "aim": "target", "target": { "mode": "local", "pos": { "x": 0, "y": 0, "z": -80 } },
+          "arch": { "lift": 15, "back": 15, "peak": 0.5, "backPeak": 0.25 }, "fire": { "mode": "random", "rate": 0.2 } }
+
+      ]
+    },
+    {
+      "id": "armLA",
+      "jointPart": "armWeaponAJoinLeft",
+      "assets": { "joint": "tentacleMount", "segment": "segmentA",       "weapon": "weaponA", "lazer": "lazerA" },
+      "mount": { "x": 61, "y": 3, "z": 3 },
+      "restOutward": 0.35,
+      "restForward": 0.65,
+      "segments": 12,
+      "taper": 0.8,
+      "weapon": { "type": "BossLazerA", "hits": 12, "speed": 250, "muzzle": { "x": 0, "y": -1, "z": -4 }, "scoreValue": 500 },
+      "debrisScore": 50,
+      "phases": ["attack", "rest"],
+      "moves": [
+        { "stage": "track",   "seconds": 4, "follow": 1, "aim": "target", "target": { "mode": "local", "pos": { "x": 35, "y": 0, "z": -80 } } },
+        { "stage": "sweep", "seconds": 4, "follow": 2, "aim": "target",
+          "target": { "mode": "pendulum", "from": { "x": 70, "y": 0, "z": -80 }, "to": { "x": 40, "y": 0, "z": -80 } }, "fire": { "mode": "tip", "rate": 0.025 } },
+        { "stage": "track",   "seconds": 4, "follow": 1, "aim": "target", "target": { "mode": "local", "pos": { "x": 35, "y": 0, "z": -80 } } },
+        { "stage": "track",   "seconds": 2, "follow": 1, "aim": "target", "target": { "mode": "local", "pos": { "x": 35, "y": 0, "z": -80 } }, "fire": { "mode": "tip", "rate": 0.025 } },
+        { "stage": "track",   "seconds": 4, "follow": 1, "aim": "target", "target": { "mode": "local", "pos": { "x": 35, "y": 0, "z": -80 } } },
+        { "stage": "sweep", "seconds": 2.5, "follow": 2, "aim": "target",
+          "target": { "mode": "pendulum", "from": { "x": 35, "y": 0, "z": -80 }, "to": { "x": 0, "y": 0, "z": -80 } }, "fire": { "mode": "tip", "rate": 0.025 } }
       ]
     },
     {
@@ -34,15 +66,22 @@
       "jointPart": "armWeaponAJoinRight",
       "assets": { "joint": "tentacleMount", "segment": "segmentA",       "weapon": "weaponA", "lazer": "lazerA" },
       "mount": { "x": 0, "y": 2, "z": 3 },
-      "segments": 16,
+      "restOutward": 0.35,
+      "restForward": 0.65,
+      "segments": 12,
       "taper": 0.8,
       "weapon": { "type": "BossLazerA", "hits": 12, "speed": 250, "muzzle": { "x": 0, "y": -1, "z": -4 }, "scoreValue": 500 },
       "debrisScore": 50,
       "phases": ["attack", "rest"],
       "moves": [
-        { "stage": "sweep", "seconds": 2, "follow": 10,
-          "target": { "mode": "pendulum", "from": { "x": -30, "y": 0, "z": -40 }, "to": { "x": -30, "y": 0, "z": -80 } } }
-
+        { "stage": "track",   "seconds": 4, "follow": 1, "aim": "target", "target": { "mode": "local", "pos": { "x": -35, "y": 0, "z": -80 } } },
+        { "stage": "sweep", "seconds": 4, "follow": 2, "aim": "target",
+          "target": { "mode": "pendulum", "from": { "x": -70, "y": 0, "z": -80 }, "to": { "x": -40, "y": 0, "z": -80 } }, "fire": { "mode": "tip", "rate": 0.025 } },
+        { "stage": "track",   "seconds": 4, "follow": 1, "aim": "target", "target": { "mode": "local", "pos": { "x": -35, "y": 0, "z": -80 } } },
+        { "stage": "track",   "seconds": 2, "follow": 1, "aim": "target", "target": { "mode": "local", "pos": { "x": -35, "y": 0, "z": -80 } }, "fire": { "mode": "tip", "rate": 0.025 } },
+        { "stage": "track",   "seconds": 4, "follow": 1, "aim": "target", "target": { "mode": "local", "pos": { "x": -35, "y": 0, "z": -80 } } },
+        { "stage": "sweep", "seconds": 2.5, "follow": 2, "aim": "target",
+          "target": { "mode": "pendulum", "from": { "x": -35, "y": 0, "z": -80 }, "to": { "x": 0, "y": 0, "z": -80 } }, "fire": { "mode": "tip", "rate": 0.025 } }
       ]
     },
           {
@@ -51,18 +90,16 @@
       "assets": { "joint": "tentacleMount", "segment": "segmentB",       "weapon": "weaponB", "lazer": "lazerB" },
       "mount": { "x": 37, "y": 3, "z": 3 },
       "segments": 8,
+      "restOutward": 0.35,
+      "restForward": 0.65,
       "taper": 0.8,
       "weapon": { "type": "BossLazerA", "hits": 12, "speed": 250, "muzzle": { "x": 0, "y": -1, "z": -4 }, "scoreValue": 500 },
       "debrisScore": 50,
       "phases": ["attack", "rest"],
       "moves": [
-        { "stage": "idle",    "seconds": [5,5], "wave": { "amp": 6, "freq": 1, "speed": 0.5 } },
+        { "stage": "idle",    "seconds": [5,5], "wave": { "amp": 2, "freq": 1, "speed": 0.5 } },
 
-        { "stage": "track",   "seconds": 1, "target": { "mode": "player" }, "follow": 1, "fire": { "mode": "down", "rate": 0.05 } },
-        { "stage": "windup",  "seconds": 0.8, "target": { "mode": "local", "pos": { "x": 20, "y": 0, "z": -35 } }, "follow": 6 },
-        { "stage": "strike",  "seconds": 2, "target": { "mode": "local", "pos": { "x": 20, "y": 0, "z": -35 } }, "motion": "whip", "overshoot": 0.1, "fire": { "mode": "tip", "rate": 0.05 } },
-
-        { "stage": "recover", "seconds": 1.2, "follow": 3 }
+        { "stage": "track",   "seconds": 1, "target": { "mode": "local", "pos": { "x": 20, "y": 0, "z": -35 } }, "follow": 1, "fire": { "mode": "down", "rate": 0.025 } }
       ]
     },
     {
@@ -71,23 +108,21 @@
       "assets": { "joint": "tentacleMount", "segment": "segmentB",       "weapon": "weaponB", "lazer": "lazerB" },
       "mount": { "x": 24, "y": 3, "z": 3 },
       "segments": 8,
+      "restOutward": 0.35,
+      "restForward": 0.65,
       "taper": 0.8,
       "weapon": { "type": "BossLazerA", "hits": 12, "speed": 250, "muzzle": { "x": 0, "y": -1, "z": -4 }, "scoreValue": 500 },
       "debrisScore": 50,
       "phases": ["attack", "rest"],
       "moves": [
-        { "stage": "idle",    "seconds": [5,5], "wave": { "amp": 6, "freq": 1, "speed": 0.5 } },
+        { "stage": "idle",    "seconds": [5,5], "wave": { "amp": 2, "freq": 1, "speed": 0.5 } },
 
-        { "stage": "track",   "seconds": 1, "target": { "mode": "player" }, "follow": 1, "fire": { "mode": "down", "rate": 0.05 } },
-        { "stage": "windup",  "seconds": 0.8, "target": { "mode": "local", "pos": { "x": -20, "y": 0, "z": -35 } }, "follow": 6 },
-        { "stage": "strike",  "seconds": 2, "target": { "mode": "local", "pos": { "x": -20, "y": 0, "z": -35 } }, "motion": "whip", "overshoot": 0.1, "fire": { "mode": "tip", "rate": 0.05 } },
-
-        { "stage": "recover", "seconds": 1.2, "follow": 3 }
+        { "stage": "track",   "seconds": 1, "target": { "mode": "local", "pos": { "x": -20, "y": 0, "z": -35 } }, "follow": 1, "fire": { "mode": "down", "rate": 0.025 } }
 
       ]
     }
   ],
   "cycle": [ { "phase": "attack", "seconds": [2, 2] }, { "phase": "rest", "seconds": [5, 5] } ],
-  "movement": { "path": "bossSweep4", "durationSec": 38, "maxRollRad": 0.2, "rollGain": 0.02 },
+  "movement": { "path": "bossSweep4", "durationSec": 36, "maxRollRad": 0.2, "rollGain": 0.02 },
   "fx": { "chunks": true, "drip": true }
 }

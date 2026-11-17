@@ -5,6 +5,7 @@ import type {
     IBossArmMove,
     IBossArmTarget,
     IBossArmWave,
+    IBossArmArch,
     IBossCycleStep,
     IBossDefinition,
     IBossMountDef,
@@ -253,6 +254,17 @@ export function parseBossDefinition(raw: unknown, knownWeapons: readonly string[
                 };
             }
 
+            let arch: IBossArmArch | undefined;
+            if (move.arch !== undefined) {
+                const a = object(move.arch, `${moveField}.arch`);
+                arch = {
+                    lift: number(a.lift, `${moveField}.arch.lift`),
+                    back: a.back === undefined ? undefined : number(a.back, `${moveField}.arch.back`),
+                    peak: a.peak === undefined ? undefined : number(a.peak, `${moveField}.arch.peak`, 0.05),
+                    backPeak: a.backPeak === undefined ? undefined : number(a.backPeak, `${moveField}.arch.backPeak`, 0.05),
+                };
+            }
+
             let fire: IBossArmFire | undefined;
             if (move.fire !== undefined) {
                 const f = object(move.fire, `${moveField}.fire`);
@@ -272,7 +284,9 @@ export function parseBossDefinition(raw: unknown, knownWeapons: readonly string[
                 overshoot: move.overshoot === undefined ? undefined : number(move.overshoot, `${moveField}.overshoot`, 0),
                 ease: move.ease === undefined ? undefined : oneOf(move.ease, `${moveField}.ease`, ARM_EASES),
                 wave,
+                arch,
                 fire,
+                aim: move.aim === 'target' ? 'target' : optionalVector(move.aim, `${moveField}.aim`),
             };
         });
 
@@ -289,6 +303,8 @@ export function parseBossDefinition(raw: unknown, knownWeapons: readonly string[
             segments: integer(arm.segments, `${field}.segments`, 2),
             taper: arm.taper === undefined ? 1 : number(arm.taper, `${field}.taper`, Number.MIN_VALUE),
             spacing: arm.spacing === undefined ? undefined : number(arm.spacing, `${field}.spacing`, Number.MIN_VALUE),
+            restOutward: arm.restOutward === undefined ? undefined : number(arm.restOutward, `${field}.restOutward`),
+            restForward: arm.restForward === undefined ? undefined : number(arm.restForward, `${field}.restForward`),
             weapon: {
                 type: weaponType as BossWeaponType,
                 hits: number(weaponJson.hits, `${field}.weapon.hits`, Number.MIN_VALUE),

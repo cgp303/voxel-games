@@ -20,6 +20,9 @@ import type { GroupKind, InvaderRowRoster, PatternType, TerrainStyleId } from '.
 import { KamakaziDropsDirector } from '../patterns/directors/KamakaziDropsDirector';
 import { VerticalRowsDirector } from '../patterns/directors/VerticalRowsDirector';
 import { KamakaziDropsDirector2 } from '../patterns/directors/KamakaziDropsDirector2';
+import { KamakaziDropsDirector3 } from '../patterns/directors/KamakaziDropsDirector3';
+
+import { ReverseColumnVerticalDirector } from '../patterns/directors/ReverseColumnVerticalDirector';
 
 interface IStageConfigBase {
     /** Merged over the default `{ orientation: 'front' }` and passed to the director (e.g. `path`, `maxSetIterations`). */
@@ -34,7 +37,7 @@ interface IStageConfigBase {
 
 /** One stage of a wave. Everything the factory needs to build a Stage and its director. */
 export type IStageConfig =
-    | IStageBase<'entry' | 'entryFromAbove' | 'entryStandardBezier' | 'entrySpiral' | 'entrySwoopingDive' | 'columnVertical' | 'columnDives' | 'figureEight' | 'lazerB' | 'kamakaziDrops' | 'kamakaziDrops2' | 'verticalRows'>
+    | IStageBase<'entry' | 'entryFromAbove' | 'entryFromBelow' | 'entryStandardBezier' | 'entrySpiral' | 'entrySwoopingDive' | 'columnVertical' | 'columnDives' | 'figureEight' | 'lazerB' | 'kamakaziDrops' | 'kamakaziDrops2' | 'kamakaziDrops3' | 'verticalRows' | 'reverseColumnVertical'>
     /** A boss fight; the wave is over when the boss is dead. The wave's formation and roster are not used (give any valid ones). */
     | (IStageBase<'boss'> & { bossId: string })
     | (IStageBase<'groupAttack'> & {
@@ -99,6 +102,13 @@ const DIRECTORS: Record<DirectorKey, IDirectorEntry> = {
         patternBuilder: 'fromAbove',
         create: () => new EntryPatternDirector(),
     },
+    entryFromBelow: {
+        stageName: 'Entry From Below',
+        fireRate: 0.5,
+        missileStrength: 1.0,
+        patternBuilder: 'fromBelow',
+        create: () => new EntryPatternDirector(),
+    },
     entrySpiral: {
         stageName: 'Entry Spiral',
         fireRate: 0.5,
@@ -130,6 +140,12 @@ const DIRECTORS: Record<DirectorKey, IDirectorEntry> = {
         missileStrength: 1.2,
         create: () => new ColumnVerticalDirector(),
     },
+    reverseColumnVertical: {
+        stageName: 'Reverse Column Vertical',
+        fireRate: 1.0,
+        missileStrength: 1.2,
+        create: () => new ReverseColumnVerticalDirector(),
+    },
     columnDives: {
         stageName: 'Column Dives',
         fireRate: 1.0,
@@ -147,6 +163,12 @@ const DIRECTORS: Record<DirectorKey, IDirectorEntry> = {
         fireRate: 1.0,
         missileStrength: 1.2,
         create: () => new KamakaziDropsDirector2(),
+    },
+    kamakaziDrops3: {
+        stageName: 'Kamakazi Drops 3',
+        fireRate: 1.0,
+        missileStrength: 1.2,
+        create: () => new KamakaziDropsDirector3(),
     },
     verticalRows: {
         stageName: 'Vertical Rows',

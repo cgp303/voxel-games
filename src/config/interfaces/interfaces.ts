@@ -637,11 +637,13 @@ export interface IWeaponOverrides {
 /** The override of one weapon type, as handed to its trigger. */
 export type IInvaderWeaponOverride = NonNullable<IWeaponOverrides[InvaderWeaponType]>;
 
-/** World limits that end a lazer's flight sideways or toward +Z (the -Z limit is the weapon's despawnZ). */
+/** World limits that end a lazer's flight sideways, up or down, or toward +Z (the -Z limit is the weapon's despawnZ). */
 export interface ILazerDespawnBounds {
     minX: number;
     maxX: number;
     maxZ: number;
+    minY: number;
+    maxY: number;
 }
 
 /** Where and how a weapon leaves its invader; filled by a WeaponTrigger and reused every frame. */
@@ -1275,6 +1277,18 @@ export interface IBossArmWave {
     speed: number;
 }
 
+/** An arch in the arm's middle (a scorpion tail): the middle points are pushed up and back, the base and tip stay put. */
+export interface IBossArmArch {
+    /** Units the arm rises above the line from mount to tip, at its highest. */
+    lift: number;
+    /** Units the arm bows away from the tip (toward and past the mount) in the X/Z plane, at its furthest. */
+    back?: number;
+    /** Where along the arm (0 base to 1 tip) the arch peaks; above 0.5 gives a hook that curls down at the tip. Default 0.5. */
+    peak?: number;
+    /** Where along the arm the stretch away from the body (`back`) peaks. Default 0.3, so the arm reaches out before it curls over. */
+    backPeak?: number;
+}
+
 /** One step of an arm's looping move list. Every field except `seconds` is optional. */
 export interface IBossArmMove {
     stage: ArmStage;
@@ -1288,7 +1302,11 @@ export interface IBossArmMove {
     overshoot?: number;
     ease?: ArmEase;
     wave?: IBossArmWave;
+    /** Without an arch the arm is straight (and blends back to straight). */
+    arch?: IBossArmArch;
     fire?: IBossArmFire;
+    /** A point in the boss's local space the weapon turns to face (so `tip` shots go there too), or "target" to face along the line from the mount through the move's target. Without it the weapon follows the arm's curve. */
+    aim?: IVector3Like | 'target';
 }
 
 export interface IBossArmWeaponDef {
@@ -1315,12 +1333,17 @@ export interface IBossArmDef {
     taper: number;
     /** Distance between segment centres as a fraction of a segment's width (BOSS_ARM.defaultSpacing when absent). */
     spacing?: number;
+    /** Where the tip rests, as fractions of the chain's length: outward from the body and toward the player (-z). Defaults to BOSS_ARM.restOutward / restForward. */
+    restOutward?: number;
+    restForward?: number;
+
     weapon: IBossArmWeaponDef;
     /** Score for each detached segment that is shot. */
     debrisScore: number;
     /** Cycle phases in which the moves run; in the others the arm idles. */
     phases: readonly BossCyclePhase[];
     moves: readonly IBossArmMove[];
+
 }
 
 /** A boss as described by its JSON file (see public/assets/vox/bosses). */

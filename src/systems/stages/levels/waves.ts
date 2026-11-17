@@ -26,6 +26,8 @@ const COLUMN_VERTICAL: IStageConfig = { director: 'columnVertical' };
 const LAZER_B: IStageConfig = { director: 'lazerB', context: { maxSetIterations: 6 } };
 const KAMAKAZI_DROPS: IStageConfig = { director: 'kamakaziDrops' };
 const KAMAKAZI_DROPS_2: IStageConfig = { director: 'kamakaziDrops2' };
+const KAMAKAZI_DROPS_3: IStageConfig = { director: 'kamakaziDrops3' };
+const REVERSE_COLUMN_VERTICAL: IStageConfig = { director: 'reverseColumnVertical' };
 
 
 /** Level 1, wave 3: figure eight, then a column vertical on the second path. */
@@ -188,15 +190,42 @@ export const WAVE_3_3: IWaveConfig = {
 };
 
 export const WAVE_4_1: IWaveConfig = {
+    formation: 'Grid',
+    formationPattern: 'level4Loop',
+    roster: JEWEL1_ROSTER,
+    terrain: 'greenWorld',
+    loopStartIndex: 1,
+    stages: [
+        { director: 'entryFromBelow' },
+        REVERSE_COLUMN_VERTICAL,
+        KAMAKAZI_DROPS_3,
+    ],
+};
+
+export const WAVE_4_2: IWaveConfig = {
     formation: 'X',
+    formationPattern: 'simpleLoop2',
+    roster: JEWEL2_ROSTER,
+    terrain: 'greenWorld',
+    loopStartIndex: 1,
+    stages: [
+        { director: 'entryFromBelow' },
+        KAMAKAZI_DROPS_3,
+        { director: 'verticalRows', context: { path: 1 } },
+    ],
+};
+
+export const WAVE_4_3: IWaveConfig = {
+    formation: 'V',
     formationPattern: 'simpleLoop2',
     roster: JEWEL3_ROSTER,
     terrain: 'greenWorld',
     loopStartIndex: 1,
     stages: [
-        { director: 'entryFromAbove' },
-        KAMAKAZI_DROPS_2,
+        { director: 'entryFromBelow' },
+        KAMAKAZI_DROPS_3,
         { director: 'verticalRows', context: { path: 1 } },
+        REVERSE_COLUMN_VERTICAL
     ],
 };
 

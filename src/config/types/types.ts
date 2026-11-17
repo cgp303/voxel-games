@@ -227,11 +227,13 @@ export type AttackPatternId =
     | 'figureEight'
     | 'lazerBAttack'
     | 'kamakaziDrops'
+    | 'kamakaziDrops3'
     // Entry pattern IDs:
     | 'entryStandardBezier'
     | 'entrySpiral'
     | 'entrySwoopingDive'
-    | 'entryFromAbove';
+    | 'entryFromAbove'
+    | 'entryFromBelow';
 
 /** Pooled projectile lifecycle: Idle (hidden in pool), Flying, Fading (shrinking before release). */
 export type ProjectileState = 'Idle' | 'Flying' | 'Fading';

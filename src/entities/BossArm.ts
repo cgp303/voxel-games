@@ -1,9 +1,10 @@
 import * as THREE from 'three';
-import { BOSS_ARM, INVADER_MESH_MATERIAL, QUALITY } from '../config/data/constants';
+import { BOSS_ARM, DEBUG, INVADER_MESH_MATERIAL, QUALITY } from '../config/data/constants';
 import type { IBossArmDef, IBossArmFire, IBossArmModels, IBossArmMove, IParsedVoxModel, IPoint3 } from '../config/interfaces/interfaces';
 import { VoxelWorld } from '../voxel/VoxelWorld';
 import { VoxelGeometry } from '../voxel/VoxelGeometry';
 import { SplinePath, ease, pingPong, smoothing, whip } from '../systems/boss/armMath';
+import { BossArmDebug, type IBossArmDebugInfo } from './BossArmDebug';
 
 /** Played when the arm has nothing to do (the boss is entering, or the arm's phases are not running). */
 const IDLE_MOVE: IBossArmMove = { stage: 'idle', seconds: [1, 1] };
@@ -63,8 +64,11 @@ export class BossArm {
     private readonly spline: SplinePath;
     private readonly position = new Float64Array(3);
     private readonly tangent = new Float64Array(3);
+    private readonly weaponDir = new THREE.Vector3(0, 0, -1);
 
     private moveIndex = -1;
+    // What plays while the arm's phases are not running: the arm's first idle stage's arch, so it enters arched.
+    private idleMove: IBossArmMove = IDLE_MOVE;
     private move: IBossArmMove = IDLE_MOVE;
     private moveElapsed = 0;
     private moveDuration = 1;
@@ -77,11 +81,26 @@ export class BossArm {
     private waveFreq = 0;
     private wavePhase = 0;
 
+    // The arch currently shown; chases the move's arch so changing move does not make the arm jump.
+    private archLift = 0;
+    private archBack = 0;
+    private archPeak = 0.5;
+    private archBackPeak = 0.3;
+
+    // The point the weapon faces and how much it does so (0 follows the curve, 1 faces the point).
+    private readonly aimPoint = new THREE.Vector3();
+    private readonly aimDir = new THREE.Vector3();
+    private aimBlend = 0;
+    // True when the weapon faces along the line from the mount through the target (`aim: "target"`) rather than at the point from the weapon.
+    private aimAlongLine = false;
+    private readonly debug: BossArmDebug | null = DEBUG.showBossArms ? new BossArmDebug(BOSS_ARM.controlPoints) : null;
+    private debugInfo: IBossArmDebugInfo | null = null;
+
     private readonly matrix = new THREE.Matrix4();
     private readonly quaternion = new THREE.Quaternion();
     private readonly scale = new THREE.Vector3();
+    private readonly euler = new THREE.Euler();
     private readonly place = new THREE.Vector3();
-    private readonly yAxis = new THREE.Vector3(0, 1, 0);
 
     constructor(def: IBossArmDef, models: IBossArmModels, bossSize: { width: number; height: number; depth: number }) {
         this.def = def;
@@ -93,11 +112,37 @@ export class BossArm {
         this.reach = this.chainLength * BOSS_ARM.maxReach;
         const outward = this.mount.x >= 0 ? 1 : -1;
         this.restTip.set(
-            this.mount.x + outward * this.chainLength * BOSS_ARM.restOutward,
+            this.mount.x + outward * this.chainLength * (def.restOutward ?? BOSS_ARM.restOutward),
             this.mount.y,
-            this.mount.z - this.chainLength * BOSS_ARM.restForward,
+            this.mount.z - this.chainLength * (def.restForward ?? BOSS_ARM.restForward),
         );
         this.tip.copy(this.restTip);
+
+        // Until the moves run (the boss is entering) the arm holds the pose its first move starts from.
+        const first = def.moves[0];
+        if (first) {
+            this.idleMove = { ...first, stage: 'idle', seconds: [1, 1], fire: undefined };
+            this.move = this.idleMove;
+            const spec = first.target;
+            if (spec?.mode === 'local' && spec.pos) this.tip.set(spec.pos.x, spec.pos.y, spec.pos.z);
+            else if ((spec?.mode === 'pendulum' || spec?.mode === 'sweep') && spec.from) this.tip.set(spec.from.x, spec.from.y, spec.from.z);
+
+            const arch = first.arch;
+            this.archLift = arch?.lift ?? 0;
+            this.archBack = arch?.back ?? 0;
+            this.archPeak = Math.min(0.95, Math.max(0.05, arch?.peak ?? 0.5));
+            this.archBackPeak = Math.min(0.95, Math.max(0.05, arch?.backPeak ?? 0.3));
+            const wave = first.wave ?? BOSS_ARM.idleWave;
+            this.waveAmp = wave.amp;
+            this.waveFreq = wave.freq;
+            if (first.aim) {
+                this.aimAlongLine = first.aim === 'target';
+                if (first.aim === 'target') this.aimPoint.copy(this.tip);
+                else this.aimPoint.set(first.aim.x, first.aim.y, first.aim.z);
+                this.aimBlend = 1;
+            }
+            this.clampReach();
+        }
 
         const count = BOSS_ARM.controlPoints;
         this.base = new Float64Array(count * 3);
@@ -125,6 +170,7 @@ export class BossArm {
         this.segmentMesh.castShadow = QUALITY.entityCastShadow;
         this.segmentMesh.receiveShadow = true;
         this.object.add(this.jointMesh, this.segmentMesh, this.weaponMesh);
+        if (this.debug) this.object.add(this.debug.group);
         this.layout();
     }
 
@@ -139,8 +185,36 @@ export class BossArm {
         this.advanceMove(dt, active, player);
         this.updateTip(dt, player);
         this.updateWave(dt);
+        this.updateArch(dt);
+        this.updateAim(dt);
         this.updateControls(dt);
         this.layout();
+        this.updateDebug();
+    }
+
+    private updateDebug(): void {
+        if (!this.debug) return;
+        this.debugInfo ??= {
+            id: this.def.id,
+            mount: this.mount,
+            tip: this.tip,
+            target: this.target,
+            controls: this.controls,
+            weapon: this.weaponMesh.position,
+            aim: null,
+            reach: this.reach,
+            move: this.move,
+            moveIndex: this.moveIndex,
+            moveElapsed: 0,
+            moveDuration: 1,
+        };
+        const info = this.debugInfo;
+        info.aim = this.aimBlend > 0.001 ? this.aimPoint : null;
+        info.move = this.move;
+        info.moveIndex = this.moveIndex;
+        info.moveElapsed = this.moveElapsed;
+        info.moveDuration = this.moveDuration;
+        this.debug.update(info, this.attached);
     }
 
     /** Lights the joint briefly (it was hit). */
@@ -181,6 +255,16 @@ export class BossArm {
         return this.pieceYaw[this.weaponIndex];
     }
 
+    /** Unit direction the weapon points in (the end of the curve), in the boss's local space; includes its pitch. */
+    public weaponDirection(out: THREE.Vector3): THREE.Vector3 {
+        return out.copy(this.weaponDir);
+    }
+
+    /** The weapon's full turn (yaw then pitch about its own x axis). */
+    public weaponQuaternion(out: THREE.Quaternion): THREE.Quaternion {
+        return out.copy(this.weaponMesh.quaternion);
+    }
+
     /** Where the weapon is, in the boss's local space. */
     public weaponLocal(out: THREE.Vector3): THREE.Vector3 {
         return out.set(this.weaponMesh.position.x, this.weaponMesh.position.y, this.weaponMesh.position.z);
@@ -194,6 +278,7 @@ export class BossArm {
     }
 
     public dispose(): void {
+        this.debug?.dispose();
         this.jointMesh.geometry.dispose();
         this.weaponMesh.geometry.dispose();
         this.segmentMesh.geometry.dispose();
@@ -206,9 +291,9 @@ export class BossArm {
     private advanceMove(dt: number, active: boolean, player: IPoint3 | null): void {
         const moves = this.def.moves;
         if (!active || moves.length === 0) {
-            if (this.moveIndex !== -1 || this.move !== IDLE_MOVE) {
+            if (this.moveIndex !== -1 || this.move !== this.idleMove) {
                 this.moveIndex = -1;
-                this.beginMove(IDLE_MOVE, player);
+                this.beginMove(this.idleMove, player);
             }
             this.moveElapsed = 0;
             return;
@@ -296,15 +381,41 @@ export class BossArm {
         this.clampReach();
     }
 
+    /**
+     * Keeps the tip within what the chain can reach. An arch makes the arm longer than the straight line from mount
+     * to tip, so the straight-line reach shrinks to match (parabola: length = chord + 8h^2 / 3 chord).
+     */
     private clampReach(): void {
         const dx = this.tip.x - this.mount.x;
         const dy = this.tip.y - this.mount.y;
         const dz = this.tip.z - this.mount.z;
         const length = Math.sqrt(dx * dx + dy * dy + dz * dz);
-        if (length > this.reach) {
-            const k = this.reach / length;
+        const h = Math.hypot(this.archLift, this.archBack);
+        const disc = this.reach * this.reach - (32 / 3) * h * h;
+        const reach = h > 0 ? (this.reach + Math.sqrt(Math.max(0, disc))) / 2 : this.reach;
+        if (length > reach) {
+            const k = reach / length;
             this.tip.set(this.mount.x + dx * k, this.mount.y + dy * k, this.mount.z + dz * k);
         }
+    }
+
+    private updateArch(dt: number): void {
+        const arch = this.move.arch;
+        const k = smoothing(WAVE_BLEND_RATE, dt);
+        this.archLift += ((arch?.lift ?? 0) - this.archLift) * k;
+        this.archBack += ((arch?.back ?? 0) - this.archBack) * k;
+        const peak = Math.min(0.95, Math.max(0.05, arch?.peak ?? 0.5));
+        this.archPeak += (peak - this.archPeak) * k;
+        const backPeak = Math.min(0.95, Math.max(0.05, arch?.backPeak ?? 0.3));
+        this.archBackPeak += (backPeak - this.archBackPeak) * k;
+    }
+
+    private updateAim(dt: number): void {
+        const aim = this.move.aim;
+        this.aimAlongLine = aim === 'target';
+        if (aim === 'target') this.aimPoint.copy(this.target);
+        else if (aim) this.aimPoint.set(aim.x, aim.y, aim.z);
+        this.aimBlend += ((aim ? 1 : 0) - this.aimBlend) * smoothing(WAVE_BLEND_RATE, dt);
     }
 
     private updateWave(dt: number): void {
@@ -344,13 +455,22 @@ export class BossArm {
         const length = Math.hypot(dx, dz) || 1;
         const sideX = -dz / length;
         const sideZ = dx / length;
+        // "Back" is away from the tip, along the mount-to-tip line.
+        const backX = -dx / length;
+        const backZ = -dz / length;
+        // Skews the arch so it peaks at archPeak along the arm instead of the middle.
+        const skew = Math.log(0.5) / Math.log(this.archPeak);
+        // The stretch away from the body peaks earlier than the lift, so the arm reaches out before it curls over.
+        const backSkew = Math.log(0.5) / Math.log(this.archBackPeak);
 
         for (let k = 0; k < count; k++) {
             const f = k / (count - 1);
             const offset = k === 0 ? 0 : this.waveAmp * f * Math.sin(TAU * (this.waveFreq * f - this.wavePhase));
-            this.controls[k * 3] = this.base[k * 3] + sideX * offset;
-            this.controls[k * 3 + 1] = this.base[k * 3 + 1];
-            this.controls[k * 3 + 2] = this.base[k * 3 + 2] + sideZ * offset;
+            const bump = Math.sin(Math.PI * Math.pow(f, skew));
+            const backBump = Math.sin(Math.PI * Math.pow(f, backSkew));
+            this.controls[k * 3] = this.base[k * 3] + sideX * offset + backX * this.archBack * backBump;
+            this.controls[k * 3 + 1] = this.base[k * 3 + 1] + this.archLift * bump;
+            this.controls[k * 3 + 2] = this.base[k * 3 + 2] + sideZ * offset + backZ * this.archBack * backBump;
         }
         this.spline.build(this.controls);
 
@@ -370,16 +490,32 @@ export class BossArm {
 
         this.spline.sample(total, this.position, this.tangent, 0);
         this.weaponMesh.position.set(this.position[0], this.position[1], this.position[2]);
-        this.weaponMesh.rotation.set(0, Math.atan2(-this.tangent[0], -this.tangent[2]), 0);
+        const dir = this.weaponDir.set(this.tangent[0], this.tangent[1], this.tangent[2]);
+        if (this.aimBlend > 0.001) {
+            if (this.aimAlongLine) {
+                this.aimDir.set(this.aimPoint.x - this.mount.x, this.aimPoint.y - this.mount.y, this.aimPoint.z - this.mount.z);
+            } else {
+                this.aimDir.set(this.aimPoint.x - this.position[0], this.aimPoint.y - this.position[1], this.aimPoint.z - this.position[2]);
+            }
+            if (this.aimDir.lengthSq() > 1e-6) {
+                this.aimDir.normalize();
+                dir.lerp(this.aimDir, this.aimBlend);
+                if (dir.lengthSq() > 1e-6) dir.normalize();
+                else dir.copy(this.aimDir);
+            }
+        }
+        const yaw = Math.atan2(-dir.x, -dir.z);
+        this.weaponMesh.rotation.set(Math.asin(clampUnit(dir.y)), yaw, 0, 'YXZ');
         this.colliderCentres.set(this.position, n * 3);
         this.colliderRadii[n] = this.weaponRadius;
-        this.pieceYaw[n] = Math.atan2(-this.tangent[0], -this.tangent[2]);
+        this.pieceYaw[n] = yaw;
     }
 
-    /** Places a piece at the sampled position, turned about Y to face along the curve (its front is -z). */
+    /** Places a piece at the sampled position, turned about Y to face along the curve and then pitched about its own x axis (its front is -z). */
     private compose(out: THREE.Matrix4, scale: number): void {
         this.place.set(this.position[0], this.position[1], this.position[2]);
-        this.quaternion.setFromAxisAngle(this.yAxis, Math.atan2(-this.tangent[0], -this.tangent[2]));
+        this.euler.set(Math.asin(clampUnit(this.tangent[1])), Math.atan2(-this.tangent[0], -this.tangent[2]), 0, 'YXZ');
+        this.quaternion.setFromEuler(this.euler);
         this.scale.setScalar(scale);
         out.compose(this.place, this.quaternion, this.scale);
     }
@@ -402,6 +538,11 @@ export class BossArm {
     private createGeometry(model: IParsedVoxModel): THREE.BufferGeometry {
         return createModelGeometry(model);
     }
+}
+
+/** Keeps a value inside asin's domain. */
+function clampUnit(v: number): number {
+    return v < -1 ? -1 : v > 1 ? 1 : v;
 }
 
 /** A mesh of a voxel model, centred on its own middle. */

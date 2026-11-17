@@ -686,6 +686,20 @@ export class PlaySession {
         this.ctx?.game.mode == 'play' ? this.ctx?.events.emit(GameEvents.boss1Explosion) : undefined;
     }
 
+    /** A boss arm's lazer that reaches the ground throws sparks and is removed. */
+    private sweepArmLazersAgainstTerrain(boss: Boss, pool: InvaderWeaponPool): void {
+        const playField = this.ctx?.playField;
+        if (!playField) return;
+        for (const weapon of pool.liveWeapons) {
+            if (!weapon.active || !boss.isArmLazer(weapon.type)) continue;
+            const { x, y, z } = weapon.position;
+            const ground = playField.getGroundHeight(x, z);
+            if (y > ground) continue;
+            this.emitSparks(x, ground, z, this.noVelocity);
+            pool.release(weapon);
+        }
+    }
+
     /** Spawns the boss's queued weapons and its fire drips for this frame. */
     private updateBoss(dt: number): void {
         const boss = this.boss;
@@ -699,6 +713,7 @@ export class PlaySession {
             pool.spawn(launch.key, launch.origin, launch.velocity, launch.orientation, layer);
         }
         boss.clearLaunches();
+        this.sweepArmLazersAgainstTerrain(boss, pool);
 
         if (boss.pollDrip(dt, this.dripOrigin)) this.drips?.emit(this.dripOrigin, this.noVelocity);
     }
