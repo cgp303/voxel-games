@@ -1,4 +1,4 @@
-import type { InstancedMesh, Quaternion, Vector3 } from 'three';
+import { Matrix4, type InstancedMesh, type Quaternion, type Vector3 } from 'three';
 import { InvaderWeapon } from '../entities/InvaderWeapon';
 import { LazerWeapon } from '../entities/LazerWeapon';
 import { MineWeapon } from '../entities/MineWeapon';
@@ -20,10 +20,15 @@ function isMine(type: PooledWeaponKey): boolean {
     return (INVADER_WEAPONS as Record<string, IInvaderWeaponConfig | undefined>)[type]?.kind === 'mine';
 }
 
+const scratchMatrix = new Matrix4();
+const hiddenMatrix = new Matrix4().makeScale(0, 0, 0);
+
 interface IWeaponBucket {
     /** Intact model first, then (for mines) one mesh per config.hitMeshes entry; every weapon owns the same slot in each. */
     meshes: InstancedMesh[];
     free: InvaderWeapon[];
+    /** Live weapons by slot; slots 0..liveCount-1 are occupied and drawn. */
+    slots: (InvaderWeapon | undefined)[];
     /** How many weapons of this type are in the pool's live list; lets update() skip uploading idle meshes. */
     liveCount: number;
 }
@@ -72,7 +77,7 @@ export class InvaderWeaponPool {
                 if (config.kind === 'lazer' && config.glow) applyShotGlow(mesh);
                 // Meshes are cached across sessions, so apply the weapon's settings every time.
                 mesh.castShadow = config.castShadow && QUALITY.entityCastShadow;
-                mesh.count = config.maxCount;
+                mesh.count = 0;
                 return mesh;
             });
 
@@ -86,7 +91,7 @@ export class InvaderWeaponPool {
                 );
             }
             for (const mesh of meshes) mesh.instanceMatrix.needsUpdate = true;
-            const bucket: IWeaponBucket = { meshes, free, liveCount: 0 };
+            const bucket: IWeaponBucket = { meshes, free, slots: new Array(config.maxCount), liveCount: 0 };
             this.buckets.set(type, bucket);
             this.bucketList.push(bucket);
         }
@@ -106,7 +111,7 @@ export class InvaderWeaponPool {
         const mesh = assets.getOrCreateInstancedMesh(assetKey, config.maxCount);
         if (config.glow) applyShotGlow(mesh);
         mesh.castShadow = config.castShadow && QUALITY.entityCastShadow;
-        mesh.count = config.maxCount;
+        mesh.count = 0;
 
         const despawnZ = this.playerBackEdgeZ - config.despawnMarginPastPlayer;
         const meshes = [mesh];
@@ -119,7 +124,7 @@ export class InvaderWeaponPool {
             );
         }
         mesh.instanceMatrix.needsUpdate = true;
-        const bucket: IWeaponBucket = { meshes, free, liveCount: 0 };
+        const bucket: IWeaponBucket = { meshes, free, slots: new Array(config.maxCount), liveCount: 0 };
         this.buckets.set(key, bucket);
         this.bucketList.push(bucket);
         return mesh;
@@ -141,8 +146,8 @@ export class InvaderWeaponPool {
         const bucket = this.buckets.get(type);
         const weapon = bucket?.free.pop();
         if (!bucket || !weapon) return false;
+        this.placeInSlot(bucket, weapon);
         weapon.launch(origin, velocity, orientation, layer);
-        bucket.liveCount++;
         this.live.push(weapon);
 
         // The first mine into an empty field starts the mine loop.
@@ -194,7 +199,7 @@ export class InvaderWeaponPool {
             live[i] = live[live.length - 1];
             live.pop();
             const bucket = this.buckets.get(weapon.type)!;
-            bucket.liveCount--;
+            this.removeFromSlot(bucket, weapon);
             bucket.free.push(weapon);
         }
 
@@ -208,13 +213,46 @@ export class InvaderWeaponPool {
         this.activeMines = 0;
         for (const bucket of this.bucketList) {
             if (bucket.liveCount > 0) this.flagMeshes(bucket);
+            bucket.slots.fill(undefined);
             bucket.liveCount = 0;
+            this.setDrawCount(bucket);
         }
         for (let w = this.live.pop(); w; w = this.live.pop()) {
             w.hide();
             this.buckets.get(w.type)!.free.push(w);
         }
 
+    }
+
+    /** Gives the weapon the next free slot in its bucket. Call before launch(), which draws into that slot. */
+    private placeInSlot(bucket: IWeaponBucket, weapon: InvaderWeapon): void {
+        const slot = bucket.liveCount++;
+        bucket.slots[slot] = weapon;
+        weapon.setSlot(slot);
+        this.setDrawCount(bucket);
+    }
+
+    /** Frees the weapon's slot by moving the last live weapon into it, so the drawn range stays packed. */
+    private removeFromSlot(bucket: IWeaponBucket, weapon: InvaderWeapon): void {
+        const slot = weapon.instanceSlot;
+        const last = --bucket.liveCount;
+        if (slot !== last) {
+            const moved = bucket.slots[last]!;
+            for (const mesh of bucket.meshes) {
+                mesh.getMatrixAt(last, scratchMatrix);
+                mesh.setMatrixAt(slot, scratchMatrix);
+            }
+            bucket.slots[slot] = moved;
+            moved.setSlot(slot);
+        }
+        bucket.slots[last] = undefined;
+        // Clear the vacated slot so a later weapon doesn't inherit a stale visible matrix in a variant mesh.
+        for (const mesh of bucket.meshes) mesh.setMatrixAt(last, hiddenMatrix);
+        this.setDrawCount(bucket);
+    }
+
+    private setDrawCount(bucket: IWeaponBucket): void {
+        for (const mesh of bucket.meshes) mesh.count = bucket.liveCount;
     }
 
     /** A weapon may have moved between variant meshes, so every mesh in the bucket needs re-uploading. */

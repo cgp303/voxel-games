@@ -739,9 +739,9 @@ export const LEVEL = {
 /** Dev/test helpers. Disable (or remove) before shipping. */
 export const DEBUG = {
     /** When true the player ignores collisions (no life lost, no removal) so the game can be tested freely. */
-    invinciblePlayer: true,
+    invinciblePlayer: false,
     /** Skip to the next wave by disposing all active invaders. */
-    enableWaveSkip: true,
+    enableWaveSkip: false,
     /** KeyboardEvent.key values that trigger the wave skip (both cases so Shift/Caps Lock still work). */
     skipWaveKeys: ['l', 'L'],
 
@@ -766,7 +766,7 @@ export const VOXEL_MESH = {
 
 /** Mesh options used when a caller passes none: one quad per visible face, nothing culled. */
 export const DEFAULT_VOXEL_MESH_OPTIONS: IVoxelMeshOptions = {
-    greedy: false,
+    greedy: true,
     cullBottomFaces: false,
 };
 
@@ -901,8 +901,8 @@ export const HUD: IHudConfig = {
     offsetY: 220,
     /** Leans the text back so the tops and sides of the voxels catch the light; omit to face the camera flat-on (no visible depth). */
     pitch: 60,
-    castShadow: true,
-    labels: { color: 0x00ff00, brightness: 0.6, glowIntensity: 0 },
+    castShadow: false,
+    labels: { color: 0x00ff00, brightness: 0.5, glowIntensity: 0 },
     values: { color: 0x00ff00, brightness: 0.6, glowIntensity: 0 },
     labelGap: 8,
     score: { label: 'SCORE', labelX: -220, digits: 7 },
