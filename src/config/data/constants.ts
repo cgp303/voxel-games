@@ -770,13 +770,9 @@ export const DEFAULT_VOXEL_MESH_OPTIONS: IVoxelMeshOptions = {
     cullBottomFaces: false,
 };
 
-export const INVADER_MESH_MATERIAL = new THREE.MeshStandardMaterial({
+export const INVADER_MESH_MATERIAL = new THREE.MeshLambertMaterial({
     side: THREE.FrontSide,
     vertexColors: true,
-    flatShading: false,  // ensure this is false
-    roughness: 0.5,      // reduce from 0.7 (smoother)
-    metalness: 0.0,      // reduce from 0.2
-    normalScale: new THREE.Vector2(0.5, 0.5),  // add softer normals
 });
 
 /**

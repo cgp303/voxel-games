@@ -22,6 +22,8 @@ export class ScoreHud {
     private readonly labels: VoxelText[] = [];
     private readonly scoreReadout: VoxelReadout;
     private readonly livesReadout: VoxelReadout;
+    private shownScoreValue = NaN;
+    private shownLivesValue = NaN;
     private shownScore = '';
     private shownLives = '';
 
@@ -64,15 +66,24 @@ export class ScoreHud {
     public update(): void {
         placeTextInFrontOfCamera({ group: this.root }, this.camera, this.placement);
 
-        const score = formatScore(this.game.score, this.config.score.digits);
-        if (score !== this.shownScore) {
-            this.shownScore = score;
-            this.scoreReadout.setValue(score);
+        // Only format a string when the number has changed.
+        const scoreValue = this.game.score;
+        if (scoreValue !== this.shownScoreValue) {
+            this.shownScoreValue = scoreValue;
+            const score = formatScore(scoreValue, this.config.score.digits);
+            if (score !== this.shownScore) {
+                this.shownScore = score;
+                this.scoreReadout.setValue(score);
+            }
         }
-        const lives = String(Math.max(0, Math.floor(this.game.lives)));
-        if (lives !== this.shownLives) {
-            this.shownLives = lives;
-            this.livesReadout.setValue(lives);
+        const livesValue = this.game.lives;
+        if (livesValue !== this.shownLivesValue) {
+            this.shownLivesValue = livesValue;
+            const lives = String(Math.max(0, Math.floor(livesValue)));
+            if (lives !== this.shownLives) {
+                this.shownLives = lives;
+                this.livesReadout.setValue(lives);
+            }
         }
     }
 

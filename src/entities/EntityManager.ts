@@ -1,9 +1,12 @@
 import type { Entity } from './Entity';
+import { Matrix4 } from 'three';
 import type { SlotKey } from '../config/types/types';
 import { Invader } from './Invader';
 import { slotKey } from '../systems/patterns/formations/slotKey';
 import type { AssetManager } from '../assets/AssetManager';
 
+const scratchMatrix = new Matrix4();
+const hiddenMatrix = new Matrix4().makeScale(0, 0, 0);
 
 /**
  * Spawn / despawn / tick entities for a screen (usually Play).
@@ -13,6 +16,9 @@ export class EntityManager {
     private entities: Entity[] = [];
 
     private pools: Map<string, Invader[]> = new Map();
+
+    /** Live invaders by asset key, indexed by instance slot; slots 0..length-1 are the ones the mesh draws. */
+    private liveInvaders: Map<string, Invader[]> = new Map();
 
     private static readonly MAX_POOL_PER_TYPE = 80;
 
@@ -76,6 +82,10 @@ export class EntityManager {
         }
         this.entities.length = 0;
         this.invadersBySlot.clear();
+        for (const [key, live] of this.liveInvaders) {
+            live.length = 0;
+            this.assets.getOrCreateInstancedMesh(key).count = 0;
+        }
     }
 
     public getAll(): readonly Entity[] {
@@ -112,16 +122,15 @@ export class EntityManager {
         // Get the shared InstancedMesh
         const mesh = this.assets.getOrCreateInstancedMesh(assetKey);
 
-        // Try to recycle a freed slot from AssetManager; otherwise allocate a new one
-        const freeSlots = this.assets.getFreeSlots(assetKey);
-        let instanceId: number;
-
-        if (freeSlots.length > 0) {
-            instanceId = freeSlots.pop()!;
-        } else {
-            instanceId = mesh.count;
-            mesh.count += 1;
+        // Live invaders are packed at the front of the mesh, so the new one takes the next slot.
+        let live = this.liveInvaders.get(assetKey);
+        if (!live) {
+            live = [];
+            this.liveInvaders.set(assetKey, live);
         }
+        const instanceId = live.length;
+        live.push(invader);
+        mesh.count = live.length;
 
         invader.instanceId = instanceId;
         invader.assetKey = assetKey;
@@ -134,26 +143,39 @@ export class EntityManager {
     private releaseToPool(entity: Entity, assetKey: string | null | undefined): void {
         if (!(entity instanceof Invader)) return;
 
-        // Capture the instanceId BEFORE calling dispose (which sets it to -1)
+        // Capture the slot BEFORE calling dispose (which sets instanceId to -1)
         const instanceId = entity.instanceId;
+        const meshKey = entity.assetKey;
 
         // Invader.dispose() already hides the instance and sets instanceId = -1
         entity.dispose();
+        this.freeInstanceSlot(meshKey, instanceId);
 
         if (!assetKey) return;
 
         const pool = this.pools.get(assetKey) ?? [];
-        if (pool.length < EntityManager.MAX_POOL_PER_TYPE) {
-            pool.push(entity);
-
-            // Return the slot to AssetManager's free-list for recycling
-            const freeSlots = this.assets.getFreeSlots(assetKey);
-            if (instanceId >= 0) {
-                freeSlots.push(instanceId);
-
-            }
-        }
+        if (pool.length < EntityManager.MAX_POOL_PER_TYPE) pool.push(entity);
         this.pools.set(assetKey, pool);
+    }
+
+    /** Frees a slot by moving the last live invader into it, so the mesh only draws live invaders. */
+    private freeInstanceSlot(assetKey: string, slot: number): void {
+        const live = this.liveInvaders.get(assetKey);
+        if (!live || slot < 0 || slot >= live.length) return;
+
+        const mesh = this.assets.getOrCreateInstancedMesh(assetKey);
+        const last = live.length - 1;
+        if (slot !== last) {
+            mesh.getMatrixAt(last, scratchMatrix);
+            mesh.setMatrixAt(slot, scratchMatrix);
+            const moved = live[last];
+            live[slot] = moved;
+            moved.instanceId = slot;
+        }
+        mesh.setMatrixAt(last, hiddenMatrix);
+        live.pop();
+        mesh.count = live.length;
+        mesh.instanceMatrix.needsUpdate = true;
     }
 
 }

@@ -366,7 +366,7 @@ export class Boss extends Entity implements ICollisionTarget {
         if (world) {
             // To the boss's local space: relative to its centre, undoing the roll.
             this.playerLocal.set(world.x - this.position.x, world.y - this.position.y, world.z - this.position.z);
-            this.playerLocal.applyQuaternion(this.rollQuat.clone().invert());
+            this.playerLocal.applyQuaternion(this.armInverse.copy(this.rollQuat).invert());
         }
     }
 

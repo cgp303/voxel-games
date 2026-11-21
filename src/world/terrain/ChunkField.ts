@@ -53,13 +53,9 @@ export class ChunkField {
 
         const material =
             options.material ??
-            new THREE.MeshStandardMaterial({
+            new THREE.MeshLambertMaterial({
                 side: THREE.FrontSide,
                 vertexColors: true,
-                flatShading: false,
-                roughness: 0.5,
-                metalness: 0.0,
-                normalScale: new THREE.Vector2(0.5, 0.5),
             });
         this.mesh = new THREE.BatchedMesh(options.cols * options.maxRows, this.vertexCapacity, this.indexCapacity, material);
         this.mesh.name = 'Terrain';

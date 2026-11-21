@@ -24,14 +24,14 @@
 | [G7](#g7--frustum-culling-works-by-accident) | Frustum culling works by accident | ⚪ Correctness | Low |
 | [G8](#g8--camera-far-plane-beyond-fog) | Camera far plane beyond fog | 🟢 Low | Low |
 | [G9](#g9--half-float-effect-buffers-on-mobile) | Half-float effect buffers on mobile | 🟡 Medium | Low |
-| [C1](#c1--all-instance-data-re-uploaded-every-frame) | All instance data re-uploaded every frame | 🔴 High | Medium |
-| [C2](#c2--per-frame-allocation-in-boss-tracking) | Per-frame allocation in boss tracking | 🟢 Low | Low |
-| [C3](#c3--small-per-frame-garbage) | Small per-frame garbage | 🟢 Low | Low |
+| [C1](#c1--invader-meshes-draw-and-upload-dead-slots--fixed) | Invader meshes draw dead slots | 🟡 Medium (revised) | Medium |
+| [C2](#c2--per-frame-allocation-in-boss-tracking--fixed) | Per-frame allocation in boss tracking | 🟢 Low | Low |
+| [C3](#c3--small-per-frame-garbage--fixed) | Small per-frame garbage | 🟢 Low | Low |
 | [C4](#c4--explosion-data-rebuilt-on-every-hit) | Explosion data rebuilt on every hit | 🟢 Low | Low |
 | [C5](#c5--all-terrain-styles-built-at-startup) | All terrain styles built at startup | 🟡 Medium | Medium |
 | [M1](#m1--music-decoded-fully-into-ram) | Music decoded fully into RAM | 🔴 High | Low |
 | [M2](#m2--ogg-only-no-fallback) | Ogg only, no fallback | 🟡 Medium | Low |
-| [M3](#m3--invader-instance-slots-can-leak) | Invader instance slots can leak | 🟢 Low | Low |
+| [M3](#m3--invader-instance-slots-can-leak--fixed-by-c1) | Invader instance slots can leak | 🟢 Low | Low |
 | [M4](#m4--clear-would-dispose-a-shared-material) | `clear()` would dispose a shared material | ⚪ Latent | Low |
 | [M5](#m5--window-listeners-and-debug-global) | Window listeners and debug global | 🟢 Low | Low |
 
@@ -97,26 +97,26 @@
 
 ## 2. CPU
 
-### C1 — All instance data re-uploaded every frame
+### C1 — Invader meshes draw (and upload) dead slots — ✅ fixed
 
-- **Where:** [AssetManager.ts](src/assets/AssetManager.ts) (`markInstancedMeshesDirty`), [EntityManager.ts](src/entities/EntityManager.ts)
-- **Problem:** Every mesh with instances is flagged for upload each frame — including all weapon meshes (see G3). This undoes the weapon pool's own "upload only when live" logic.
-- **Fix:** Flag only invader meshes, or let entities flag their own mesh when they move, and limit uploads to the live range.
+- **Where:** [EntityManager.ts](src/entities/EntityManager.ts) (`acquireInvader`, `releaseToPool`), [AssetManager.ts](src/assets/AssetManager.ts)
+- **Problem (revised):** The per-frame `needsUpdate` flag in `markInstancedMeshesDirty` is mostly legitimate for invaders, because live invaders move every frame, so the matrices do need uploading. The real waste was that `mesh.count` only grew. A destroyed invader's slot went on a free list and stayed inside the drawn range as a zero-scale matrix. After a big wave the mesh kept uploading and vertex-processing (main and shadow passes) up to its high-water mark.
+- **Fix applied:** Live invaders are packed in slots `0..n-1` per mesh. When one is released, the last live invader's matrix is moved into its slot and `mesh.count` shrinks, as in G3. The free-slot list in `AssetManager` is removed. The blanket dirty flag is left in place, since it is cheap now that only live slots are drawn.
 
-### C2 — Per-frame allocation in boss tracking
+### C2 — Per-frame allocation in boss tracking — ✅ fixed
 
 - **Where:** [Boss.ts](src/entities/Boss.ts) (`trackPlayer`)
-- **Problem:** `this.rollQuat.clone().invert()` allocates a quaternion every frame during boss fights.
-- **Fix:** Reuse the existing `armInverse` scratch field.
+- **Problem:** `this.rollQuat.clone().invert()` allocated a quaternion every frame during boss fights.
+- **Fix applied:** Reuses the existing `armInverse` scratch field.
 
-### C3 — Small per-frame garbage
+### C3 — Small per-frame garbage — ✅ fixed
 
-- **Where:** [PlaySession.ts](src/systems/PlaySession.ts), [PlayScreen.ts](src/screens/PlayScreen.ts), [ScoreHud.ts](src/systems/text/ScoreHud.ts)
+- **Where:** [PlaySession.ts](src/systems/PlaySession.ts), [PlayScreen.ts](src/screens/PlayScreen.ts), [ScoreHud.ts](src/systems/text/ScoreHud.ts), [Input.ts](src/core/Input.ts)
 - **Problem:**
-  - `updatePlayer` builds two closures and a `keys.some(...)` callback.
-  - `wasAnyPressed(...DEBUG.skipWaveKeys)` creates a new array.
-  - `ScoreHud.update` formats the score string even when unchanged.
-- **Fix:** Make the helpers class methods; compare numbers before formatting. Minor individually, but together they cause GC pauses on low-end phones.
+  - `updatePlayer` built two closures and a `keys.some(...)` callback.
+  - `wasAnyPressed(...DEBUG.skipWaveKeys)` created a new array.
+  - `ScoreHud.update` formatted the score string even when unchanged.
+- **Fix applied:** `Input` has loop-based `wasAnyPressed(keys)` and `isAnyDown(keys)`, taking an array. The closures are now module-level helpers. `ScoreHud` compares the raw numbers first and only formats when one changed.
 
 ### C4 — Explosion data rebuilt on every hit
 
@@ -145,11 +145,11 @@
 - **Problem:** Older iOS Safari can't play `.ogg`.
 - **Fix:** Provide `src: [ogg, mp3]`.
 
-### M3 — Invader instance slots can leak
+### M3 — Invader instance slots can leak — ✅ fixed by C1
 
 - **Where:** [EntityManager.ts](src/entities/EntityManager.ts) (`releaseToPool`)
-- **Problem:** When a pool is full (`MAX_POOL_PER_TYPE`), the instance slot isn't returned to the free list, so the mesh's count grows until the next reset.
-- **Fix:** Always return the slot.
+- **Problem:** When a pool was full (`MAX_POOL_PER_TYPE`), the instance slot wasn't returned to the free list, so the mesh's count grew until the next reset.
+- **Fix applied:** Slots are now freed on every release, independent of whether the invader object is pooled.
 
 ### M4 — `clear()` would dispose a shared material
 
@@ -206,7 +206,7 @@ In [constants.ts](src/config/data/constants.ts): `DEBUG.invinciblePlayer: true` 
 
 1. **Quick, low-risk wins** — M1, G2, G4 (`FrontSide`), G6, C2, G8, debug flags, build and asset cleanup.
 2. **Biggest win for phones** — G1 (lower mobile render size, optionally adaptive).
-3. **Cut draw calls and uploads** — G3 together with C1.
+3. **Cut draw calls and uploads** — G3 and C1 (both done: live instances are packed, `mesh.count` follows them).
 4. **Larger refactors** — G5 (merged text meshes), C5 (on-demand terrain styles).
 
 ## Measuring
