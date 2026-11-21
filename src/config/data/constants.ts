@@ -741,7 +741,7 @@ export const DEBUG = {
     /** When true the player ignores collisions (no life lost, no removal) so the game can be tested freely. */
     invinciblePlayer: false,
     /** Skip to the next wave by disposing all active invaders. */
-    enableWaveSkip: false,
+    enableWaveSkip: true,
     /** KeyboardEvent.key values that trigger the wave skip (both cases so Shift/Caps Lock still work). */
     skipWaveKeys: ['l', 'L'],
 
@@ -771,7 +771,7 @@ export const DEFAULT_VOXEL_MESH_OPTIONS: IVoxelMeshOptions = {
 };
 
 export const INVADER_MESH_MATERIAL = new THREE.MeshStandardMaterial({
-    side: THREE.DoubleSide,
+    side: THREE.FrontSide,
     vertexColors: true,
     flatShading: false,  // ensure this is false
     roughness: 0.5,      // reduce from 0.7 (smoother)

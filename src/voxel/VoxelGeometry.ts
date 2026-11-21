@@ -227,7 +227,7 @@ export class VoxelGeometry {
         const geometry = this.generateGeometry(world, colorPalette, centerGeometry, options);
 
         const material = new THREE.MeshStandardMaterial({
-            side: THREE.DoubleSide,
+            side: THREE.FrontSide,
             vertexColors: true,
             flatShading: false,  // ensure this is false
             roughness: 0.5,      // reduce from 0.7 (smoother)

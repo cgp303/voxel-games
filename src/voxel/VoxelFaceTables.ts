@@ -12,23 +12,21 @@ export const FACE_DIRECTIONS = 6;
 export const FACE_CORNERS = new Int8Array([
     1, 0, 0, 1, 1, 0, 1, 1, 1, 1, 0, 1, // +X
     0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, // -X
-    0, 1, 1, 0, 1, 0, 1, 1, 0, 1, 1, 1, // +Y
-    0, 0, 0, 0, 0, 1, 1, 0, 1, 1, 0, 0, // -Y
-    0, 0, 1, 0, 1, 1, 1, 1, 1, 1, 0, 1, // +Z
-    1, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 0, // -Z
+    1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 1, 1, // +Y
+    1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0, // -Y
+    1, 0, 1, 1, 1, 1, 0, 1, 1, 0, 0, 1, // +Z
+    0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, // -Z
 ]);
 
-// Normals as implied by each face's triangle winding, i.e. exactly what
-// computeVertexNormals() produces. The Y and Z quads are wound clockwise, so these point
-// inward; the DoubleSide material flips them for back faces, which keeps lighting correct.
-// Do not "fix" the signs without also fixing the winding above, or lighting will invert.
+// Outward face normals, matching the counter-clockwise winding above (exactly what
+// computeVertexNormals() produces). Materials render front faces only, so the winding must stay outward.
 export const FACE_NORMALS = new Int8Array([
     1, 0, 0,
     -1, 0, 0,
-    0, -1, 0,
     0, 1, 0,
-    0, 0, -1,
+    0, -1, 0,
     0, 0, 1,
+    0, 0, -1,
 ]);
 
 /** Exposure bit for the -Y (bottom) face. */

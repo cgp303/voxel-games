@@ -54,7 +54,7 @@ export class ChunkField {
         const material =
             options.material ??
             new THREE.MeshStandardMaterial({
-                side: THREE.DoubleSide,
+                side: THREE.FrontSide,
                 vertexColors: true,
                 flatShading: false,
                 roughness: 0.5,
