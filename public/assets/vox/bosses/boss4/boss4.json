@@ -40,7 +40,7 @@
     },
     {
       "id": "armLA",
-      "jointPart": "armWeaponAJoinLeft",
+      "jointPart": "armWeaponAJoinRight",
       "assets": { "joint": "tentacleMount", "segment": "segmentA",       "weapon": "weaponA", "lazer": "lazerA" },
       "mount": { "x": 61, "y": 3, "z": 3 },
       "restOutward": 0.35,
@@ -63,7 +63,7 @@
     },
     {
       "id": "armRA",
-      "jointPart": "armWeaponAJoinRight",
+      "jointPart": "armWeaponAJoinLeft",
       "assets": { "joint": "tentacleMount", "segment": "segmentA",       "weapon": "weaponA", "lazer": "lazerA" },
       "mount": { "x": 0, "y": 2, "z": 3 },
       "restOutward": 0.35,
@@ -86,7 +86,7 @@
     },
           {
       "id": "armLB",
-      "jointPart": "armWeaponBJoinLeft",
+      "jointPart": "armWeaponBJoinRight",
       "assets": { "joint": "tentacleMount", "segment": "segmentB",       "weapon": "weaponB", "lazer": "lazerB" },
       "mount": { "x": 37, "y": 3, "z": 3 },
       "segments": 8,
@@ -104,7 +104,7 @@
     },
     {
       "id": "armRB",
-      "jointPart": "armWeaponBJoinRight",
+      "jointPart": "armWeaponBJoinLeft",
       "assets": { "joint": "tentacleMount", "segment": "segmentB",       "weapon": "weaponB", "lazer": "lazerB" },
       "mount": { "x": 24, "y": 3, "z": 3 },
       "segments": 8,

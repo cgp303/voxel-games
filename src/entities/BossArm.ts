@@ -240,6 +240,11 @@ export class BossArm {
         this.jointMesh.visible = !hideJoint;
     }
 
+    /** Removes the joint model from the body (its part was destroyed). */
+    public hideJoint(): void {
+        this.jointMesh.visible = false;
+    }
+
     /** Counts down the current move's fire rate; returns its fire settings when a shot is due, else null. */
     public pollFire(dt: number): IBossArmFire | null {
         const fire = this.move.fire;

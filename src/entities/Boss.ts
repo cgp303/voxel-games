@@ -187,6 +187,8 @@ export class Boss extends Entity implements ICollisionTarget {
         if (result.coreDestroyed) this.defeated = true;
         if (result.destroyed) this.syncMesh();
         this.armsReactToHit(result.part);
+        // Parts cut off from the anchor are destroyed too, so an arm hanging from one must fall.
+        for (const detached of result.detachedParts) this.armsReactToHit(detached);
         return result;
     }
 
@@ -234,6 +236,23 @@ export class Boss extends Entity implements ICollisionTarget {
         arm.weaponDestroyed = true;
         this.shedArm(arm, false);
         return true;
+    }
+
+    /**
+     * Removes the body part an arm hung from (its `jointPart`) together with the arm's joint model, after the
+     * arm's weapon was destroyed. Anything the part was holding up falls away too. Returns the damage so the caller
+     * can burst the removed voxels, or null when there is nothing to remove (already gone, or it is the core).
+     */
+    public destroyArmJoint(arm: BossArm): IBossDamage | null {
+        const index = this.arms.indexOf(arm);
+        const part = index >= 0 ? this.armJoints[index] : -1;
+        arm.hideJoint();
+        if (part < 0 || part === this.model.coreIndex || !this.model.parts[part].alive) return null;
+
+        const result = this.model.damage(part, this.model.parts[part].hits, this.definition.fx.chunks, false);
+        if (result.destroyed) this.syncMesh();
+        for (const detached of result.detachedParts) this.armsReactToHit(detached);
+        return result;
     }
 
     /** Cuts every attached arm loose (the boss is dying). */

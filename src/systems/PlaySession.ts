@@ -570,6 +570,15 @@ export class PlaySession {
             this.explodeCloud('bossPart', cloud, this.armWeaponPosition, boss.orientation, boss.velocity);
             this.ctx?.game.addScore(hit.arm.def.weapon.scoreValue);
             this.ctx?.events.emit(GameEvents.boss1PartDestroyed);
+
+            // The part the arm hung from goes with it, and anything that part held up.
+            const joint = boss.destroyArmJoint(hit.arm);
+            if (joint?.destroyed) {
+                this.explodeCloud('bossPart', boss.toCloud(joint.removed), boss.position, boss.orientation, boss.velocity);
+                if (joint.chunk.length > 0) {
+                    this.explodeCloud('bossChunk', boss.toCloud(joint.chunk), boss.position, boss.orientation, boss.velocity);
+                }
+            }
             this.collectShedPieces(boss);
         }
     }
