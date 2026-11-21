@@ -226,22 +226,10 @@ export class VoxelGeometry {
     ): THREE.Mesh {
         const geometry = this.generateGeometry(world, colorPalette, centerGeometry, options);
 
-        const material = new THREE.MeshStandardMaterial({
-            side: THREE.DoubleSide,
+        const material = new THREE.MeshLambertMaterial({
+            side: THREE.FrontSide,
             vertexColors: true,
-            flatShading: false,  // ensure this is false
-            roughness: 0.5,      // reduce from 0.7 (smoother)
-            metalness: 0.0,      // reduce from 0.2
-            normalScale: new THREE.Vector2(0.5, 0.5),  // add softer normals
         });
-        // const material = new THREE.MeshPhongMaterial({
-        //     side: THREE.DoubleSide,
-        //     vertexColors: true,
-        //     flatShading: false,
-        //     shininess: 30,
-        //     toneMapped: false,
-        // });
-
 
         const mesh = new THREE.Mesh(geometry, material);
         mesh.castShadow = true;

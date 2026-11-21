@@ -1,4 +1,4 @@
-import type { InstancedMesh, MeshStandardMaterial } from 'three';
+import type { InstancedMesh, MeshLambertMaterial } from 'three';
 import { FX } from '../../config/data/constants';
 
 /** Meshes whose FX material has already been prepared (meshes are cached across sessions). */
@@ -10,7 +10,7 @@ export function applyShotGlow(mesh: InstancedMesh): void {
     preparedMeshes.add(mesh);
     // Only the FX layer is bloomed; the material is cloned so meshes sharing the source material do not glow.
     mesh.layers.set(FX.layer);
-    const material = (mesh.material as MeshStandardMaterial).clone();
+    const material = (mesh.material as MeshLambertMaterial).clone();
     material.emissive.setRGB(1, 1, 1);
     material.emissiveIntensity = FX.shotEmissiveIntensity;
     // Shot colours come from vertex colours, so material.color is white. Scale the emissive by the final

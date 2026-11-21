@@ -80,8 +80,19 @@ export class Input {
     }
 
     /** Convenience: any of these keys pressed this frame */
-    public wasAnyPressed(...keys: string[]): boolean {
-        return keys.some((k) => this.pressed.has(k));
+    public wasAnyPressed(keys: readonly string[]): boolean {
+        for (let i = 0; i < keys.length; i++) {
+            if (this.pressed.has(keys[i])) return true;
+        }
+        return false;
+    }
+
+    /** Convenience: any of these keys currently held */
+    public isAnyDown(keys: readonly string[]): boolean {
+        for (let i = 0; i < keys.length; i++) {
+            if (this.down.has(keys[i])) return true;
+        }
+        return false;
     }
 
     public setAnalog(x: number, z: number): void {

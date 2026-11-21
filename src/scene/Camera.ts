@@ -9,7 +9,7 @@ export class GameCamera {
 
     constructor(renderer: GameRenderer) {
         const aspect = VIEW.internalWidth / VIEW.internalHeight;
-        this.camera = new THREE.PerspectiveCamera(80, aspect, 0.1, 1200);
+        this.camera = new THREE.PerspectiveCamera(80, aspect, 0.1, 600);
 
         this.controls = new OrbitControls(this.camera, renderer.renderer.domElement);
         this.controls.autoRotate = false;

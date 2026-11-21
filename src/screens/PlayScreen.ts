@@ -81,7 +81,7 @@ export class PlayScreen implements IScreen {
     }
 
     // Test hook: dispose all invaders and jump to the next wave / level
-    if (DEBUG.enableWaveSkip && ctx.input.wasAnyPressed(...DEBUG.skipWaveKeys)) {
+    if (DEBUG.enableWaveSkip && ctx.input.wasAnyPressed(DEBUG.skipWaveKeys)) {
       this.session?.advanceWave();
     }
 

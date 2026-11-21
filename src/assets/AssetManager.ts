@@ -29,8 +29,6 @@ export class AssetManager {
   private collisionModels = new Map<string, CollisionModelSet>();
   private voxelClouds = new Map<string, IVoxelCloud>();
   private bosses = new Map<string, IBossResources>();
-  // Track available instanceIds for recycling (application-scoped); maps assetKey → free slot indices
-  private freeSlots: Map<string, number[]> = new Map();
 
   public async loadVox(path: string, key?: string): Promise<IParsedVoxModel> {
     const cacheKey = key ?? path;
@@ -190,6 +188,9 @@ export class AssetManager {
     mesh.castShadow = QUALITY.entityCastShadow;
     mesh.receiveShadow = true;
     mesh.count = 0;
+    // Bounds would be computed once from an empty mesh (a sphere at the origin), so the mesh would
+    // only draw while the origin is in view. Instances move too much for one cached bound to help.
+    mesh.frustumCulled = false;
     mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     mesh.name = `Instanced_${assetKey}`;
 
@@ -243,20 +244,7 @@ export class AssetManager {
   }
 
   /**
-   * Get the free-slot list for an asset key (for recycling disposed instances).
-   * Returns the array reference, so callers can pop/push to it.
-   */
-  public getFreeSlots(assetKey: string): number[] {
-    const slots = this.freeSlots.get(assetKey);
-    if (slots) return slots;
-
-    const newSlots: number[] = [];
-    this.freeSlots.set(assetKey, newSlots);
-    return newSlots;
-  }
-
-  /**
-   * Reset the InstancedMesh count and free-slot list for a given asset.
+   * Reset the InstancedMesh count for a given asset.
    * Call this when starting a new session to ensure all slots are available.
    */
   public resetInstancedMeshCount(assetKey: string): void {
@@ -264,12 +252,7 @@ export class AssetManager {
     if (mesh) {
       mesh.count = 0;
       mesh.instanceMatrix.needsUpdate = true;
-
     }
-
-    // Clear the free-slot list for this asset
-    this.freeSlots.delete(assetKey);
-
   }
 
   public getModel(key: string): IParsedVoxModel | undefined {
@@ -295,7 +278,6 @@ export class AssetManager {
       disposeObject3D(template);
     }
     this.instancedMeshes.clear();
-    this.freeSlots.clear();
     this.models.clear();
     this.collisionModels.clear();
     this.voxelClouds.clear();

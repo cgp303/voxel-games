@@ -739,7 +739,7 @@ export const LEVEL = {
 /** Dev/test helpers. Disable (or remove) before shipping. */
 export const DEBUG = {
     /** When true the player ignores collisions (no life lost, no removal) so the game can be tested freely. */
-    invinciblePlayer: true,
+    invinciblePlayer: false,
     /** Skip to the next wave by disposing all active invaders. */
     enableWaveSkip: true,
     /** KeyboardEvent.key values that trigger the wave skip (both cases so Shift/Caps Lock still work). */
@@ -766,17 +766,13 @@ export const VOXEL_MESH = {
 
 /** Mesh options used when a caller passes none: one quad per visible face, nothing culled. */
 export const DEFAULT_VOXEL_MESH_OPTIONS: IVoxelMeshOptions = {
-    greedy: false,
+    greedy: true,
     cullBottomFaces: false,
 };
 
-export const INVADER_MESH_MATERIAL = new THREE.MeshStandardMaterial({
-    side: THREE.DoubleSide,
+export const INVADER_MESH_MATERIAL = new THREE.MeshLambertMaterial({
+    side: THREE.FrontSide,
     vertexColors: true,
-    flatShading: false,  // ensure this is false
-    roughness: 0.5,      // reduce from 0.7 (smoother)
-    metalness: 0.0,      // reduce from 0.2
-    normalScale: new THREE.Vector2(0.5, 0.5),  // add softer normals
 });
 
 /**
@@ -901,8 +897,8 @@ export const HUD: IHudConfig = {
     offsetY: 220,
     /** Leans the text back so the tops and sides of the voxels catch the light; omit to face the camera flat-on (no visible depth). */
     pitch: 60,
-    castShadow: true,
-    labels: { color: 0x00ff00, brightness: 0.6, glowIntensity: 0 },
+    castShadow: false,
+    labels: { color: 0x00ff00, brightness: 0.5, glowIntensity: 0 },
     values: { color: 0x00ff00, brightness: 0.6, glowIntensity: 0 },
     labelGap: 8,
     score: { label: 'SCORE', labelX: -220, digits: 7 },

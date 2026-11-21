@@ -39,6 +39,10 @@ import { FormationPatternBuilderFactory } from './patterns/patterns/formation-pa
 
 const identityOrientation = new Quaternion();
 
+const clampAxis = (v: number): number => Math.max(-1, Math.min(1, v));
+/** 1 while any of the keys is held, otherwise 0. */
+const keyAxis = (input: { isAnyDown(keys: readonly string[]): boolean }, keys: readonly string[]): number => (input.isAnyDown(keys) ? 1 : 0);
+
 
 
 /**
@@ -310,7 +314,6 @@ export class PlaySession {
         const betweenWaves = this.isBetweenWaves;
         if (!betweenWaves) {
             this.formation.update(dt);
-            this.director?.update(dt);
         }
 
         // Player first: invaders.update() flags all instanced meshes dirty once, at the end.
@@ -320,6 +323,8 @@ export class PlaySession {
         this.weaponPool?.setTarget(this.player?.collisionEnabled ? this.player.position : null);
         this.weaponPool?.update(dt);
         this.invaders?.update(dt);
+        // After invaders.update: newly released invaders age themselves by how late they were released.
+        if (!betweenWaves) this.director?.update(dt);
         this.frameDt = dt;
         this.updateInvaderWeapons(dt);
         this.updateBoss(dt);
@@ -936,8 +941,6 @@ export class PlaySession {
         const input = this.ctx?.input;
         if (!player || !input) return;
 
-        const anyDown = (keys: readonly string[]): number => (keys.some((k) => input.isDown(k)) ? 1 : 0);
-
         // A destroyed ship stays out of play until its explosion has finished. The countdown runs on its own
         // so the explosion's remaining time can still be read after the ship is removed.
         if (player.isDown) {
@@ -951,14 +954,13 @@ export class PlaySession {
             player.respawn();
         }
 
-        const clampAxis = (v: number): number => Math.max(-1, Math.min(1, v));
-        const axisX = clampAxis(anyDown(PLAYER.keys.right) - anyDown(PLAYER.keys.left) + input.analogX);
-        const axisZ = clampAxis(anyDown(PLAYER.keys.forward) - anyDown(PLAYER.keys.back) + input.analogZ);
+        const axisX = clampAxis(keyAxis(input, PLAYER.keys.right) - keyAxis(input, PLAYER.keys.left) + input.analogX);
+        const axisZ = clampAxis(keyAxis(input, PLAYER.keys.forward) - keyAxis(input, PLAYER.keys.back) + input.analogZ);
         player.setInput(axisX, axisZ);
         player.update(dt);
 
         this.playerWeapon?.update(dt);
-        if ((anyDown(PLAYER.keys.fire) || input.autoFire) && player.canFire) {
+        if ((input.isAnyDown(PLAYER.keys.fire) || input.autoFire) && player.canFire) {
             this.playerWeapon?.tryFire(player.position);
         }
     }

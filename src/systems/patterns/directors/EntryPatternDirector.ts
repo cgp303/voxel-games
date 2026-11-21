@@ -86,7 +86,7 @@ export class EntryPatternDirector extends BasePatternDirector {
 
         this.timer -= dt;
         while (this.timer <= 0 && this.queue.length > 0 && !this.cancelled) {
-            this.releaseNext();
+            this.releaseNext(-this.timer);
             this.timer += this.pairIntervalSec;
         }
     }
@@ -109,22 +109,23 @@ export class EntryPatternDirector extends BasePatternDirector {
         return true;
     }
 
-    private releaseNext(): void {
+    /** @param lateness seconds since the ideal release time, so spacing survives long frames. */
+    private releaseNext(lateness: number): void {
         const job = this.queue.shift();
         if (!job) return;
 
         if (job.kind === 'pair') {
-            this.spawnOne(job.left, 'left');
-            this.spawnOne(job.right, 'right');
+            this.spawnOne(job.left, 'left', lateness);
+            this.spawnOne(job.right, 'right', lateness);
             return;
         }
 
         if (job.kind === 'single') {
-            this.spawnOne(job.slot, 'center');
+            this.spawnOne(job.slot, 'center', lateness);
         }
     }
 
-    private spawnOne(slot: IFormationSlot, side: EntrySide): void {
+    private spawnOne(slot: IFormationSlot, side: EntrySide, lateness: number): void {
         const formation = this.formation!;
         const invaders = this.invaders!;
         const playField = this.playField!;
@@ -170,6 +171,7 @@ export class EntryPatternDirector extends BasePatternDirector {
         });
 
         invaders.add(invader);
+        if (lateness > 0) invader.update(lateness);
     }
 
     private createPatternBuilder(type: EntryPatternBuilderType): IPatternBuilder {

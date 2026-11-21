@@ -22,7 +22,7 @@ export abstract class InvaderWeapon extends Entity implements ICollisionMover {
     public readonly previousPosition = new Vector3();
 
     protected readonly meshes: readonly InstancedMesh[];
-    protected readonly instanceId: number;
+    protected instanceId: number;
     /** Index into meshes of the model currently shown. */
     protected meshIndex = 0;
     /** Orientation given at launch. */
@@ -64,6 +64,16 @@ export abstract class InvaderWeapon extends Entity implements ICollisionMover {
         this.active = true;
         this.syncTransform();
 
+    }
+
+    /** The instance slot this weapon draws in; the pool reassigns it so live weapons stay packed at the front. */
+    public get instanceSlot(): number {
+        return this.instanceId;
+    }
+
+    /** Called by the pool; it has already moved (or is about to write) this weapon's matrices at the new slot. */
+    public setSlot(slot: number): void {
+        this.instanceId = slot;
     }
 
     /** Hides the instance and takes it out of play; the pool recycles it on its next update. */

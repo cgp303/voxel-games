@@ -218,8 +218,7 @@ export function greedyQuadsFromCells(
  * Mesh arrays for a VoxelWorld using greedy meshing.
  *
  * Each merged quad is the matching unit face from FACE_CORNERS stretched along its two in-slice
- * axes, so winding and normals are identical to the per-voxel mesher (including its deliberately
- * inward Y/Z normals; see FACE_NORMALS).
+ * axes, so winding and normals are identical to the per-voxel mesher.
  */
 export function greedyMesh(
     world: VoxelWorld,
