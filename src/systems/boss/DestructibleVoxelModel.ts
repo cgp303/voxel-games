@@ -176,10 +176,11 @@ export class DestructibleVoxelModel {
 
     /**
      * Spends `power` hits on a part. When its hits run out the part is destroyed (its columns leave the model) and,
-     * unless `cutOffLoose` is false, anything no longer connected to the anchor is cut off too. Destroying the core
-     * ends the fight, so nothing is cut off then.
+     * unless `cutOffLoose` is false, anything no longer connected to the anchor is cut off too, and so is every part
+     * farther out on the same side (`cutOutward`, see cutOffOutward). Destroying the core ends the fight, so nothing
+     * is cut off then.
      */
-    public damage(partIndex: number, power: number, cutOffLoose = true): IBossDamage {
+    public damage(partIndex: number, power: number, cutOffLoose = true, cutOutward = true): IBossDamage {
         const result: IBossDamage = { part: partIndex, destroyed: false, coreDestroyed: false, removed: [], chunk: [], detachedParts: [] };
         const part = this.parts[partIndex];
         if (!part || !part.alive) return { ...result, part: -1 };
@@ -194,7 +195,10 @@ export class DestructibleVoxelModel {
             result.coreDestroyed = true;
             return result;
         }
-        if (cutOffLoose) this.cutOffLooseParts(result);
+        if (cutOffLoose) {
+            if (cutOutward) this.cutOffOutward(partIndex, result);
+            this.cutOffLooseParts(result);
+        }
         return result;
     }
 
@@ -317,6 +321,39 @@ export class DestructibleVoxelModel {
             this.holes.push(column);
         }
         this.revisionCounter++;
+    }
+
+    /**
+     * Destroys every living part wholly farther from the centre than the destroyed part, on the side the destroyed
+     * part is on (any z). The core and the anchor are never cut off, and a part straddling the centre line has no
+     * side, so it cuts nothing off.
+     */
+    private cutOffOutward(partIndex: number, result: IBossDamage): void {
+        const [minX, maxX] = this.columnSpanX(this.parts[partIndex]);
+        const half = this.width / 2;
+        const side = minX >= half ? 1 : maxX + 1 <= half ? -1 : 0;
+        if (side === 0) return;
+
+        for (let i = 0; i < this.parts.length; i++) {
+            const part = this.parts[i];
+            if (!part.alive || i === this.coreIndex || i === this.anchorIndex) continue;
+            const [otherMin, otherMax] = this.columnSpanX(part);
+            if (side > 0 ? otherMin <= maxX : otherMax >= minX) continue;
+            result.detachedParts.push(i);
+            this.destroyPart(i, result.chunk);
+        }
+    }
+
+    /** Lowest and highest column x a part owns (a destroyed part keeps its column list). */
+    private columnSpanX(part: IBossPartState): [number, number] {
+        let min = Infinity;
+        let max = -Infinity;
+        for (const column of part.columns) {
+            const x = column % this.width;
+            if (x < min) min = x;
+            if (x > max) max = x;
+        }
+        return [min, max];
     }
 
     /** Destroys every living part with no column connected (through living columns) to the anchor or the core. */
