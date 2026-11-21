@@ -314,7 +314,6 @@ export class PlaySession {
         const betweenWaves = this.isBetweenWaves;
         if (!betweenWaves) {
             this.formation.update(dt);
-            this.director?.update(dt);
         }
 
         // Player first: invaders.update() flags all instanced meshes dirty once, at the end.
@@ -324,6 +323,8 @@ export class PlaySession {
         this.weaponPool?.setTarget(this.player?.collisionEnabled ? this.player.position : null);
         this.weaponPool?.update(dt);
         this.invaders?.update(dt);
+        // After invaders.update: newly released invaders age themselves by how late they were released.
+        if (!betweenWaves) this.director?.update(dt);
         this.frameDt = dt;
         this.updateInvaderWeapons(dt);
         this.updateBoss(dt);

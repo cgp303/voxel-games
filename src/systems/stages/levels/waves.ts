@@ -271,4 +271,4 @@ export const WAVE_LAZER_B: IWaveConfig = {
 // };
 
 /** Demo attract mode: the boss 3 arm prototype. */
-export const WAVE_DEMO: IWaveConfig = WAVE_BOSS_4;
+export const WAVE_DEMO: IWaveConfig = WAVE_1_1;

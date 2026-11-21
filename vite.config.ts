@@ -13,12 +13,10 @@ export default defineConfig({
         },
     },
     build: {
-        sourcemap: true,
+        sourcemap: false,
         rollupOptions: {
             input: {
                 main: resolvePath('./index.html'),
-                'bezier-editor': resolvePath('./bezier-editor.html'),
-                'group-attack-set-tool': resolvePath('./group-attack-set-tool/index.html'),
             },
         },
     },
